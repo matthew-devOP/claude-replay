@@ -813,16 +813,14 @@ mark.search-highlight.active {
 .btn-add-tag:hover { border-color: var(--accent); color: var(--accent); }
 .tag-dropdown-menu {
   display: none;
-  position: absolute;
-  bottom: calc(100% + 2px);
-  left: 0;
+  position: fixed;
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 4px 0;
-  z-index: 200;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  min-width: 120px;
+  z-index: 1000;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  min-width: 130px;
 }
 .tag-dropdown-wrap.open .tag-dropdown-menu { display: block; }
 .tag-dropdown-item {
@@ -2330,11 +2328,24 @@ mark.search-highlight.active {
     if (addBtn) {
       e.stopPropagation();
       const wrap = addBtn.closest(".tag-dropdown-wrap");
-      // Close any other open dropdowns
       for (const w of detailEl.querySelectorAll(".tag-dropdown-wrap.open")) {
         if (w !== wrap) w.classList.remove("open");
       }
+      const wasOpen = wrap.classList.contains("open");
       wrap.classList.toggle("open");
+      if (!wasOpen) {
+        // Position the dropdown menu using fixed coords
+        const menu = wrap.querySelector(".tag-dropdown-menu");
+        const rect = addBtn.getBoundingClientRect();
+        const menuH = 220; // approximate max height
+        // Show above if near bottom, otherwise below
+        if (rect.top < menuH + 20) {
+          menu.style.top = (rect.bottom + 4) + "px";
+        } else {
+          menu.style.top = (rect.top - menuH) + "px";
+        }
+        menu.style.left = rect.left + "px";
+      }
       return;
     }
 
