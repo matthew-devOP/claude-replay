@@ -550,33 +550,51 @@ function getProjectDetails(source, dirName) {
         size = stat.size;
       } catch { /* ignore */ }
 
-      // Quick preview: read first few lines to get first user message and turn count
+      // Quick preview: read lines to get user messages, timestamps, turn count
       let preview = "";
       let turnCount = 0;
+      let firstTimestamp = null;
+      let lastTimestamp = null;
+      const userPreviews = []; // first 3 user messages for hover preview
       try {
         const content = readFileSync(fullPath, "utf-8");
         const lines = content.split("\n").filter((l) => l.trim());
         for (const line of lines) {
           try {
             const entry = JSON.parse(line);
+            // Track timestamps
+            if (entry.timestamp) {
+              if (!firstTimestamp) firstTimestamp = entry.timestamp;
+              lastTimestamp = entry.timestamp;
+            }
             if (entry.type === "human" || entry.role === "human" || entry.type === "user" || entry.role === "user") {
               turnCount++;
-              if (!preview && typeof entry.message === "string") {
-                preview = entry.message.slice(0, 150);
-              } else if (!preview && entry.message?.content) {
-                const content = Array.isArray(entry.message.content) ? entry.message.content : [entry.message.content];
-                for (const c of content) {
-                  if (typeof c === "string") { preview = c.slice(0, 150); break; }
-                  if (c.type === "text" && c.text) { preview = c.text.slice(0, 150); break; }
+              let userText = "";
+              if (typeof entry.message === "string") {
+                userText = entry.message;
+              } else if (entry.message?.content) {
+                const contentArr = Array.isArray(entry.message.content) ? entry.message.content : [entry.message.content];
+                for (const c of contentArr) {
+                  if (typeof c === "string") { userText = c; break; }
+                  if (c.type === "text" && c.text) { userText = c.text; break; }
                 }
+              }
+              // Clean system tags
+              userText = userText.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").trim();
+              if (!preview && userText) preview = userText.slice(0, 150);
+              if (userPreviews.length < 3 && userText) {
+                userPreviews.push({ turn: turnCount, text: userText.slice(0, 200) });
               }
             }
           } catch { /* skip bad lines */ }
         }
       } catch { /* ignore read errors */ }
 
-      // Clean preview: strip system tags
-      preview = preview.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").trim();
+      // Compute duration
+      let duration = null;
+      if (firstTimestamp && lastTimestamp) {
+        duration = new Date(lastTimestamp).getTime() - new Date(firstTimestamp).getTime();
+      }
 
       const sessionId = file.replace(/\.jsonl$/, "");
       sessionList.push({
@@ -586,7 +604,9 @@ function getProjectDetails(source, dirName) {
         date,
         size,
         turnCount,
+        duration,
         preview: preview.slice(0, 120),
+        userPreviews,
       });
     }
 
