@@ -410,6 +410,10 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
   font-size: 11px;
   margin-left: auto;
 }
+.turn-bookmark-badge {
+  font-size: 12px;
+  color: var(--orange);
+}
 
 .turn-card-body { padding: 8px 10px; }
 
@@ -808,8 +812,15 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     <div class="turns-toolbar" id="turnsToolbar">
       <button class="btn btn-small" id="selectAllBtn" title="Include all turns in the replay">Include All</button>
       <button class="btn btn-small" id="selectNoneBtn" title="Exclude all turns from the replay">Exclude All</button>
+      <select id="turnTypeFilter" style="background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:2px 4px;font-size:10px;font-family:inherit;" title="Filter turns by content type">
+        <option value="">All turns</option>
+        <option value="thinking">Has Thinking</option>
+        <option value="tool_use">Has Tools</option>
+        <option value="text-only">Text Only</option>
+        <option value="bookmarked">Bookmarked</option>
+      </select>
       <span style="margin-left:auto;display:flex;align-items:center;gap:4px;">
-        <label style="font-size:10px;color:var(--text-dim)">Jump to #</label>
+        <label style="font-size:10px;color:var(--text-dim)">Go to #</label>
         <input type="number" id="jumpTurnInput" min="1" style="width:50px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:2px 4px;font-size:11px;font-family:inherit;" title="Jump to turn number">
       </span>
     </div>
@@ -1177,10 +1188,15 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
       const userText = turn.user_text || "";
       const rows = Math.max(2, Math.min(8, userText.split("\n").length));
 
-      html += `<div class="turn-card ${excluded ? "excluded" : ""}" data-index="${turn.index}">
+      const hasThinking = turn.blocks.some(b => b.kind === "thinking");
+      const hasTools = turn.blocks.some(b => b.kind === "tool_use");
+      html += `<div class="turn-card ${excluded ? "excluded" : ""}" data-index="${turn.index}" data-has-thinking="${hasThinking}" data-has-tools="${hasTools}">
         <div class="turn-card-header">
           <input type="checkbox" ${checked} data-action="toggle" data-index="${turn.index}">
           <span class="turn-label">Turn ${turn.index}</span>
+          ${bkChecked ? '<span class="turn-bookmark-badge" title="Bookmarked: ' + esc(bkLabel) + '">\uD83D\uDD16</span>' : ''}
+          ${hasThinking ? '<span style="font-size:9px;color:var(--text-dim);opacity:0.6" title="Has thinking">\uD83E\uDDE0</span>' : ''}
+          ${hasTools ? '<span style="font-size:9px;color:var(--cyan);opacity:0.6" title="Has tool calls">\u2699</span>' : ''}
           <span class="turn-summary">${esc(turn.blockSummary)}</span>
         </div>
         <div class="turn-card-body">
@@ -1398,6 +1414,11 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     const fmt = format || "html";
     const filename = (titleInput.value || "replay").replace(/[^a-zA-Z0-9_-]/g, "_");
 
+    // Progress indicator
+    const origText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<span class="spinner" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px"></span>Exporting...';
+    exportBtn.disabled = true;
+
     try {
       if (fmt === "html") {
         const res = await api("POST", "/api/export", {
@@ -1446,6 +1467,9 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
       }
     } catch (e) {
       toast("Export failed: " + e.message, "error");
+    } finally {
+      exportBtn.innerHTML = origText;
+      exportBtn.disabled = false;
     }
   }
 
@@ -1521,6 +1545,25 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
       card.style.display = text.toLowerCase().includes(q) ? "" : "none";
     }
   }, 200));
+
+  // Turn type filter
+  const turnTypeFilter = $("turnTypeFilter");
+  turnTypeFilter.addEventListener("change", () => {
+    const filter = turnTypeFilter.value;
+    for (const card of document.querySelectorAll(".turn-card")) {
+      if (!filter) { card.style.display = ""; continue; }
+      const idx = parseInt(card.dataset.index);
+      if (filter === "thinking") {
+        card.style.display = card.dataset.hasThinking === "true" ? "" : "none";
+      } else if (filter === "tool_use") {
+        card.style.display = card.dataset.hasTools === "true" ? "" : "none";
+      } else if (filter === "text-only") {
+        card.style.display = (card.dataset.hasThinking === "false" && card.dataset.hasTools === "false") ? "" : "none";
+      } else if (filter === "bookmarked") {
+        card.style.display = bookmarks.has(idx) ? "" : "none";
+      }
+    }
+  });
 
   // =========================================================================
   // Resize handle (editor ↔ preview)
@@ -1665,6 +1708,16 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); doExport("html"); return; }
     // Ctrl+Shift+S → export MD
     if ((e.ctrlKey || e.metaKey) && e.key === "S") { e.preventDefault(); doExport("md"); return; }
+    // Ctrl+A → include all turns
+    if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+      e.preventDefault();
+      excludedTurns.clear();
+      turnsList.querySelectorAll("[data-action='toggle']").forEach((cb) => { cb.checked = true; });
+      turnsList.querySelectorAll(".turn-card").forEach((c) => c.classList.remove("excluded"));
+      schedulePreview(); updateEditorFooter();
+      toast("All turns included");
+      return;
+    }
     if (e.key === "1") { window.location.href = "/"; return; }
     if (e.key === "2") { /* already on editor */ return; }
     if (e.key === "3") { window.location.href = "/docs"; return; }
