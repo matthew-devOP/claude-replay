@@ -8,8 +8,8 @@ services:
       - ${HOME}/.claude:${HOME}/.claude:ro
       - ${HOME}/.cursor:${HOME}/.cursor:ro
       - ${HOME}/.codex:${HOME}/.codex:ro
-      # Project dirs (needed for CLAUDE.md reading and path resolution)
-      - ${HOME}:${HOME}:ro
+      # Project dirs (rw needed for lazygit to commit/push)
+      - ${HOME}:${HOME}
       # Dev mode: mount source code for live reload (no rebuild needed)
       - ./src:/app/src:ro
       - ./template:/app/template:ro

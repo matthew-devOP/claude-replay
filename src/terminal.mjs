@@ -4,25 +4,29 @@
  */
 
 import { WebSocketServer } from "ws";
+import { createRequire } from "node:module";
 
-let ptyModule = null;
-try { ptyModule = await import("node-pty"); } catch { /* not available */ }
+const require = createRequire(import.meta.url);
+
+let ptySpawn = null;
+try {
+  const pty = require("node-pty");
+  ptySpawn = pty.spawn;
+} catch {
+  /* not available */
+}
 
 /**
  * Attach a WebSocket terminal server to an existing HTTP server.
  * Handles upgrade requests on /ws/terminal?path=<project-path>&cmd=<command>
  */
 export function attachTerminalWs(httpServer) {
-  if (!ptyModule) {
+  if (!ptySpawn) {
     console.log("node-pty not available — terminal WebSocket disabled");
     return;
   }
 
-  const spawn = ptyModule.spawn || ptyModule.default?.spawn;
-  if (!spawn) {
-    console.log("node-pty spawn not found — terminal WebSocket disabled");
-    return;
-  }
+  const spawn = ptySpawn;
 
   const wss = new WebSocketServer({ noServer: true });
 
@@ -46,6 +50,7 @@ export function attachTerminalWs(httpServer) {
         const args = cmd === "lazygit" ? [] : ["-c", cmd];
         const command = cmd === "lazygit" ? "lazygit" : shell;
 
+        const dataDir = process.env.CLAUDE_REPLAY_DATA || "/tmp/claude-replay";
         pty = spawn(command, args, {
           name: "xterm-256color",
           cols,
@@ -55,6 +60,9 @@ export function attachTerminalWs(httpServer) {
             ...process.env,
             TERM: "xterm-256color",
             COLORTERM: "truecolor",
+            XDG_CONFIG_HOME: dataDir + "/config",
+            XDG_DATA_HOME: dataDir + "/data",
+            XDG_STATE_HOME: dataDir + "/state",
           },
         });
       } catch (e) {
