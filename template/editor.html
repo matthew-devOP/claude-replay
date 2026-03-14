@@ -691,8 +691,16 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
   <!-- Editor toolbar -->
   <div class="editor-toolbar">
     <input type="text" class="editor-toolbar-title-input" id="titleInput" placeholder="Session title..." disabled>
+    <input type="text" class="editor-toolbar-search" id="turnSearchInput" placeholder="Filter turns..." disabled style="width:160px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 8px;font-size:12px;font-family:inherit;">
     <button class="btn" id="resetBtn" disabled>Reset Edits</button>
-    <button class="btn btn-primary" id="exportBtn" disabled>Export HTML</button>
+    <div class="export-dropdown" id="exportDropdown" style="position:relative;">
+      <button class="btn btn-primary" id="exportBtn" disabled>Export &#9662;</button>
+      <div class="export-dropdown-menu" id="exportDropdownMenu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--bg-surface);border:1px solid var(--border);border-radius:6px;padding:4px 0;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.3);min-width:150px;">
+        <button class="export-option" data-format="html" style="display:block;width:100%;background:none;border:none;color:var(--text);font-family:inherit;font-size:12px;padding:8px 14px;cursor:pointer;text-align:left;">Export HTML</button>
+        <button class="export-option" data-format="md" style="display:block;width:100%;background:none;border:none;color:var(--text);font-family:inherit;font-size:12px;padding:8px 14px;cursor:pointer;text-align:left;">Export Markdown</button>
+        <button class="export-option" data-format="pdf" style="display:block;width:100%;background:none;border:none;color:var(--text);font-family:inherit;font-size:12px;padding:8px 14px;cursor:pointer;text-align:left;">Export PDF (Print)</button>
+      </div>
+    </div>
   </div>
 
   <!-- Left sidebar: Sessions + Options -->
@@ -723,6 +731,15 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     </div>
     <div class="sidebar-section open" id="optionsSection">
       <div class="options-content">
+        <div class="opt-row">
+          <label title="Quick preset for export options">Preset</label>
+          <select id="optPreset" title="Quick preset for export options">
+            <option value="">Custom</option>
+            <option value="full">Full (all content)</option>
+            <option value="clean">Clean (no thinking)</option>
+            <option value="minimal">Minimal (text only)</option>
+          </select>
+        </div>
         <div class="opt-row">
           <label for="optTheme" title="Color theme for the exported replay player">Export Theme</label>
           <select id="optTheme" title="Color theme for the exported replay player"></select>
@@ -791,6 +808,10 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     <div class="turns-toolbar" id="turnsToolbar">
       <button class="btn btn-small" id="selectAllBtn" title="Include all turns in the replay">Include All</button>
       <button class="btn btn-small" id="selectNoneBtn" title="Exclude all turns from the replay">Exclude All</button>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:4px;">
+        <label style="font-size:10px;color:var(--text-dim)">Jump to #</label>
+        <input type="number" id="jumpTurnInput" min="1" style="width:50px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:2px 4px;font-size:11px;font-family:inherit;" title="Jump to turn number">
+      </span>
     </div>
     <div class="turns-list" id="turnsList">
       <div class="empty-state">Select a session to begin editing</div>
@@ -1116,6 +1137,7 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
       currentTurns = data.turns;
       excludedTurns = new Set();
       bookmarks = new Map();
+      sessions.set(data.sessionId, { sourcePath: path, format: data.format });
 
       const parts = path.split("/");
       const filename = parts[parts.length - 1].replace(".jsonl", "");
@@ -1123,6 +1145,7 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
       titleInput.disabled = false;
       resetBtn.disabled = false;
       exportBtn.disabled = false;
+      turnSearchInput.disabled = false;
 
       updateEditState(data.hasEdits || false);
       showOptionsPanel();
@@ -1370,26 +1393,134 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     }
   }
 
-  async function doExport() {
+  async function doExport(format) {
     if (!currentSessionId) return;
+    const fmt = format || "html";
+    const filename = (titleInput.value || "replay").replace(/[^a-zA-Z0-9_-]/g, "_");
+
     try {
-      const res = await api("POST", "/api/export", {
-        sessionId: currentSessionId,
-        options: gatherOptions(),
-      });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = (titleInput.value || "replay").replace(/[^a-zA-Z0-9_-]/g, "_") + ".html";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      if (fmt === "html") {
+        const res = await api("POST", "/api/export", {
+          sessionId: currentSessionId,
+          options: gatherOptions(),
+        });
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename + ".html";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast("HTML exported: " + filename + ".html");
+      } else if (fmt === "md") {
+        // Use the session source path for MD export
+        const session = sessions.get(currentSessionId);
+        const path = session?.sourcePath || "";
+        if (!path) { toast("No source path for MD export", "error"); return; }
+        const res = await fetch("/api/export-md", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path, title: titleInput.value || "replay" }),
+        });
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename + ".md";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast("Markdown exported: " + filename + ".md");
+      } else if (fmt === "pdf") {
+        // Open preview in new window for printing
+        if (previewBlobUrl) {
+          const w = window.open(previewBlobUrl, "_blank");
+          if (w) setTimeout(() => w.print(), 1000);
+          toast("Print dialog opened");
+        } else {
+          toast("Generate preview first", "error");
+        }
+      }
     } catch (e) {
-      alert("Export failed: " + e.message);
+      toast("Export failed: " + e.message, "error");
     }
   }
+
+  // Export dropdown
+  const exportDropdown = $("exportDropdown");
+  const exportDropdownMenu = $("exportDropdownMenu");
+  exportBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const visible = exportDropdownMenu.style.display === "block";
+    exportDropdownMenu.style.display = visible ? "none" : "block";
+  });
+  for (const opt of exportDropdownMenu.querySelectorAll(".export-option")) {
+    opt.addEventListener("click", (e) => {
+      e.stopPropagation();
+      exportDropdownMenu.style.display = "none";
+      doExport(opt.dataset.format);
+    });
+    opt.addEventListener("mouseover", () => { opt.style.background = "var(--bg-hover)"; });
+    opt.addEventListener("mouseout", () => { opt.style.background = "none"; });
+  }
+  document.addEventListener("click", () => { exportDropdownMenu.style.display = "none"; });
+
+  // We need access to source path for MD export — store it
+  // Patch loadSession to track sourcePath
+  const sessions = new Map();
+
+  // Presets
+  const optPreset = $("optPreset");
+  optPreset.addEventListener("change", () => {
+    const preset = optPreset.value;
+    if (preset === "full") {
+      $("optThinking").checked = true;
+      $("optToolCalls").checked = true;
+      $("optRedact").checked = true;
+      $("optSpeed").value = "1";
+    } else if (preset === "clean") {
+      $("optThinking").checked = false;
+      $("optToolCalls").checked = true;
+      $("optRedact").checked = true;
+      $("optSpeed").value = "1";
+    } else if (preset === "minimal") {
+      $("optThinking").checked = false;
+      $("optToolCalls").checked = false;
+      $("optRedact").checked = true;
+      $("optSpeed").value = "2";
+    }
+    schedulePreview();
+  });
+
+  // Jump to turn
+  const jumpTurnInput = $("jumpTurnInput");
+  jumpTurnInput.addEventListener("change", () => {
+    const n = parseInt(jumpTurnInput.value);
+    if (!n || n < 1) return;
+    const card = document.querySelector(`.turn-card[data-index="${n}"]`);
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.style.outline = "2px solid var(--accent)";
+      setTimeout(() => { card.style.outline = ""; }, 2000);
+    }
+  });
+  jumpTurnInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") jumpTurnInput.dispatchEvent(new Event("change"));
+  });
+
+  // Turn search/filter
+  const turnSearchInput = $("turnSearchInput");
+  turnSearchInput.addEventListener("input", debounce(() => {
+    const q = turnSearchInput.value.trim().toLowerCase();
+    for (const card of document.querySelectorAll(".turn-card")) {
+      if (!q) { card.style.display = ""; continue; }
+      const text = (card.querySelector(".turn-textarea")?.value || "") + " " + (card.textContent || "");
+      card.style.display = text.toLowerCase().includes(q) ? "" : "none";
+    }
+  }, 200));
 
   // =========================================================================
   // Resize handle (editor ↔ preview)
@@ -1440,7 +1571,7 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
 
   // Toolbar actions
   resetBtn.addEventListener("click", doReset);
-  exportBtn.addEventListener("click", doExport);
+  // Export handled by dropdown above
 
   // Select all / none
   selectAllBtn.addEventListener("click", () => {
@@ -1523,8 +1654,22 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     if (e.target === helpModal) helpModal.classList.remove("open");
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && helpModal.classList.contains("open")) helpModal.classList.remove("open");
-    if (e.key === "?" && e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") helpModal.classList.toggle("open");
+    if (e.key === "Escape") {
+      helpModal.classList.remove("open");
+      exportDropdownMenu.style.display = "none";
+      return;
+    }
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+    if (e.key === "?") { helpModal.classList.toggle("open"); return; }
+    // Ctrl+S → export HTML
+    if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); doExport("html"); return; }
+    // Ctrl+Shift+S → export MD
+    if ((e.ctrlKey || e.metaKey) && e.key === "S") { e.preventDefault(); doExport("md"); return; }
+    if (e.key === "1") { window.location.href = "/"; return; }
+    if (e.key === "2") { /* already on editor */ return; }
+    if (e.key === "3") { window.location.href = "/docs"; return; }
+    // / → focus turn search
+    if (e.key === "/") { e.preventDefault(); turnSearchInput.focus(); return; }
   });
 
   // Resize handle
