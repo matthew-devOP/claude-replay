@@ -773,7 +773,7 @@ mark.search-highlight.active {
 .btn-star.starred { opacity: 1; color: var(--orange); }
 
 /* Tags */
-.session-tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px; }
+.session-tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px; align-items: center; }
 .session-tag {
   font-size: 9px;
   padding: 1px 6px;
@@ -782,22 +782,25 @@ mark.search-highlight.active {
   color: var(--text-dim);
   border: 1px solid var(--border);
   cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 .session-tag.tag-feature { border-color: var(--green); color: var(--green); }
 .session-tag.tag-bugfix { border-color: var(--red); color: var(--red); }
 .session-tag.tag-refactor { border-color: var(--blue); color: var(--blue); }
 .session-tag.tag-debug { border-color: var(--orange); color: var(--orange); }
-.tag-input {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  color: var(--text);
-  font-size: 9px;
-  padding: 1px 4px;
-  width: 60px;
-  font-family: inherit;
+.session-tag.tag-development { border-color: var(--cyan); color: var(--cyan); }
+.session-tag.tag-testing { border-color: var(--accent); color: var(--accent); }
+.session-tag.tag-documenting { border-color: var(--text-dim); color: var(--text); }
+.session-tag .tag-remove {
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 10px;
+  line-height: 1;
 }
-.tag-input:focus { outline: none; border-color: var(--accent); }
+.session-tag .tag-remove:hover { opacity: 1; }
+.tag-dropdown-wrap { position: relative; display: inline-block; }
 .btn-add-tag {
   font-size: 9px;
   background: none;
@@ -808,6 +811,37 @@ mark.search-highlight.active {
   padding: 1px 4px;
 }
 .btn-add-tag:hover { border-color: var(--accent); color: var(--accent); }
+.tag-dropdown-menu {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 0;
+  z-index: 200;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  min-width: 120px;
+}
+.tag-dropdown-wrap.open .tag-dropdown-menu { display: block; }
+.tag-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-dim);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+.tag-dropdown-item:hover { background: var(--bg-hover); color: var(--text); }
+.tag-dropdown-item.selected { color: var(--accent); }
+.tag-dropdown-item .tag-check { width: 14px; font-size: 11px; }
 
 /* Activity heatmap */
 .heatmap-container { margin-bottom: 20px; }
@@ -898,6 +932,7 @@ mark.search-highlight.active {
 }
 .search-result-item:last-child { border-bottom: none; }
 .search-result-item:hover { background: var(--bg-hover); }
+.search-result-project { font-size: 10px; color: var(--accent); font-weight: 600; margin-right: 6px; }
 .search-result-session { font-size: 10px; color: var(--cyan); font-family: monospace; }
 .search-result-turn { font-size: 10px; color: var(--text-dim); margin-left: 6px; }
 .search-result-text {
@@ -2271,30 +2306,74 @@ mark.search-highlight.active {
   function getSessionTags(path) { return getAllTags()[path] || []; }
   function setSessionTags(path, tags) { const all = getAllTags(); all[path] = tags; saveAllTags(all); }
 
+  const TAG_OPTIONS = ["feature", "bugfix", "refactor", "debug", "development", "testing", "documenting"];
+
   function renderTagsForSession(path, container) {
     const tags = getSessionTags(path);
-    let html = tags.map(t => `<span class="session-tag tag-${t}">${escapeHtml(t)}</span>`).join("");
-    html += '<button class="btn-add-tag" data-path="' + escapeHtml(path) + '">+</button>';
+    let html = tags.map(t =>
+      `<span class="session-tag tag-${t}">${escapeHtml(t)}<span class="tag-remove" data-path="${escapeHtml(path)}" data-tag="${escapeHtml(t)}">&times;</span></span>`
+    ).join("");
+    html += `<div class="tag-dropdown-wrap"><button class="btn-add-tag" data-path="${escapeHtml(path)}">+</button><div class="tag-dropdown-menu">`;
+    for (const opt of TAG_OPTIONS) {
+      const selected = tags.includes(opt);
+      html += `<button class="tag-dropdown-item${selected ? " selected" : ""}" data-path="${escapeHtml(path)}" data-tag="${opt}"><span class="tag-check">${selected ? "\u2713" : ""}</span><span class="session-tag tag-${opt}" style="pointer-events:none">${opt}</span></button>`;
+    }
+    html += '</div></div>';
     container.innerHTML = html;
   }
 
-  // Delegated handler for adding tags
+  // Delegated handler for tag dropdown and removal
   detailEl.addEventListener("click", (e) => {
+    // Toggle tag dropdown
     const addBtn = e.target.closest(".btn-add-tag");
-    if (!addBtn) return;
-    const path = addBtn.dataset.path;
-    const tagOptions = ["feature", "bugfix", "refactor", "debug"];
-    const current = getSessionTags(path);
-    // Cycle through: add next unused tag, or clear all if all applied
-    const unused = tagOptions.filter(t => !current.includes(t));
-    if (unused.length > 0) {
-      current.push(unused[0]);
-    } else {
-      current.length = 0;
+    if (addBtn) {
+      e.stopPropagation();
+      const wrap = addBtn.closest(".tag-dropdown-wrap");
+      // Close any other open dropdowns
+      for (const w of detailEl.querySelectorAll(".tag-dropdown-wrap.open")) {
+        if (w !== wrap) w.classList.remove("open");
+      }
+      wrap.classList.toggle("open");
+      return;
     }
-    setSessionTags(path, current);
-    const container = addBtn.closest(".session-tags");
-    if (container) renderTagsForSession(path, container);
+
+    // Select/deselect tag from dropdown
+    const dropItem = e.target.closest(".tag-dropdown-item");
+    if (dropItem) {
+      e.stopPropagation();
+      const path = dropItem.dataset.path;
+      const tag = dropItem.dataset.tag;
+      const current = getSessionTags(path);
+      const idx = current.indexOf(tag);
+      if (idx >= 0) current.splice(idx, 1);
+      else current.push(tag);
+      setSessionTags(path, current);
+      const container = dropItem.closest(".session-tags");
+      if (container) renderTagsForSession(path, container);
+      return;
+    }
+
+    // Remove tag
+    const removeBtn = e.target.closest(".tag-remove");
+    if (removeBtn) {
+      const path = removeBtn.dataset.path;
+      const tag = removeBtn.dataset.tag;
+      const current = getSessionTags(path);
+      const idx = current.indexOf(tag);
+      if (idx >= 0) current.splice(idx, 1);
+      setSessionTags(path, current);
+      const container = removeBtn.closest(".session-tags");
+      if (container) renderTagsForSession(path, container);
+      return;
+    }
+
+    // Close tag dropdowns when clicking elsewhere
+    for (const w of detailEl.querySelectorAll(".tag-dropdown-wrap.open")) w.classList.remove("open");
+  });
+
+  // Close tag dropdowns on outside click
+  document.addEventListener("click", () => {
+    for (const w of document.querySelectorAll(".tag-dropdown-wrap.open")) w.classList.remove("open");
   });
 
   // ─── Global Search ───
@@ -2311,18 +2390,17 @@ mark.search-highlight.active {
     globalSearchResults.classList.add("open");
     globalSearchTimer = setTimeout(async () => {
       if (!activeProject) {
-        // Search across all projects
         let allResults = [];
         for (const p of projects.slice(0, 10)) {
           try {
-            const data = await api("/api/search", { dirName: p.dirName, query: q });
+            const data = await api("/api/search", { dirName: p.dirName, query: q, projectName: p.name });
             allResults = allResults.concat(data.results || []);
           } catch {}
         }
         renderSearchResults(allResults, q);
       } else {
         try {
-          const data = await api("/api/search", { dirName: activeProject.dirName, query: q });
+          const data = await api("/api/search", { dirName: activeProject.dirName, query: q, projectName: activeProject.name });
           renderSearchResults(data.results || [], q);
         } catch { renderSearchResults([], q); }
       }
@@ -2346,6 +2424,7 @@ mark.search-highlight.active {
     globalSearchResults.innerHTML = results.slice(0, 30).map(r => {
       const highlighted = escapeHtml(r.text).replace(regex, "<mark>$1</mark>");
       return `<div class="search-result-item" data-path="${escapeHtml(r.path)}" data-session="${escapeHtml(r.sessionId)}">
+        <span class="search-result-project">${escapeHtml(r.project || "")}</span>
         <span class="search-result-session">${escapeHtml(r.sessionId)}</span>
         <span class="search-result-turn">turn ${r.turn} \u00B7 ${r.role}</span>
         <div class="search-result-text">${highlighted}</div>

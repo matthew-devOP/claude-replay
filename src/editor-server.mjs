@@ -1044,12 +1044,13 @@ async function handleApi(req, res, pathname) {
   // POST /api/search — search across all sessions in a project
   if (pathname === "/api/search" && req.method === "POST") {
     const body = await readBody(req);
-    const { dirName, query } = body;
+    const { dirName, query, projectName } = body;
     if (!dirName || !query || query.length < 2) return json(res, { results: [] });
     try {
       const home = homedir();
       const projPath = join(home, ".claude", "projects", dirName);
       if (!existsSync(projPath)) return json(res, { results: [] });
+      const pName = projectName || basename(claudeDirToProjectPath(dirName));
 
       const files = readdirSync(projPath).filter((f) => f.endsWith(".jsonl")).sort().reverse();
       const results = [];
@@ -1082,6 +1083,7 @@ async function handleApi(req, res, pathname) {
                 if (text.toLowerCase().includes(queryLower)) {
                   const sessionId = file.replace(/\.jsonl$/, "");
                   results.push({
+                    project: pName,
                     sessionId: sessionId.slice(0, 8),
                     path: fullPath,
                     turn: turnIdx,
@@ -1096,6 +1098,7 @@ async function handleApi(req, res, pathname) {
                 if (typeof msg === "string" && msg.toLowerCase().includes(queryLower)) {
                   const sessionId = file.replace(/\.jsonl$/, "");
                   results.push({
+                    project: pName,
                     sessionId: sessionId.slice(0, 8),
                     path: fullPath,
                     turn: turnIdx,
@@ -1108,6 +1111,7 @@ async function handleApi(req, res, pathname) {
                     if (c.type === "text" && c.text && c.text.toLowerCase().includes(queryLower)) {
                       const sessionId = file.replace(/\.jsonl$/, "");
                       results.push({
+                        project: pName,
                         sessionId: sessionId.slice(0, 8),
                         path: fullPath,
                         turn: turnIdx,
