@@ -62,6 +62,7 @@
     <nav class="app-nav">
       <a href="/">Projects</a>
       <a href="/editor">Editor</a>
+      <a href="/docs">Docs</a>
     </nav>
     <div class="app-header-right">
       <div class="theme-dropdown" id="themeDropdown">
@@ -91,7 +92,7 @@
   const footerLeft = document.getElementById("footerLeft");
   const footerRight = document.getElementById("footerRight");
 
-  footerRight.textContent = "claude-replay v" + THEME_DATA.version;
+  footerRight.innerHTML = '<a href="/docs" style="color:var(--text-dim);text-decoration:none;">Docs</a><span style="margin:0 8px;color:var(--border);">\u00B7</span>claude-replay v' + THEME_DATA.version;
   document.getElementById("appVersion").textContent = "v" + THEME_DATA.version;
 
   // Parse URL params

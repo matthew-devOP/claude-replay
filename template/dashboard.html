@@ -682,6 +682,7 @@ mark.search-highlight.active {
     <nav class="app-nav">
       <a href="/" class="active">Projects</a>
       <a href="/editor">Editor</a>
+      <a href="/docs">Docs</a>
     </nav>
     <div class="app-header-right">
       <div class="theme-dropdown" id="themeDropdown">
@@ -901,7 +902,7 @@ mark.search-highlight.active {
       const totalSessions = projects.reduce((s, p) => s + p.sessionCount, 0);
       footerLeft.textContent = `${projects.length} projects \u00B7 ${totalSessions} sessions`;
     }
-    footerRight.textContent = `claude-replay v${THEME_DATA.version}`;
+    footerRight.innerHTML = `<a href="/docs" style="color:var(--text-dim);text-decoration:none;">Docs</a><span class="footer-sep" style="margin:0 8px;">\u00B7</span>claude-replay v${THEME_DATA.version}`;
   }
 
   // ─── Project list ───

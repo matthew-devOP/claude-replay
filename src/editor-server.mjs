@@ -1173,6 +1173,17 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
         }
       }
 
+      // Docs page: /docs
+      if (pathname === "/docs" && req.method === "GET") {
+        const docsHtmlPath = new URL("../template/docs.html", import.meta.url);
+        let docsHtml = "";
+        try { docsHtml = injectShared(readFileSync(docsHtmlPath, "utf-8")); } catch { /* */ }
+        if (docsHtml) {
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Content-Length": Buffer.byteLength(docsHtml) });
+          return res.end(docsHtml);
+        }
+      }
+
       // Serve rendered player HTML for iframe embedding: /api/render-replay
       if (pathname === "/api/render-replay" && req.method === "POST") {
         return await handleApi(req, res, pathname);

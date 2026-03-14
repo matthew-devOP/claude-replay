@@ -674,6 +674,7 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     <nav class="app-nav">
       <a href="/">Projects</a>
       <a href="/editor" class="active">Editor</a>
+      <a href="/docs">Docs</a>
     </nav>
     <div class="app-header-right">
       <div class="theme-dropdown" id="themeDropdown">
@@ -1494,7 +1495,7 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     document.addEventListener("click", () => dropdown.classList.remove("open"));
 
     $("appVersion").textContent = "v" + THEME_DATA.version;
-    $("editorFooterRight").textContent = "claude-replay v" + THEME_DATA.version;
+    $("editorFooterRight").innerHTML = '<a href="/docs" style="color:var(--text-dim);text-decoration:none;">Docs</a><span style="margin:0 8px;color:var(--border);">\u00B7</span>claude-replay v' + THEME_DATA.version;
   })();
 
   // Footer update

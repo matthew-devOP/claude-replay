@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%23bb9af7' stroke-width='2'/><polygon points='12,8 12,24 24,16' fill='%23bb9af7'/></svg>">
+<title>Documentation — claude-replay</title>
+<style>/*SHARED_CSS*/</style>
+<style>
+/* Docs page layout */
+body { overflow: hidden; }
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+}
+
+/* Docs body: sidebar + content */
+.docs-body {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  overflow: hidden;
+}
+
+/* TOC sidebar */
+.docs-toc {
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  padding: 24px 0 24px 0;
+}
+.docs-toc-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  font-weight: 700;
+  padding: 0 16px 10px 16px;
+}
+.docs-toc-list {
+  list-style: none;
+}
+.docs-toc-list li a {
+  display: block;
+  padding: 5px 16px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  line-height: 1.4;
+}
+.docs-toc-list li a:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.docs-toc-list li a.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  background: rgba(187,154,247,0.08);
+}
+.docs-toc-list li.toc-sub a {
+  padding-left: 28px;
+  font-size: 11px;
+}
+
+/* Docs content area */
+.docs-content {
+  overflow-y: auto;
+  padding: 40px 48px 60px 48px;
+  max-width: 900px;
+}
+
+/* Section headings */
+.docs-section {
+  margin-bottom: 56px;
+  scroll-margin-top: 24px;
+}
+.docs-section h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.docs-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-top: 24px;
+  margin-bottom: 10px;
+}
+.docs-section h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+.docs-section p {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text);
+  margin-bottom: 12px;
+  max-width: 680px;
+}
+.docs-section ul, .docs-section ol {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text);
+  margin-bottom: 12px;
+  padding-left: 20px;
+  max-width: 680px;
+}
+.docs-section li {
+  margin-bottom: 4px;
+}
+.docs-section li strong {
+  color: var(--text-bright);
+}
+
+/* Intro hero */
+.docs-hero {
+  margin-bottom: 48px;
+}
+.docs-hero h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 8px;
+}
+.docs-hero .docs-hero-sub {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  max-width: 560px;
+}
+
+/* Code and inline code */
+.docs-section code, p code, li code {
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 11.5px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--cyan);
+}
+.docs-section pre {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  max-width: 680px;
+}
+.docs-section pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* Note/tip callouts */
+.docs-note {
+  background: rgba(187,154,247,0.07);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.6;
+  max-width: 680px;
+}
+.docs-note strong { color: var(--accent); }
+.docs-note-warning {
+  background: rgba(255,158,100,0.07);
+  border-left-color: var(--orange);
+}
+.docs-note-warning strong { color: var(--orange); }
+.docs-note-tip {
+  background: rgba(158,206,106,0.07);
+  border-left-color: var(--green);
+}
+.docs-note-tip strong { color: var(--green); }
+
+/* Reference tables */
+.docs-table {
+  width: 100%;
+  max-width: 680px;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+.docs-table th {
+  text-align: left;
+  padding: 7px 12px;
+  background: var(--bg-surface);
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+.docs-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: top;
+  line-height: 1.5;
+}
+.docs-table tr:last-child td { border-bottom: none; }
+.docs-table tr:hover td { background: var(--bg-hover); }
+.docs-table code {
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--cyan);
+}
+.docs-table .td-dim { color: var(--text-dim); }
+
+/* Flag/option definition list */
+.docs-flags {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 16px;
+  max-width: 680px;
+}
+.docs-flags li {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  align-items: start;
+}
+.docs-flags li:last-child { border-bottom: none; }
+.docs-flags .flag-name {
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  color: var(--cyan);
+  font-size: 11.5px;
+  padding-top: 1px;
+}
+.docs-flags .flag-desc {
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* Theme color dots */
+.theme-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 4px;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+/* Section divider */
+.docs-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 48px 0;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .docs-toc { display: none; }
+  .docs-body { grid-template-columns: 1fr; }
+  .docs-content { padding: 24px 20px 48px 20px; }
+}
+</style>
+</head>
+<body>
+<script>
+  // Apply saved theme immediately to prevent flash
+  try {
+    const saved = localStorage.getItem("claude-replay-theme");
+    if (saved) {
+      const data = JSON.parse('/*THEMES_JSON*/');
+      const vars = data.themes[saved];
+      if (vars) {
+        for (const [k, v] of Object.entries(vars)) {
+          document.documentElement.style.setProperty("--" + k, v);
+        }
+      }
+    }
+  } catch {}
+</script>
+<div class="app">
+  <header class="app-header">
+    <a href="/" class="app-logo">
+      <svg width="22" height="22" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"/><polygon points="12,8 12,24 24,16" fill="currentColor" style="color:var(--accent)"/></svg>
+      claude-replay
+      <span class="app-version" id="appVersion"></span>
+    </a>
+    <nav class="app-nav">
+      <a href="/">Projects</a>
+      <a href="/editor">Editor</a>
+      <a href="/docs" class="active">Docs</a>
+    </nav>
+    <div class="app-header-right">
+      <div class="theme-dropdown" id="themeDropdown">
+        <button class="theme-dropdown-btn" id="themeDropdownBtn">
+          <span class="theme-dot-mini" id="themeDotPreview"></span>
+          <span id="themeNameLabel">Theme</span>
+          <span class="theme-dropdown-arrow">&#9660;</span>
+        </button>
+        <div class="theme-dropdown-menu" id="themeDropdownMenu"></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-body">
+    <!-- Table of Contents -->
+    <nav class="docs-toc" id="docsToc">
+      <div class="docs-toc-title">Contents</div>
+      <ul class="docs-toc-list">
+        <li><a href="#getting-started">Getting Started</a></li>
+        <li class="toc-sub"><a href="#installation">Installation</a></li>
+        <li class="toc-sub"><a href="#starting-the-app">Starting the App</a></li>
+        <li><a href="#project-dashboard">Project Dashboard</a></li>
+        <li class="toc-sub"><a href="#sidebar">Sidebar</a></li>
+        <li class="toc-sub"><a href="#sessions-tab">Sessions Tab</a></li>
+        <li class="toc-sub"><a href="#stats-tab">Stats Tab</a></li>
+        <li class="toc-sub"><a href="#plans-tab">Plans Tab</a></li>
+        <li class="toc-sub"><a href="#git-tab">Git Tab</a></li>
+        <li><a href="#session-actions">Session Actions</a></li>
+        <li><a href="#replay-viewer">Replay Viewer</a></li>
+        <li><a href="#session-editor">Session Editor</a></li>
+        <li><a href="#cli-usage">CLI Usage</a></li>
+        <li class="toc-sub"><a href="#cli-flags">Key Flags</a></li>
+        <li><a href="#themes">Themes</a></li>
+        <li class="toc-sub"><a href="#theme-variables">Theme Variables</a></li>
+        <li><a href="#docker">Docker</a></li>
+        <li><a href="#privacy">Privacy &amp; Security</a></li>
+        <li><a href="#keyboard-shortcuts">Keyboard Shortcuts</a></li>
+      </ul>
+    </nav>
+
+    <!-- Main docs content -->
+    <div class="docs-content" id="docsContent">
+
+      <div class="docs-hero">
+        <h1>claude-replay Documentation</h1>
+        <p class="docs-hero-sub">A local web dashboard for browsing, replaying, and exporting Claude Code, Cursor, and Codex session transcripts. Runs entirely on your machine — no data leaves your computer.</p>
+      </div>
+
+      <!-- ─── Getting Started ─── -->
+      <div class="docs-section" id="getting-started">
+        <h2>1. Getting Started</h2>
+
+        <h3 id="installation">Installation</h3>
+        <p>Install globally with npm to get the <code>claude-replay</code> command available everywhere:</p>
+        <pre><code>npm install -g claude-replay</code></pre>
+
+        <p>Or run without installing using npx:</p>
+        <pre><code>npx claude-replay</code></pre>
+
+        <p>Or run with Docker (no Node.js required):</p>
+        <pre><code>docker compose up</code></pre>
+
+        <h3 id="starting-the-app">Starting the App</h3>
+        <p>Launch the web dashboard from any directory:</p>
+        <pre><code>claude-replay</code></pre>
+
+        <p>The app scans your home directory for Claude Code, Cursor, and Codex session files and serves the dashboard at <code>http://localhost:7331</code>.</p>
+
+        <h4>Options</h4>
+        <ul class="docs-flags">
+          <li>
+            <span class="flag-name">--port &lt;n&gt;</span>
+            <span class="flag-desc">Listen on a custom port (default: <code>7331</code>)</span>
+          </li>
+          <li>
+            <span class="flag-name">--host &lt;addr&gt;</span>
+            <span class="flag-desc">Bind to a specific address (default: <code>127.0.0.1</code>). Use <code>0.0.0.0</code> to listen on all interfaces (LAN access).</span>
+          </li>
+        </ul>
+
+        <p>Example with custom port:</p>
+        <pre><code>claude-replay --port 8080</code></pre>
+
+        <div class="docs-note">
+          <strong>Note:</strong> The app binds to <code>127.0.0.1</code> by default, so it is only reachable from your local machine. Your session files are never sent anywhere.
+        </div>
+      </div>
+
+      <!-- ─── Project Dashboard ─── -->
+      <div class="docs-section" id="project-dashboard">
+        <h2>2. Project Dashboard (<code>/</code>)</h2>
+        <p>The dashboard is the main landing page. It automatically discovers all Claude Code, Cursor, and Codex projects on your machine and groups their sessions by project directory.</p>
+
+        <h3 id="sidebar">Sidebar</h3>
+        <p>The left sidebar lists all discovered projects. Each card shows:</p>
+        <ul>
+          <li><strong>Project name</strong> — derived from the directory name</li>
+          <li><strong>Git branch</strong> — current branch indicator when a git repo is detected</li>
+          <li><strong>Session count</strong> — total number of transcript files found</li>
+          <li><strong>Last activity</strong> — date/time of the most recent session</li>
+        </ul>
+        <p>Click a project card to open its detail view in the main panel.</p>
+
+        <h3>Project Detail View</h3>
+        <p>The detail view shows tabs for the selected project:</p>
+        <ul>
+          <li><strong>CLAUDE.md</strong> — displays the project's <code>CLAUDE.md</code> memory file if present</li>
+          <li><strong>MEMORY.md</strong> — displays the project's <code>MEMORY.md</code> file if present</li>
+          <li><strong>Sessions</strong> — sortable table of all sessions (see below)</li>
+          <li><strong>Stats</strong> — aggregated tool usage statistics across all sessions</li>
+          <li><strong>Plans</strong> — plan-mode entries extracted from sessions</li>
+          <li><strong>Git</strong> — repository information</li>
+        </ul>
+
+        <h3 id="sessions-tab">Sessions Tab</h3>
+        <p>Displays all sessions for the project in a sortable table. Columns include:</p>
+        <ul>
+          <li><strong>Date</strong> — session creation time</li>
+          <li><strong>Turns</strong> — number of conversation turns</li>
+          <li><strong>Size</strong> — file size of the JSONL transcript</li>
+          <li><strong>Actions</strong> — Replay, Transcript, Edit, MD Export buttons</li>
+        </ul>
+        <p>Click any column header to sort. Click again to reverse the sort order.</p>
+
+        <h3 id="stats-tab">Stats Tab</h3>
+        <p>Aggregated statistics across all sessions in the project:</p>
+        <ul>
+          <li><strong>Tool usage bars</strong> — horizontal bars showing relative tool invocation frequency</li>
+          <li><strong>Bash commands</strong> — most frequently run shell commands</li>
+          <li><strong>Files read/edited</strong> — most frequently accessed files</li>
+          <li><strong>Agents with prompts</strong> — subagent invocations and their system prompts</li>
+          <li><strong>User input/output tokens</strong> — token usage across sessions</li>
+          <li><strong>Teams</strong> — when multiple model types were used</li>
+        </ul>
+
+        <h3 id="plans-tab">Plans Tab</h3>
+        <p>Lists plan-mode entries extracted from sessions. Plan mode is when Claude Code enters a structured planning phase before executing tasks. Each entry shows the plan text and the session it came from.</p>
+
+        <h3 id="git-tab">Git Tab</h3>
+        <p>Shows git repository information for the project:</p>
+        <ul>
+          <li>Current branch and upstream tracking status</li>
+          <li>Total commit count</li>
+          <li>Remote URL(s)</li>
+          <li>All local branches</li>
+          <li>Recent git history as a visual graph</li>
+        </ul>
+
+        <h3>Quick Actions</h3>
+        <p>From the project detail header you can:</p>
+        <ul>
+          <li><strong>Open in Finder</strong> — reveal the project directory in macOS Finder</li>
+          <li><strong>Open in Terminal</strong> — open a new terminal window at the project path</li>
+        </ul>
+      </div>
+
+      <!-- ─── Session Actions ─── -->
+      <div class="docs-section" id="session-actions">
+        <h2>3. Session Actions</h2>
+        <p>Each session row in the Sessions tab has four action buttons:</p>
+
+        <h3>Replay</h3>
+        <p>Opens the session in the <strong>Replay Viewer</strong> — an animated player that walks through the conversation turn by turn, simulating the original pace of the session. Useful for presenting or reviewing work.</p>
+
+        <h3>Transcript</h3>
+        <p>Opens a full-page conversation viewer. Features include:</p>
+        <ul>
+          <li><strong>Search</strong> — type to filter; use <kbd>Enter</kbd> to jump to the next match, <kbd>Shift+Enter</kbd> for the previous match</li>
+          <li><strong>Content filters</strong> — toggle visibility of User, Assistant, Tools, and Thinking message types</li>
+          <li><strong>Match count</strong> — shows how many results were found and which one is active</li>
+        </ul>
+
+        <h3>Edit</h3>
+        <p>Opens the session in the <strong>Session Editor</strong> for customization before exporting. See <a href="#session-editor">Session Editor</a> for details.</p>
+
+        <h3>MD Export</h3>
+        <p>Directly downloads the session as a Markdown (<code>.md</code>) file without opening any viewer. The Markdown output includes all turns formatted as readable conversation text.</p>
+      </div>
+
+      <!-- ─── Replay Viewer ─── -->
+      <div class="docs-section" id="replay-viewer">
+        <h2>4. Replay Viewer (<code>/replay</code>)</h2>
+        <p>The Replay Viewer renders a session as an animated playback. It embeds a standalone player that streams conversation content turn by turn.</p>
+
+        <h3>Player Controls</h3>
+        <ul>
+          <li><strong>Play/Pause</strong> — start or pause the animation</li>
+          <li><strong>Step forward/back</strong> — advance or rewind one turn at a time</li>
+          <li><strong>Progress bar</strong> — click anywhere on the bar to jump to that position in the session</li>
+        </ul>
+
+        <h3>Speed Control</h3>
+        <p>Adjust playback speed with the speed dropdown: <strong>0.5x, 1x, 2x, 5x, 10x, 20x</strong>. Speed is applied to the inter-turn timing, so it compresses or expands the pauses between turns.</p>
+
+        <h3>Keyboard Shortcuts</h3>
+        <table class="docs-table">
+          <thead>
+            <tr><th>Key</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>Space</code></td><td>Play / Pause</td></tr>
+            <tr><td><code>&#8594; Arrow</code></td><td>Step forward one turn</td></tr>
+            <tr><td><code>&#8592; Arrow</code></td><td>Step backward one turn</td></tr>
+            <tr><td><code>Shift+&#8594;</code></td><td>Skip forward 5 turns</td></tr>
+            <tr><td><code>Shift+&#8592;</code></td><td>Skip backward 5 turns</td></tr>
+            <tr><td><code>T</code></td><td>Toggle thinking blocks visibility</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Export from Player</h3>
+        <ul>
+          <li><strong>Markdown download</strong> — export the full conversation as a <code>.md</code> file directly from the player controls</li>
+          <li><strong>PDF via print</strong> — use your browser's print dialog (<kbd>Cmd+P</kbd> / <kbd>Ctrl+P</kbd>) to save the current player state as a PDF</li>
+        </ul>
+
+        <h3>Theme Switching</h3>
+        <p>The theme dropdown in the player header switches the visual theme in real-time. The selection is saved to <code>localStorage</code> and persists across all pages.</p>
+      </div>
+
+      <!-- ─── Session Editor ─── -->
+      <div class="docs-section" id="session-editor">
+        <h2>5. Session Editor (<code>/editor</code>)</h2>
+        <p>The Session Editor is a three-panel workspace for customizing a session before exporting a replay.</p>
+
+        <h3>Three-Panel Layout</h3>
+        <ul>
+          <li><strong>Left — Turn Sidebar</strong>: Lists all turns in the session. Click to select and edit a turn.</li>
+          <li><strong>Center — Turn Editor</strong>: Edit the selected turn's content, toggle inclusion, set bookmarks.</li>
+          <li><strong>Right — Live Preview</strong>: A live-rendered replay preview that updates as you make changes.</li>
+        </ul>
+
+        <h3>Turn Editing</h3>
+        <ul>
+          <li><strong>Include/Exclude</strong> — toggle individual turns on or off. Excluded turns are skipped during replay but remain in the file.</li>
+          <li><strong>Edit user text</strong> — modify the text of user messages for cleaner replays.</li>
+          <li><strong>Bookmarks</strong> — mark turns as bookmarks to create named chapters in the replay.</li>
+        </ul>
+
+        <h3>Export Options Panel</h3>
+        <p>The export panel (right side) controls how the final replay HTML is generated:</p>
+        <ul>
+          <li><strong>Export Theme</strong> — the color theme baked into the exported file. This is independent of the UI Theme you use while editing.</li>
+          <li><strong>Speed</strong> — default playback speed for the exported replay.</li>
+          <li><strong>Thinking blocks</strong> — include or exclude extended thinking content.</li>
+          <li><strong>Tool calls</strong> — include or exclude tool use and tool result turns.</li>
+          <li><strong>Redaction</strong> — automatically redact detected secrets (API keys, tokens, passwords) from the export.</li>
+        </ul>
+
+        <div class="docs-note">
+          <strong>Export Theme vs UI Theme:</strong> The UI Theme controls the editor's own appearance and is saved via localStorage. The Export Theme is embedded into the generated replay HTML and travels with the file.
+        </div>
+
+        <h3>Exporting</h3>
+        <p>Click <strong>Export HTML</strong> to download a fully self-contained replay file. The file includes all CSS, JavaScript, and conversation data — it requires no internet connection and can be shared as a single attachment.</p>
+      </div>
+
+      <!-- ─── CLI Usage ─── -->
+      <div class="docs-section" id="cli-usage">
+        <h2>6. CLI Usage</h2>
+        <p>In addition to the web dashboard, <code>claude-replay</code> provides a command-line interface for generating replay files directly.</p>
+
+        <h3>Generate HTML Replay</h3>
+        <pre><code># From a session ID
+claude-replay &lt;session-id&gt; -o replay.html
+
+# From a JSONL file path
+claude-replay /path/to/session.jsonl -o replay.html
+
+# Multiple sessions concatenated
+claude-replay id1 id2 id3 -o combined.html</code></pre>
+
+        <h3>Open in Editor</h3>
+        <pre><code>claude-replay editor /path/to/session.jsonl</code></pre>
+
+        <h3>Extract Transcript</h3>
+        <pre><code># Extract as Markdown
+claude-replay extract /path/to/session.jsonl
+
+# Extract to file
+claude-replay extract /path/to/session.jsonl -o transcript.md</code></pre>
+
+        <h3 id="cli-flags">Key Flags</h3>
+        <ul class="docs-flags">
+          <li>
+            <span class="flag-name">--turns &lt;n&gt;</span>
+            <span class="flag-desc">Limit output to the first <em>n</em> turns</span>
+          </li>
+          <li>
+            <span class="flag-name">--speed &lt;n&gt;</span>
+            <span class="flag-desc">Default playback speed multiplier (e.g. <code>2</code>, <code>5</code>)</span>
+          </li>
+          <li>
+            <span class="flag-name">--theme &lt;name&gt;</span>
+            <span class="flag-desc">Embed a specific theme: <code>tokyo-night</code>, <code>monokai</code>, <code>solarized-dark</code>, <code>github-light</code>, <code>dracula</code>, <code>bubbles</code></span>
+          </li>
+          <li>
+            <span class="flag-name">--redact</span>
+            <span class="flag-desc">Automatically redact detected secrets (API keys, tokens, passwords)</span>
+          </li>
+          <li>
+            <span class="flag-name">--no-thinking</span>
+            <span class="flag-desc">Strip extended thinking blocks from the output</span>
+          </li>
+          <li>
+            <span class="flag-name">--no-tools</span>
+            <span class="flag-desc">Strip tool use and tool result turns from the output</span>
+          </li>
+          <li>
+            <span class="flag-name">--timing &lt;mode&gt;</span>
+            <span class="flag-desc">Timing mode: <code>auto</code> (default), <code>real</code> (preserve original timing), <code>paced</code> (uniform pacing)</span>
+          </li>
+          <li>
+            <span class="flag-name">--custom-theme &lt;path&gt;</span>
+            <span class="flag-desc">Path to a custom theme JSON file</span>
+          </li>
+          <li>
+            <span class="flag-name">--list-themes</span>
+            <span class="flag-desc">Print all available built-in theme names and exit</span>
+          </li>
+          <li>
+            <span class="flag-name">--port &lt;n&gt;</span>
+            <span class="flag-desc">Port for the dashboard/editor server (default: <code>7331</code>)</span>
+          </li>
+        </ul>
+
+        <h3>Timing Modes</h3>
+        <table class="docs-table">
+          <thead>
+            <tr><th>Mode</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>auto</code></td><td>Infers timing from session metadata when available, otherwise uses paced timing</td></tr>
+            <tr><td><code>real</code></td><td>Preserves the actual elapsed time between turns from the original session</td></tr>
+            <tr><td><code>paced</code></td><td>Uses a uniform fixed delay between all turns regardless of original timing</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ─── Themes ─── -->
+      <div class="docs-section" id="themes">
+        <h2>7. Themes</h2>
+        <p>claude-replay ships with six built-in color themes. The active theme is persisted to <code>localStorage</code> under the key <code>claude-replay-theme</code> and applied consistently across all pages.</p>
+
+        <table class="docs-table">
+          <thead>
+            <tr><th>Theme</th><th>Style</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="theme-swatch" style="background:#bb9af7"></span><strong>tokyo-night</strong></td>
+              <td class="td-dim">Dark</td>
+              <td class="td-dim">Deep blue-purple dark theme inspired by Tokyo at night (default)</td>
+            </tr>
+            <tr>
+              <td><span class="theme-swatch" style="background:#a6e22e"></span><strong>monokai</strong></td>
+              <td class="td-dim">Dark</td>
+              <td class="td-dim">Classic dark theme with vibrant green and yellow accents</td>
+            </tr>
+            <tr>
+              <td><span class="theme-swatch" style="background:#268bd2"></span><strong>solarized-dark</strong></td>
+              <td class="td-dim">Dark</td>
+              <td class="td-dim">Ethan Schoonover's precise, scientifically calibrated color scheme</td>
+            </tr>
+            <tr>
+              <td><span class="theme-swatch" style="background:#0550ae"></span><strong>github-light</strong></td>
+              <td class="td-dim">Light</td>
+              <td class="td-dim">Clean light theme inspired by GitHub's interface</td>
+            </tr>
+            <tr>
+              <td><span class="theme-swatch" style="background:#bd93f9"></span><strong>dracula</strong></td>
+              <td class="td-dim">Dark</td>
+              <td class="td-dim">Popular dark theme with a purple/pink/cyan palette</td>
+            </tr>
+            <tr>
+              <td><span class="theme-swatch" style="background:#f472b6"></span><strong>bubbles</strong></td>
+              <td class="td-dim">Dark</td>
+              <td class="td-dim">Playful dark theme with pastel pink and teal accents</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Switching Themes</h3>
+        <p>Use the <strong>Theme</strong> dropdown in the app header on any page. The selection is saved immediately and applied across the dashboard, editor, and replay viewer.</p>
+
+        <h3 id="theme-variables">Custom Themes (CLI)</h3>
+        <p>You can define a custom theme as a JSON file and pass it to the CLI with <code>--custom-theme</code>. The JSON must provide values for all CSS variables used by the design system:</p>
+
+        <table class="docs-table">
+          <thead>
+            <tr><th>Variable</th><th>Purpose</th><th>Example (tokyo-night)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>bg</code></td><td class="td-dim">Page background</td><td class="td-dim"><code>#1a1b26</code></td></tr>
+            <tr><td><code>bg-surface</code></td><td class="td-dim">Card / panel background</td><td class="td-dim"><code>#24253a</code></td></tr>
+            <tr><td><code>bg-hover</code></td><td class="td-dim">Hover state background</td><td class="td-dim"><code>#2f3147</code></td></tr>
+            <tr><td><code>text</code></td><td class="td-dim">Primary text</td><td class="td-dim"><code>#c0caf5</code></td></tr>
+            <tr><td><code>text-dim</code></td><td class="td-dim">Secondary/muted text</td><td class="td-dim"><code>#565f89</code></td></tr>
+            <tr><td><code>text-bright</code></td><td class="td-dim">Emphasized text</td><td class="td-dim"><code>#e0e6ff</code></td></tr>
+            <tr><td><code>accent</code></td><td class="td-dim">Primary accent color</td><td class="td-dim"><code>#bb9af7</code></td></tr>
+            <tr><td><code>accent-dim</code></td><td class="td-dim">Muted accent (buttons, etc.)</td><td class="td-dim"><code>#7957a8</code></td></tr>
+            <tr><td><code>border</code></td><td class="td-dim">Border and divider color</td><td class="td-dim"><code>#3b3d57</code></td></tr>
+            <tr><td><code>green</code></td><td class="td-dim">Success / additions</td><td class="td-dim"><code>#9ece6a</code></td></tr>
+            <tr><td><code>blue</code></td><td class="td-dim">Info / links</td><td class="td-dim"><code>#7aa2f7</code></td></tr>
+            <tr><td><code>orange</code></td><td class="td-dim">Warning</td><td class="td-dim"><code>#ff9e64</code></td></tr>
+            <tr><td><code>red</code></td><td class="td-dim">Error / destructive</td><td class="td-dim"><code>#f7768e</code></td></tr>
+            <tr><td><code>cyan</code></td><td class="td-dim">Code / inline highlights</td><td class="td-dim"><code>#7dcfff</code></td></tr>
+          </tbody>
+        </table>
+
+        <p>Example custom theme file structure:</p>
+        <pre><code>{
+  "name": "my-theme",
+  "bg": "#0d1117",
+  "bg-surface": "#161b22",
+  "bg-hover": "#21262d",
+  "text": "#c9d1d9",
+  "text-dim": "#8b949e",
+  "text-bright": "#f0f6fc",
+  "accent": "#58a6ff",
+  "accent-dim": "#1f6feb",
+  "border": "#30363d",
+  "green": "#3fb950",
+  "blue": "#58a6ff",
+  "orange": "#d29922",
+  "red": "#f85149",
+  "cyan": "#39c5cf"
+}</code></pre>
+      </div>
+
+      <!-- ─── Docker ─── -->
+      <div class="docs-section" id="docker">
+        <h2>8. Docker</h2>
+        <p>A <code>docker-compose.yml</code> is included in the repository for running the app in a container without installing Node.js locally.</p>
+
+        <h3>Starting</h3>
+        <pre><code>docker compose up</code></pre>
+        <p>The app will be available at <code>http://localhost:7331</code>. Your home directory is mounted read-only into the container so sessions are discovered just as they would be natively.</p>
+
+        <h3>Live Development</h3>
+        <p>The <code>docker-compose.yml</code> mounts the source directory into the container, so changes to template files and source files are reflected without rebuilding the image:</p>
+        <pre><code># Restart the server process after source changes
+docker compose restart</code></pre>
+
+        <h3>Path Resolution</h3>
+        <p>Inside the container, session paths are resolved relative to the container's filesystem. The <code>docker-compose.yml</code> mounts <code>$HOME</code> at the same path inside the container so that session IDs and file paths match what Claude Code writes natively.</p>
+
+        <div class="docs-note docs-note-tip">
+          <strong>Tip:</strong> If you add new session files while the container is running, they will appear in the dashboard on the next project refresh without restarting.
+        </div>
+      </div>
+
+      <!-- ─── Privacy ─── -->
+      <div class="docs-section" id="privacy">
+        <h2>9. Privacy &amp; Security</h2>
+
+        <h3>Local Only</h3>
+        <p>The server binds to <code>127.0.0.1</code> by default. No requests are made to any external service, and no data is transmitted over the network unless you explicitly use <code>--host 0.0.0.0</code> to expose it on your LAN.</p>
+
+        <h3>Read-Only Access</h3>
+        <p>Your JSONL session files are <strong>never modified</strong>. The app reads them to render the dashboard and generate exports, but all edits in the Session Editor are held in memory and only written to disk when you explicitly export.</p>
+
+        <h3>Secret Auto-Redaction</h3>
+        <p>When the <code>--redact</code> flag is used (or the Redaction toggle is enabled in the editor), the following patterns are automatically detected and replaced with <code>[REDACTED]</code> before export:</p>
+        <ul>
+          <li>API keys matching common provider patterns (OpenAI, Anthropic, AWS, etc.)</li>
+          <li>Bearer tokens and Authorization headers</li>
+          <li>Passwords and secrets in environment variable assignments</li>
+          <li>Private keys in PEM format</li>
+        </ul>
+
+        <div class="docs-note docs-note-warning">
+          <strong>Review before sharing:</strong> Automatic redaction is best-effort. Always review exported files before sharing them externally, especially if your sessions involve credentials, internal URLs, or proprietary code.
+        </div>
+      </div>
+
+      <!-- ─── Keyboard Shortcuts ─── -->
+      <div class="docs-section" id="keyboard-shortcuts">
+        <h2>10. Keyboard Shortcuts</h2>
+
+        <h3>Dashboard (<code>/</code>)</h3>
+        <table class="docs-table">
+          <thead>
+            <tr><th>Key</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>?</code></td><td>Toggle keyboard shortcuts help modal</td></tr>
+            <tr><td><code>1</code></td><td>Go to Projects (dashboard)</td></tr>
+            <tr><td><code>2</code></td><td>Go to Editor</td></tr>
+            <tr><td><code>Escape</code></td><td>Close modal or transcript overlay</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Replay Player</h3>
+        <table class="docs-table">
+          <thead>
+            <tr><th>Key</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>Space</code></td><td>Play / Pause</td></tr>
+            <tr><td><code>&#8594;</code></td><td>Step forward one turn</td></tr>
+            <tr><td><code>&#8592;</code></td><td>Step backward one turn</td></tr>
+            <tr><td><code>Shift+&#8594;</code></td><td>Skip forward 5 turns</td></tr>
+            <tr><td><code>Shift+&#8592;</code></td><td>Skip backward 5 turns</td></tr>
+            <tr><td><code>T</code></td><td>Toggle thinking blocks</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Transcript Viewer</h3>
+        <table class="docs-table">
+          <thead>
+            <tr><th>Key</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>Enter</code></td><td>Jump to next search match</td></tr>
+            <tr><td><code>Shift+Enter</code></td><td>Jump to previous search match</td></tr>
+            <tr><td><code>Escape</code></td><td>Close transcript overlay</td></tr>
+            <tr><td><code>U</code></td><td>Toggle User messages filter</td></tr>
+            <tr><td><code>A</code></td><td>Toggle Assistant messages filter</td></tr>
+            <tr><td><code>L</code></td><td>Toggle Tools filter</td></tr>
+            <tr><td><code>H</code></td><td>Toggle Thinking filter</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div><!-- /docs-content -->
+  </div><!-- /docs-body -->
+
+  <footer class="app-footer">
+    <div class="footer-left">
+      <a href="/" style="color:var(--text-dim);text-decoration:none;">Projects</a>
+      <span class="footer-sep">·</span>
+      <a href="/editor" style="color:var(--text-dim);text-decoration:none;">Editor</a>
+      <span class="footer-sep">·</span>
+      <a href="/docs" style="color:var(--accent);text-decoration:none;">Docs</a>
+    </div>
+    <div class="footer-right" id="footerRight"></div>
+  </footer>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function() {
+  "use strict";
+  const THEME_DATA = JSON.parse('/*THEMES_JSON*/');
+
+  // Version
+  document.getElementById("appVersion").textContent = "v" + THEME_DATA.version;
+  document.getElementById("footerRight").textContent = "claude-replay v" + THEME_DATA.version;
+
+  // ─── Theme dropdown ───
+  const themeDropdown = document.getElementById("themeDropdown");
+  const themeDropdownBtn = document.getElementById("themeDropdownBtn");
+  const themeDropdownMenu = document.getElementById("themeDropdownMenu");
+  const themeDotPreview = document.getElementById("themeDotPreview");
+  const themeNameLabel = document.getElementById("themeNameLabel");
+
+  let currentTheme = localStorage.getItem("claude-replay-theme") || Object.keys(THEME_DATA.themes)[0];
+
+  function applyTheme(name) {
+    const vars = THEME_DATA.themes[name];
+    if (!vars) return;
+    document.body.classList.add("theme-transitioning");
+    for (const [k, v] of Object.entries(vars)) {
+      document.documentElement.style.setProperty("--" + k, v);
+    }
+    setTimeout(() => document.body.classList.remove("theme-transitioning"), 350);
+    currentTheme = name;
+    localStorage.setItem("claude-replay-theme", name);
+    themeDropdownMenu.querySelectorAll(".theme-dropdown-item").forEach(d =>
+      d.classList.toggle("active", d.dataset.theme === name)
+    );
+    const dot = THEME_DATA.themes[name] && THEME_DATA.themes[name].accent;
+    if (dot) themeDotPreview.style.background = dot;
+    themeNameLabel.textContent = name;
+  }
+
+  // Build dropdown items
+  for (const [name, vars] of Object.entries(THEME_DATA.themes)) {
+    const item = document.createElement("button");
+    item.className = "theme-dropdown-item" + (name === currentTheme ? " active" : "");
+    item.dataset.theme = name;
+    item.innerHTML = '<span class="theme-dot-mini" style="background:' + vars.accent + '"></span>' + name;
+    item.addEventListener("click", () => {
+      applyTheme(name);
+      themeDropdown.classList.remove("open");
+    });
+    themeDropdownMenu.appendChild(item);
+  }
+
+  // Set initial dot and label
+  const initVars = THEME_DATA.themes[currentTheme];
+  if (initVars) {
+    themeDotPreview.style.background = initVars.accent;
+    themeNameLabel.textContent = currentTheme;
+  }
+
+  // Toggle dropdown
+  themeDropdownBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    themeDropdown.classList.toggle("open");
+  });
+  document.addEventListener("click", () => themeDropdown.classList.remove("open"));
+
+  // ─── TOC active section highlighting ───
+  const docsContent = document.getElementById("docsContent");
+  const tocLinks = document.querySelectorAll(".docs-toc-list a");
+
+  function getActiveSectionId() {
+    const sections = docsContent.querySelectorAll(".docs-section");
+    const scrollTop = docsContent.scrollTop + 80;
+    let active = null;
+    for (const sec of sections) {
+      if (sec.offsetTop <= scrollTop) {
+        active = sec.id;
+      }
+    }
+    // Also check sub-headings
+    const allAnchors = docsContent.querySelectorAll("[id]");
+    for (const el of allAnchors) {
+      if (el.offsetTop <= scrollTop) {
+        active = el.id;
+      }
+    }
+    return active;
+  }
+
+  function updateTocActive() {
+    const active = getActiveSectionId();
+    tocLinks.forEach(link => {
+      const href = link.getAttribute("href").slice(1); // remove #
+      link.classList.toggle("active", href === active);
+    });
+  }
+
+  docsContent.addEventListener("scroll", updateTocActive, { passive: true });
+  updateTocActive();
+
+  // ─── Smooth scroll for TOC links ───
+  tocLinks.forEach(link => {
+    link.addEventListener("click", (e) => {
+      const targetId = link.getAttribute("href").slice(1);
+      const target = document.getElementById(targetId);
+      if (target) {
+        e.preventDefault();
+        // If it's a sub-heading inside a section, scroll the content area
+        docsContent.scrollTo({ top: target.offsetTop - 16, behavior: "smooth" });
+      }
+    });
+  });
+
+})();
+</script>
+</body>
+</html>
