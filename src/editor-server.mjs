@@ -1041,6 +1041,94 @@ async function handleApi(req, res, pathname) {
     }
   }
 
+  // POST /api/search — search across all sessions in a project
+  if (pathname === "/api/search" && req.method === "POST") {
+    const body = await readBody(req);
+    const { dirName, query } = body;
+    if (!dirName || !query || query.length < 2) return json(res, { results: [] });
+    try {
+      const home = homedir();
+      const projPath = join(home, ".claude", "projects", dirName);
+      if (!existsSync(projPath)) return json(res, { results: [] });
+
+      const files = readdirSync(projPath).filter((f) => f.endsWith(".jsonl")).sort().reverse();
+      const results = [];
+      const queryLower = query.toLowerCase();
+
+      for (const file of files.slice(0, 30)) {
+        if (results.length >= 50) break;
+        const fullPath = join(projPath, file);
+        try {
+          const content = readFileSync(fullPath, "utf-8");
+          const lines = content.split("\n").filter((l) => l.trim());
+          let turnIdx = 0;
+          for (const line of lines) {
+            if (results.length >= 50) break;
+            try {
+              const entry = JSON.parse(line);
+              const isUser = entry.type === "human" || entry.role === "human" || entry.type === "user" || entry.role === "user";
+              if (isUser) {
+                turnIdx++;
+                let text = "";
+                if (typeof entry.message === "string") text = entry.message;
+                else if (entry.message?.content) {
+                  const arr = Array.isArray(entry.message.content) ? entry.message.content : [entry.message.content];
+                  for (const c of arr) {
+                    if (typeof c === "string") { text = c; break; }
+                    if (c.type === "text" && c.text) { text = c.text; break; }
+                  }
+                }
+                text = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").trim();
+                if (text.toLowerCase().includes(queryLower)) {
+                  const sessionId = file.replace(/\.jsonl$/, "");
+                  results.push({
+                    sessionId: sessionId.slice(0, 8),
+                    path: fullPath,
+                    turn: turnIdx,
+                    text: text.slice(0, 300),
+                    role: "user",
+                  });
+                }
+              }
+              // Also search assistant text blocks
+              if (entry.type === "assistant" || entry.role === "assistant") {
+                const msg = entry.message;
+                if (typeof msg === "string" && msg.toLowerCase().includes(queryLower)) {
+                  const sessionId = file.replace(/\.jsonl$/, "");
+                  results.push({
+                    sessionId: sessionId.slice(0, 8),
+                    path: fullPath,
+                    turn: turnIdx,
+                    text: msg.slice(0, 300),
+                    role: "assistant",
+                  });
+                } else if (msg?.content && Array.isArray(msg.content)) {
+                  for (const c of msg.content) {
+                    if (results.length >= 50) break;
+                    if (c.type === "text" && c.text && c.text.toLowerCase().includes(queryLower)) {
+                      const sessionId = file.replace(/\.jsonl$/, "");
+                      results.push({
+                        sessionId: sessionId.slice(0, 8),
+                        path: fullPath,
+                        turn: turnIdx,
+                        text: c.text.slice(0, 300),
+                        role: "assistant",
+                      });
+                      break;
+                    }
+                  }
+                }
+              }
+            } catch { /* skip */ }
+          }
+        } catch { /* skip file */ }
+      }
+      return json(res, { results });
+    } catch (e) {
+      return error(res, e.message, 500);
+    }
+  }
+
   // POST /api/render-replay — render player HTML for iframe embedding (not download)
   if (pathname === "/api/render-replay" && req.method === "POST") {
     const body = await readBody(req);

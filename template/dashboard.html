@@ -731,6 +731,274 @@ mark.search-highlight.active {
 }
 .theme-quick-toggle:hover { border-color: var(--accent); }
 
+/* Favorites section in sidebar */
+.sidebar-section-pinned { padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.sidebar-section-pinned .sidebar-title { margin-bottom: 6px; }
+.pinned-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text);
+  transition: background 0.15s;
+}
+.pinned-item:hover { background: var(--bg-hover); }
+.pinned-item-id { color: var(--cyan); font-family: monospace; font-size: 10px; }
+.pinned-item-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.pinned-item-unpin {
+  opacity: 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  background: none;
+  border: none;
+  padding: 0 4px;
+}
+.pinned-item:hover .pinned-item-unpin { opacity: 1; }
+
+/* Star/pin button in session table */
+.btn-star {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px;
+  opacity: 0.3;
+  transition: opacity 0.15s;
+}
+.btn-star:hover { opacity: 0.7; }
+.btn-star.starred { opacity: 1; color: var(--orange); }
+
+/* Tags */
+.session-tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px; }
+.session-tag {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  cursor: default;
+}
+.session-tag.tag-feature { border-color: var(--green); color: var(--green); }
+.session-tag.tag-bugfix { border-color: var(--red); color: var(--red); }
+.session-tag.tag-refactor { border-color: var(--blue); color: var(--blue); }
+.session-tag.tag-debug { border-color: var(--orange); color: var(--orange); }
+.tag-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  font-size: 9px;
+  padding: 1px 4px;
+  width: 60px;
+  font-family: inherit;
+}
+.tag-input:focus { outline: none; border-color: var(--accent); }
+.btn-add-tag {
+  font-size: 9px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 3px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 1px 4px;
+}
+.btn-add-tag:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Activity heatmap */
+.heatmap-container { margin-bottom: 20px; }
+.heatmap-grid {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+.heatmap-week { display: flex; flex-direction: column; gap: 2px; }
+.heatmap-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--bg-hover);
+  cursor: pointer;
+  transition: outline 0.1s;
+}
+.heatmap-cell:hover { outline: 1px solid var(--text-dim); }
+.heatmap-cell.level-1 { background: color-mix(in srgb, var(--accent) 25%, var(--bg-hover)); }
+.heatmap-cell.level-2 { background: color-mix(in srgb, var(--accent) 50%, var(--bg-hover)); }
+.heatmap-cell.level-3 { background: color-mix(in srgb, var(--accent) 75%, var(--bg-hover)); }
+.heatmap-cell.level-4 { background: var(--accent); }
+.heatmap-cell.active { outline: 2px solid var(--text-bright); }
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.heatmap-months {
+  display: flex;
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.heatmap-months span { flex-shrink: 0; }
+
+/* Global search */
+.global-search-wrap {
+  position: relative;
+  margin-left: 16px;
+}
+.global-search-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 10px 5px 28px;
+  font-size: 12px;
+  font-family: inherit;
+  width: 200px;
+  transition: width 0.2s, border-color 0.15s;
+}
+.global-search-input:focus { outline: none; border-color: var(--accent); width: 280px; }
+.global-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  font-size: 12px;
+  pointer-events: none;
+}
+.global-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 400px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 300;
+  display: none;
+}
+.global-search-results.open { display: block; }
+.search-result-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover { background: var(--bg-hover); }
+.search-result-session { font-size: 10px; color: var(--cyan); font-family: monospace; }
+.search-result-turn { font-size: 10px; color: var(--text-dim); margin-left: 6px; }
+.search-result-text {
+  font-size: 12px;
+  color: var(--text);
+  margin-top: 2px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.search-result-text mark { background: var(--orange); color: var(--bg); border-radius: 2px; padding: 0 1px; }
+.search-result-empty { padding: 16px; text-align: center; color: var(--text-dim); font-size: 12px; }
+.search-result-loading { padding: 12px; text-align: center; color: var(--text-dim); font-size: 12px; }
+
+/* Session diff / compare */
+.diff-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: var(--bg);
+  flex-direction: column;
+}
+.diff-overlay.open { display: flex; }
+.diff-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  height: 48px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.diff-header-title { font-size: 14px; font-weight: 600; color: var(--text-bright); }
+.diff-close {
+  margin-left: auto;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+.diff-close:hover { border-color: var(--accent); }
+.diff-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+.diff-pane {
+  overflow-y: auto;
+  padding: 16px;
+  border-right: 1px solid var(--border);
+}
+.diff-pane:last-child { border-right: none; }
+.diff-pane-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.compare-select-msg {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.btn-compare {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 10px;
+  font-family: inherit;
+  margin-left: auto;
+}
+.btn-compare:hover { border-color: var(--accent); color: var(--accent); }
+.compare-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.compare-bar.active { display: flex; }
+.compare-bar .session-id { margin: 0 4px; }
+
 /* Mobile responsive */
 .mobile-menu-btn {
   display: none;
@@ -802,6 +1070,11 @@ mark.search-highlight.active {
       <a href="/editor">Editor</a>
       <a href="/docs">Docs</a>
     </nav>
+    <div class="global-search-wrap" id="globalSearchWrap">
+      <span class="global-search-icon">&#128269;</span>
+      <input type="text" class="global-search-input" id="globalSearchInput" placeholder="Search all sessions...">
+      <div class="global-search-results" id="globalSearchResults"></div>
+    </div>
     <div class="app-header-right">
       <button class="theme-quick-toggle" id="darkLightToggle" title="Toggle dark/light">&#9789;</button>
       <div class="theme-dropdown" id="themeDropdown">
@@ -819,6 +1092,10 @@ mark.search-highlight.active {
 
   <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
   <div class="sidebar" id="sidebar">
+    <div class="sidebar-section-pinned" id="pinnedSection" style="display:none">
+      <div class="sidebar-title">Pinned</div>
+      <div id="pinnedList"></div>
+    </div>
     <div class="sidebar-section">
       <div class="sidebar-title">Projects</div>
       <div id="project-list"><div class="loading"><div class="spinner"></div> Loading...</div></div>
@@ -838,6 +1115,18 @@ mark.search-highlight.active {
     <div class="footer-left" id="footerLeft"></div>
     <div class="footer-right" id="footerRight"></div>
   </footer>
+</div>
+
+<!-- Session diff overlay -->
+<div class="diff-overlay" id="diffOverlay">
+  <div class="diff-header">
+    <span class="diff-header-title">Compare Sessions</span>
+    <button class="diff-close" id="diffClose">Close</button>
+  </div>
+  <div class="diff-container">
+    <div class="diff-pane" id="diffPaneA"></div>
+    <div class="diff-pane" id="diffPaneB"></div>
+  </div>
 </div>
 
 <!-- Transcript viewer -->
@@ -1145,7 +1434,7 @@ mark.search-highlight.active {
         ${details.claudeMd ? '<div class="tab" data-tab="claude-md">CLAUDE.md</div>' : ""}
         ${details.memoryMd ? '<div class="tab" data-tab="memory-md">MEMORY.md</div>' : ""}
       </div>
-      <div class="tab-content active" id="tab-sessions">${renderSessionTable(details.sessions)}</div>
+      <div class="tab-content active" id="tab-sessions">${renderHeatmap(details.sessions)}${renderSessionTable(details.sessions)}</div>
       <div class="tab-content" id="tab-stats"><div class="loading"><div class="spinner"></div> Click to load stats...</div></div>
       <div class="tab-content" id="tab-plans"><div class="loading"><div class="spinner"></div> Click to load plans...</div></div>
       ${gitInfo && gitInfo.isRepo ? '<div class="tab-content" id="tab-git"><div class="loading"><div class="spinner"></div> Click to load git details...</div></div>' : ""}
@@ -1551,7 +1840,11 @@ mark.search-highlight.active {
             const origIdx = sessions.indexOf(s);
             return `
             <tr data-session-idx="${origIdx}" data-previews='${escapeHtml(JSON.stringify(s.userPreviews || []))}'>
-              <td><span class="session-id">${escapeHtml(s.sessionId.slice(0, 8))}</span></td>
+              <td>
+                <button class="btn-star${isPinned(s.path) ? " starred" : ""}" data-idx="${origIdx}" title="Pin session">&#9733;</button>
+                <span class="session-id">${escapeHtml(s.sessionId.slice(0, 8))}</span>
+                <div class="session-tags" data-path="${escapeHtml(s.path)}"></div>
+              </td>
               <td><span class="session-preview" title="${escapeHtml(s.preview)}">${escapeHtml(s.preview || "(empty)")}</span></td>
               <td><span class="session-date" title="${formatFullDate(s.date)}">${formatDate(s.date)}</span></td>
               <td><span class="session-duration">${formatDuration(s.duration)}</span></td>
@@ -1562,6 +1855,7 @@ mark.search-highlight.active {
                 <button class="btn btn-transcript" data-idx="${origIdx}" title="View full transcript">Transcript</button>
                 <button class="btn btn-edit" data-idx="${origIdx}" title="Open in editor">Edit</button>
                 <button class="btn btn-export-md" data-idx="${origIdx}" title="Export Markdown">MD</button>
+                <button class="btn btn-compare" data-idx="${origIdx}" title="Compare">Compare</button>
               </td>
             </tr>`;
           }).join("")}
@@ -1642,6 +1936,41 @@ mark.search-highlight.active {
         } catch (e) { toast("Failed to load: " + e.message, "error"); }
         btn.textContent = "Transcript";
         btn.disabled = false;
+      });
+    }
+
+    // Star/pin buttons
+    for (const btn of detailEl.querySelectorAll(".btn-star")) {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const s = sessions[parseInt(btn.dataset.idx)];
+        togglePin(s);
+      });
+    }
+
+    // Render tags for each session
+    for (const container of detailEl.querySelectorAll(".session-tags[data-path]")) {
+      renderTagsForSession(container.dataset.path, container);
+    }
+
+    // Compare buttons
+    compareSelections = [];
+    for (const btn of detailEl.querySelectorAll(".btn-compare")) {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.idx);
+        if (compareSelections.includes(idx)) {
+          compareSelections = compareSelections.filter(i => i !== idx);
+          btn.classList.remove("active");
+        } else if (compareSelections.length < 2) {
+          compareSelections.push(idx);
+          btn.classList.add("active");
+        }
+        if (compareSelections.length === 2) {
+          startCompare(sessions);
+          // Reset buttons
+          for (const b of detailEl.querySelectorAll(".btn-compare")) b.classList.remove("active");
+          compareSelections = [];
+        }
       });
     }
   }
@@ -1876,6 +2205,276 @@ mark.search-highlight.active {
     transcriptOverlay.classList.remove("open");
   });
 
+  // ─── Favorites / Pinned Sessions ───
+
+  const PINNED_KEY = "claude-replay-pinned";
+  function getPinned() { try { return JSON.parse(localStorage.getItem(PINNED_KEY) || "[]"); } catch { return []; } }
+  function savePinned(arr) { localStorage.setItem(PINNED_KEY, JSON.stringify(arr)); }
+  function isPinned(path) { return getPinned().some(p => p.path === path); }
+
+  function togglePin(session) {
+    let pinned = getPinned();
+    const idx = pinned.findIndex(p => p.path === session.path);
+    if (idx >= 0) {
+      pinned.splice(idx, 1);
+    } else {
+      pinned.unshift({ path: session.path, id: session.sessionId.slice(0, 8), preview: session.preview || "", projectDirName: activeProject?.dirName || "" });
+    }
+    savePinned(pinned);
+    renderPinned();
+    // Update star buttons
+    for (const btn of detailEl.querySelectorAll(".btn-star")) {
+      const s = activeDetails?.sessions[parseInt(btn.dataset.idx)];
+      if (s) btn.classList.toggle("starred", isPinned(s.path));
+    }
+  }
+
+  function renderPinned() {
+    const pinned = getPinned();
+    const section = document.getElementById("pinnedSection");
+    const list = document.getElementById("pinnedList");
+    if (pinned.length === 0) { section.style.display = "none"; return; }
+    section.style.display = "";
+    list.innerHTML = pinned.map((p, i) => `
+      <div class="pinned-item" data-idx="${i}">
+        <span class="pinned-item-id">${escapeHtml(p.id)}</span>
+        <span class="pinned-item-text">${escapeHtml(p.preview)}</span>
+        <button class="pinned-item-unpin" data-idx="${i}" title="Unpin">&times;</button>
+      </div>
+    `).join("");
+
+    list.addEventListener("click", (e) => {
+      const unpin = e.target.closest(".pinned-item-unpin");
+      if (unpin) {
+        const arr = getPinned();
+        arr.splice(parseInt(unpin.dataset.idx), 1);
+        savePinned(arr);
+        renderPinned();
+        return;
+      }
+      const item = e.target.closest(".pinned-item");
+      if (item) {
+        const p = pinned[parseInt(item.dataset.idx)];
+        if (p) {
+          const url = "/replay?path=" + encodeURIComponent(p.path) + "&id=" + encodeURIComponent(p.id);
+          window.open(url, "_blank");
+        }
+      }
+    });
+  }
+
+  // ─── Tags ───
+
+  const TAGS_KEY = "claude-replay-tags";
+  function getAllTags() { try { return JSON.parse(localStorage.getItem(TAGS_KEY) || "{}"); } catch { return {}; } }
+  function saveAllTags(obj) { localStorage.setItem(TAGS_KEY, JSON.stringify(obj)); }
+  function getSessionTags(path) { return getAllTags()[path] || []; }
+  function setSessionTags(path, tags) { const all = getAllTags(); all[path] = tags; saveAllTags(all); }
+
+  function renderTagsForSession(path, container) {
+    const tags = getSessionTags(path);
+    let html = tags.map(t => `<span class="session-tag tag-${t}">${escapeHtml(t)}</span>`).join("");
+    html += '<button class="btn-add-tag" data-path="' + escapeHtml(path) + '">+</button>';
+    container.innerHTML = html;
+  }
+
+  // Delegated handler for adding tags
+  detailEl.addEventListener("click", (e) => {
+    const addBtn = e.target.closest(".btn-add-tag");
+    if (!addBtn) return;
+    const path = addBtn.dataset.path;
+    const tagOptions = ["feature", "bugfix", "refactor", "debug"];
+    const current = getSessionTags(path);
+    // Cycle through: add next unused tag, or clear all if all applied
+    const unused = tagOptions.filter(t => !current.includes(t));
+    if (unused.length > 0) {
+      current.push(unused[0]);
+    } else {
+      current.length = 0;
+    }
+    setSessionTags(path, current);
+    const container = addBtn.closest(".session-tags");
+    if (container) renderTagsForSession(path, container);
+  });
+
+  // ─── Global Search ───
+
+  const globalSearchInput = document.getElementById("globalSearchInput");
+  const globalSearchResults = document.getElementById("globalSearchResults");
+  let globalSearchTimer = null;
+
+  globalSearchInput.addEventListener("input", () => {
+    clearTimeout(globalSearchTimer);
+    const q = globalSearchInput.value.trim();
+    if (q.length < 2) { globalSearchResults.classList.remove("open"); return; }
+    globalSearchResults.innerHTML = '<div class="search-result-loading"><div class="spinner" style="display:inline-block;margin-right:6px"></div>Searching...</div>';
+    globalSearchResults.classList.add("open");
+    globalSearchTimer = setTimeout(async () => {
+      if (!activeProject) {
+        // Search across all projects
+        let allResults = [];
+        for (const p of projects.slice(0, 10)) {
+          try {
+            const data = await api("/api/search", { dirName: p.dirName, query: q });
+            allResults = allResults.concat(data.results || []);
+          } catch {}
+        }
+        renderSearchResults(allResults, q);
+      } else {
+        try {
+          const data = await api("/api/search", { dirName: activeProject.dirName, query: q });
+          renderSearchResults(data.results || [], q);
+        } catch { renderSearchResults([], q); }
+      }
+    }, 400);
+  });
+
+  globalSearchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { globalSearchResults.classList.remove("open"); globalSearchInput.blur(); }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".global-search-wrap")) globalSearchResults.classList.remove("open");
+  });
+
+  function renderSearchResults(results, query) {
+    if (results.length === 0) {
+      globalSearchResults.innerHTML = '<div class="search-result-empty">No results found</div>';
+      return;
+    }
+    const regex = new RegExp("(" + query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+    globalSearchResults.innerHTML = results.slice(0, 30).map(r => {
+      const highlighted = escapeHtml(r.text).replace(regex, "<mark>$1</mark>");
+      return `<div class="search-result-item" data-path="${escapeHtml(r.path)}" data-session="${escapeHtml(r.sessionId)}">
+        <span class="search-result-session">${escapeHtml(r.sessionId)}</span>
+        <span class="search-result-turn">turn ${r.turn} \u00B7 ${r.role}</span>
+        <div class="search-result-text">${highlighted}</div>
+      </div>`;
+    }).join("");
+  }
+
+  globalSearchResults.addEventListener("click", (e) => {
+    const item = e.target.closest(".search-result-item");
+    if (!item) return;
+    const path = item.dataset.path;
+    const sid = item.dataset.session;
+    globalSearchResults.classList.remove("open");
+    window.open("/replay?path=" + encodeURIComponent(path) + "&id=" + encodeURIComponent(sid), "_blank");
+  });
+
+  // ─── Activity Heatmap ───
+
+  function renderHeatmap(sessions) {
+    if (!sessions || sessions.length === 0) return "";
+    // Count sessions per day
+    const dayCounts = {};
+    for (const s of sessions) {
+      if (!s.date) continue;
+      const day = s.date.slice(0, 10);
+      dayCounts[day] = (dayCounts[day] || 0) + 1;
+    }
+    if (Object.keys(dayCounts).length === 0) return "";
+
+    // Build 90 days grid
+    const today = new Date();
+    const days = [];
+    for (let i = 89; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      days.push({ key, count: dayCounts[key] || 0, dow: d.getDay() });
+    }
+
+    // Find max for levels
+    const maxCount = Math.max(1, ...days.map(d => d.count));
+    function level(count) {
+      if (count === 0) return "";
+      if (count <= maxCount * 0.25) return "level-1";
+      if (count <= maxCount * 0.5) return "level-2";
+      if (count <= maxCount * 0.75) return "level-3";
+      return "level-4";
+    }
+
+    // Group into weeks
+    let html = '<div class="heatmap-container"><div class="heatmap-grid">';
+    let week = [];
+    for (const d of days) {
+      if (d.dow === 0 && week.length > 0) {
+        html += '<div class="heatmap-week">' + week.join("") + '</div>';
+        week = [];
+      }
+      const lvl = level(d.count);
+      const title = d.key + (d.count ? " (" + d.count + " session" + (d.count > 1 ? "s" : "") + ")" : "");
+      week.push('<div class="heatmap-cell ' + lvl + '" data-date="' + d.key + '" title="' + title + '"></div>');
+    }
+    if (week.length > 0) html += '<div class="heatmap-week">' + week.join("") + '</div>';
+    html += '</div>';
+    html += '<div class="heatmap-legend"><span>Less</span>';
+    html += '<div class="heatmap-cell"></div><div class="heatmap-cell level-1"></div><div class="heatmap-cell level-2"></div><div class="heatmap-cell level-3"></div><div class="heatmap-cell level-4"></div>';
+    html += '<span>More</span></div></div>';
+    return html;
+  }
+
+  // ─── Session Compare / Diff ───
+
+  const diffOverlay = document.getElementById("diffOverlay");
+  let compareSelections = [];
+
+  function startCompare(sessions) {
+    if (compareSelections.length !== 2) return;
+    const [idxA, idxB] = compareSelections;
+    const sA = sessions[idxA];
+    const sB = sessions[idxB];
+    if (!sA || !sB) return;
+
+    diffOverlay.classList.add("open");
+    document.getElementById("diffPaneA").innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+    document.getElementById("diffPaneB").innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+
+    // Load both transcripts
+    Promise.all([
+      api("/api/transcript", { path: sA.path }),
+      api("/api/transcript", { path: sB.path }),
+    ]).then(([dataA, dataB]) => {
+      document.getElementById("diffPaneA").innerHTML = renderDiffPane(sA.sessionId.slice(0, 8), dataA.turns);
+      document.getElementById("diffPaneB").innerHTML = renderDiffPane(sB.sessionId.slice(0, 8), dataB.turns);
+
+      // Sync scroll
+      const paneA = document.getElementById("diffPaneA");
+      const paneB = document.getElementById("diffPaneB");
+      let syncing = false;
+      paneA.addEventListener("scroll", () => { if (!syncing) { syncing = true; paneB.scrollTop = paneA.scrollTop; syncing = false; } });
+      paneB.addEventListener("scroll", () => { if (!syncing) { syncing = true; paneA.scrollTop = paneB.scrollTop; syncing = false; } });
+    }).catch(e => {
+      document.getElementById("diffPaneA").innerHTML = '<div class="md-empty">Error: ' + escapeHtml(e.message) + '</div>';
+    });
+  }
+
+  function renderDiffPane(sessionId, turns) {
+    let html = '<div class="diff-pane-header">Session ' + escapeHtml(sessionId) + ' (' + turns.length + ' turns)</div>';
+    for (const turn of turns) {
+      html += '<div class="transcript-turn">';
+      html += '<div class="transcript-turn-header"><span class="transcript-turn-num">#' + turn.index + '</span></div>';
+      if (turn.user_text) {
+        html += '<div class="transcript-user" style="font-size:12px">' + escapeHtml(turn.user_text) + '</div>';
+      }
+      for (const block of turn.blocks || []) {
+        if (block.kind === "text" && block.text) {
+          html += '<div class="transcript-assistant" style="font-size:11px">' + escapeHtml(block.text.slice(0, 500)) + (block.text.length > 500 ? "..." : "") + '</div>';
+        } else if (block.kind === "tool_use" && block.tool_call) {
+          html += '<div class="transcript-tool"><span class="transcript-tool-name">' + escapeHtml(block.tool_call.name) + '</span></div>';
+        }
+      }
+      html += '</div>';
+    }
+    return html;
+  }
+
+  document.getElementById("diffClose").addEventListener("click", () => {
+    diffOverlay.classList.remove("open");
+    compareSelections = [];
+  });
+
   // ─── Hover Preview ───
 
   const hoverPopover = document.getElementById("hoverPopover");
@@ -1989,6 +2588,7 @@ mark.search-highlight.active {
   // ─── Init ───
   initThemeSwitcher();
   updateToggleIcon();
+  renderPinned();
   loadProjects();
 })();
 </script>
