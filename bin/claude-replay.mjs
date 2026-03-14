@@ -15,6 +15,7 @@ import { extractData } from "../src/extract.mjs";
 
 const options = {
   port: { type: "string" },
+  host: { type: "string" },
   output: { type: "string", short: "o" },
   turns: { type: "string" },
   "exclude-turns": { type: "string" },
@@ -71,7 +72,8 @@ if (positionals.length === 0 || positionals[0] === "editor") {
   if (positionals[0] === "editor" || !values.help) {
     const { startEditor } = await import("../src/editor-server.mjs");
     const port = values.port ? parseInt(values.port, 10) : 7331;
-    await startEditor(port);
+    const host = values.host || "127.0.0.1";
+    await startEditor(port, { host });
     // startEditor returns a promise that never resolves — server stays running
   }
 }

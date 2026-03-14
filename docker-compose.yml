@@ -1,0 +1,15 @@
+services:
+  claude-replay:
+    build: .
+    ports:
+      - "7331:7331"
+    volumes:
+      # Session data (required)
+      - ${HOME}/.claude:${HOME}/.claude:ro
+      - ${HOME}/.cursor:${HOME}/.cursor:ro
+      - ${HOME}/.codex:${HOME}/.codex:ro
+      # Project dirs (needed for CLAUDE.md reading and path resolution)
+      # Mount your work directory or specific projects as needed:
+      - ${HOME}:${HOME}:ro
+    environment:
+      - HOME=${HOME}
