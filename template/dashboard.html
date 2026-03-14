@@ -143,7 +143,8 @@
 }
 
 /* Session table */
-.session-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.session-table-wrap { overflow-x: auto; max-width: 100%; }
+.session-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 700px; }
 .session-table th {
   text-align: left;
   font-size: 10px;
@@ -377,6 +378,149 @@
 }
 .session-table th.sortable.sort-active .sort-arrow { opacity: 1; color: var(--accent); }
 
+/* Transcript viewer overlay */
+.transcript-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: var(--bg);
+  flex-direction: column;
+}
+.transcript-overlay.open { display: flex; }
+.transcript-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.transcript-toolbar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-right: auto;
+}
+.transcript-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.transcript-search-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  width: 220px;
+}
+.transcript-search-input:focus { outline: 1px solid var(--accent); }
+.transcript-search-count {
+  font-size: 11px;
+  color: var(--text-dim);
+  min-width: 60px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.transcript-search-nav {
+  display: flex;
+  gap: 2px;
+}
+.transcript-search-nav button {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.transcript-search-nav button:hover { border-color: var(--accent); }
+.transcript-close {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+.transcript-close:hover { border-color: var(--red); color: var(--red); }
+.transcript-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px 60px;
+}
+.transcript-turn {
+  margin-bottom: 20px;
+  border-left: 3px solid var(--border);
+  padding-left: 12px;
+}
+.transcript-turn-header {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.transcript-user {
+  background: var(--bg-surface);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  border-left: 3px solid var(--accent);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  color: var(--text-bright);
+}
+.transcript-assistant {
+  padding: 6px 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.6;
+}
+.transcript-tool {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+.transcript-tool-name { color: var(--cyan); font-weight: 600; }
+.transcript-thinking {
+  border-left: 2px solid var(--text-dim);
+  padding-left: 10px;
+  color: var(--text-dim);
+  font-size: 11px;
+  margin: 4px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+mark.search-highlight {
+  background: var(--orange);
+  color: var(--bg);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+mark.search-highlight.active {
+  background: var(--accent);
+  color: #fff;
+  outline: 2px solid var(--accent);
+}
+
 @media (max-width: 768px) {
   .app { grid-template-columns: 1fr; }
   .sidebar { display: none; }
@@ -443,6 +587,23 @@
     <div class="footer-left" id="footerLeft"></div>
     <div class="footer-right" id="footerRight"></div>
   </footer>
+</div>
+
+<!-- Transcript viewer -->
+<div class="transcript-overlay" id="transcriptOverlay">
+  <div class="transcript-toolbar">
+    <span class="transcript-toolbar-title" id="transcriptTitle">Transcript</span>
+    <div class="transcript-search-wrap">
+      <input type="text" class="transcript-search-input" id="transcriptSearch" placeholder="Search in conversation...">
+      <span class="transcript-search-count" id="transcriptSearchCount"></span>
+      <div class="transcript-search-nav">
+        <button id="searchPrev" title="Previous match">\u25B2</button>
+        <button id="searchNext" title="Next match">\u25BC</button>
+      </div>
+    </div>
+    <button class="transcript-close" id="transcriptClose">Close</button>
+  </div>
+  <div class="transcript-body" id="transcriptBody"></div>
 </div>
 
 <!-- Toast container -->
@@ -1104,6 +1265,7 @@
     }
 
     return `
+      <div class="session-table-wrap">
       <table class="session-table" id="sessionTable">
         <thead><tr>
           <th>Session</th>
@@ -1125,6 +1287,7 @@
               <td class="session-size">${formatSize(s.size)}</td>
               <td class="session-actions">
                 <button class="btn btn-primary btn-replay" data-idx="${origIdx}" title="Open replay">Replay</button>
+                <button class="btn btn-transcript" data-idx="${origIdx}" title="View full transcript">Transcript</button>
                 <button class="btn btn-edit" data-idx="${origIdx}" title="Open in editor">Edit</button>
                 <button class="btn btn-export-md" data-idx="${origIdx}" title="Export Markdown">MD</button>
               </td>
@@ -1132,6 +1295,7 @@
           }).join("")}
         </tbody>
       </table>
+      </div>
     `;
   }
 
@@ -1194,11 +1358,167 @@
         btn.disabled = false;
       });
     }
+    // Transcript button
+    for (const btn of detailEl.querySelectorAll(".btn-transcript")) {
+      btn.addEventListener("click", async () => {
+        const s = sessions[parseInt(btn.dataset.idx)];
+        btn.textContent = "...";
+        btn.disabled = true;
+        try {
+          const data = await api("/api/load", { path: s.path });
+          openTranscript(s.sessionId.slice(0, 8), data.turns);
+        } catch (e) { toast("Failed to load: " + e.message, "error"); }
+        btn.textContent = "Transcript";
+        btn.disabled = false;
+      });
+    }
   }
+
+  // ─── Transcript Viewer ───
+
+  const transcriptOverlay = document.getElementById("transcriptOverlay");
+  const transcriptBody = document.getElementById("transcriptBody");
+  const transcriptSearch = document.getElementById("transcriptSearch");
+  const transcriptSearchCount = document.getElementById("transcriptSearchCount");
+  const transcriptTitle = document.getElementById("transcriptTitle");
+
+  let searchMatches = [];
+  let searchCurrentIdx = -1;
+
+  function openTranscript(title, turns) {
+    transcriptTitle.textContent = "Transcript \u2014 " + title;
+    transcriptSearch.value = "";
+    transcriptSearchCount.textContent = "";
+    searchMatches = [];
+    searchCurrentIdx = -1;
+
+    let html = "";
+    for (const turn of turns) {
+      html += '<div class="transcript-turn">';
+      html += '<div class="transcript-turn-header">Turn ' + turn.index + (turn.timestamp ? ' \u00B7 ' + turn.timestamp : '') + '</div>';
+      if (turn.user_text) {
+        html += '<div class="transcript-user">' + escapeHtml(turn.user_text) + '</div>';
+      }
+      for (const block of turn.blocks || []) {
+        if (block.kind === "text") {
+          html += '<div class="transcript-assistant">' + escapeHtml(block.text || "") + '</div>';
+        } else if (block.kind === "thinking") {
+          html += '<div class="transcript-thinking">' + escapeHtml((block.text || "").slice(0, 500)) + (block.text && block.text.length > 500 ? "..." : "") + '</div>';
+        } else if (block.kind === "tool_use" && block.name) {
+          html += '<div class="transcript-tool"><span class="transcript-tool-name">' + escapeHtml(block.name) + '</span> ' + escapeHtml(truncateStr(JSON.stringify(block.input || {}), 200)) + '</div>';
+        } else if (block.kind === "tool_use" && block.tool_call) {
+          const tc = block.tool_call || block;
+          html += '<div class="transcript-tool"><span class="transcript-tool-name">' + escapeHtml(tc.name || "tool") + '</span> ' + escapeHtml(truncateStr(JSON.stringify(tc.input || {}), 200)) + '</div>';
+        }
+      }
+      html += '</div>';
+    }
+    transcriptBody.innerHTML = html;
+    transcriptOverlay.classList.add("open");
+    transcriptSearch.focus();
+  }
+
+  function truncateStr(s, max) {
+    return s.length > max ? s.slice(0, max) + "..." : s;
+  }
+
+  function doSearch() {
+    const query = transcriptSearch.value.trim();
+    // Clear old highlights
+    for (const m of transcriptBody.querySelectorAll("mark.search-highlight")) {
+      m.replaceWith(m.textContent);
+    }
+    transcriptBody.normalize();
+    searchMatches = [];
+    searchCurrentIdx = -1;
+
+    if (!query) {
+      transcriptSearchCount.textContent = "";
+      return;
+    }
+
+    // Walk text nodes and wrap matches
+    const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "gi");
+    const walker = document.createTreeWalker(transcriptBody, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+    for (const node of textNodes) {
+      const text = node.textContent;
+      if (!regex.test(text)) continue;
+      regex.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let lastIdx = 0;
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIdx) {
+          frag.appendChild(document.createTextNode(text.slice(lastIdx, match.index)));
+        }
+        const mark = document.createElement("mark");
+        mark.className = "search-highlight";
+        mark.textContent = match[0];
+        frag.appendChild(mark);
+        lastIdx = regex.lastIndex;
+      }
+      if (lastIdx < text.length) {
+        frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+      }
+      node.parentNode.replaceChild(frag, node);
+    }
+
+    searchMatches = Array.from(transcriptBody.querySelectorAll("mark.search-highlight"));
+    transcriptSearchCount.textContent = searchMatches.length + " found";
+
+    if (searchMatches.length > 0) {
+      searchCurrentIdx = 0;
+      highlightCurrent();
+    }
+  }
+
+  function highlightCurrent() {
+    for (const m of searchMatches) m.classList.remove("active");
+    if (searchCurrentIdx >= 0 && searchCurrentIdx < searchMatches.length) {
+      const el = searchMatches[searchCurrentIdx];
+      el.classList.add("active");
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      transcriptSearchCount.textContent = (searchCurrentIdx + 1) + " / " + searchMatches.length;
+    }
+  }
+
+  function searchNext() {
+    if (searchMatches.length === 0) return;
+    searchCurrentIdx = (searchCurrentIdx + 1) % searchMatches.length;
+    highlightCurrent();
+  }
+
+  function searchPrev() {
+    if (searchMatches.length === 0) return;
+    searchCurrentIdx = (searchCurrentIdx - 1 + searchMatches.length) % searchMatches.length;
+    highlightCurrent();
+  }
+
+  let searchDebounce = null;
+  transcriptSearch.addEventListener("input", () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(doSearch, 250);
+  });
+  transcriptSearch.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.shiftKey ? searchPrev() : searchNext(); e.preventDefault(); }
+    if (e.key === "Escape") { transcriptOverlay.classList.remove("open"); }
+  });
+  document.getElementById("searchNext").addEventListener("click", searchNext);
+  document.getElementById("searchPrev").addEventListener("click", searchPrev);
+  document.getElementById("transcriptClose").addEventListener("click", () => {
+    transcriptOverlay.classList.remove("open");
+  });
 
   // ─── Keyboard shortcuts ───
 
   document.addEventListener("keydown", (e) => {
+    if (transcriptOverlay.classList.contains("open") && e.key === "Escape") {
+      transcriptOverlay.classList.remove("open");
+      return;
+    }
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
     if (e.key === "?") { helpModal.classList.toggle("open"); return; }
     if (e.key === "Escape") { helpModal.classList.remove("open"); return; }
