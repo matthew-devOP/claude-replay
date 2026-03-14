@@ -2242,22 +2242,21 @@ mark.search-highlight.active {
 
   // ─── Favorites / Pinned Sessions ───
 
-  const PINNED_KEY = "claude-replay-pinned";
-  function getPinned() { try { return JSON.parse(localStorage.getItem(PINNED_KEY) || "[]"); } catch { return []; } }
-  function savePinned(arr) { localStorage.setItem(PINNED_KEY, JSON.stringify(arr)); }
-  function isPinned(path) { return getPinned().some(p => p.path === path); }
+  let pinnedCache = [];
+  async function loadPinned() { pinnedCache = await api("/api/favorites"); renderPinned(); }
+  function isPinned(path) { return pinnedCache.some(p => p.path === path); }
 
-  function togglePin(session) {
-    let pinned = getPinned();
-    const idx = pinned.findIndex(p => p.path === session.path);
-    if (idx >= 0) {
-      pinned.splice(idx, 1);
-    } else {
-      pinned.unshift({ path: session.path, id: session.sessionId.slice(0, 8), preview: session.preview || "", projectDirName: activeProject?.dirName || "" });
-    }
-    savePinned(pinned);
+  async function togglePin(session) {
+    const pinned = isPinned(session.path);
+    await api("/api/favorites", {
+      path: session.path,
+      action: pinned ? "remove" : "add",
+      sessionId: session.sessionId?.slice(0, 8) || "",
+      preview: session.preview || "",
+      projectDir: activeProject?.dirName || "",
+    });
+    pinnedCache = (await api("/api/favorites"));
     renderPinned();
-    // Update star buttons
     for (const btn of detailEl.querySelectorAll(".btn-star")) {
       const s = activeDetails?.sessions[parseInt(btn.dataset.idx)];
       if (s) btn.classList.toggle("starred", isPinned(s.path));
@@ -2265,7 +2264,7 @@ mark.search-highlight.active {
   }
 
   function renderPinned() {
-    const pinned = getPinned();
+    const pinned = pinnedCache;
     const section = document.getElementById("pinnedSection");
     const list = document.getElementById("pinnedList");
     if (pinned.length === 0) { section.style.display = "none"; return; }
@@ -2300,11 +2299,13 @@ mark.search-highlight.active {
 
   // ─── Tags ───
 
-  const TAGS_KEY = "claude-replay-tags";
-  function getAllTags() { try { return JSON.parse(localStorage.getItem(TAGS_KEY) || "{}"); } catch { return {}; } }
-  function saveAllTags(obj) { localStorage.setItem(TAGS_KEY, JSON.stringify(obj)); }
-  function getSessionTags(path) { return getAllTags()[path] || []; }
-  function setSessionTags(path, tags) { const all = getAllTags(); all[path] = tags; saveAllTags(all); }
+  let tagsCache = {};
+  async function loadTags() { tagsCache = await api("/api/tags"); }
+  function getSessionTags(path) { return tagsCache[path] || []; }
+  async function setSessionTags(path, tags) {
+    tagsCache[path] = tags;
+    await api("/api/tags", { path, tags });
+  }
 
   const TAG_OPTIONS = ["feature", "bugfix", "refactor", "debug", "development", "testing", "documenting"];
 
@@ -2669,11 +2670,32 @@ mark.search-highlight.active {
     helpModal.classList.toggle("open");
   });
 
+  // ─── SSE Live Updates ───
+
+  function connectSSE() {
+    const es = new EventSource("/api/events");
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === "sessions-changed") {
+          toast("Sessions updated (" + data.count + " total)");
+          // Refresh project list
+          loadProjects();
+        }
+      } catch {} // heartbeat or connect messages
+    };
+    es.onerror = () => {
+      // Auto-reconnects after a few seconds
+    };
+  }
+
   // ─── Init ───
   initThemeSwitcher();
   updateToggleIcon();
-  renderPinned();
+  loadPinned();
+  loadTags();
   loadProjects();
+  connectSSE();
 })();
 </script>
 </body>

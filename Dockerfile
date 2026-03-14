@@ -1,11 +1,11 @@
 FROM node:22-alpine
 
-RUN apk add --no-cache git
+RUN apk add --no-cache git python3 make g++
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci --production=false
+COPY package.json package-lock.json* ./
+RUN npm install
 
 COPY . .
 RUN npm run build

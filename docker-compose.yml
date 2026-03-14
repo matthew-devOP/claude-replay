@@ -16,3 +16,4 @@ services:
       - ./bin:/app/bin:ro
     environment:
       - HOME=${HOME}
+      - CLAUDE_REPLAY_DATA=/app/data

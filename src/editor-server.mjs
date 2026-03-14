@@ -10,6 +10,21 @@ import { execFile } from "node:child_process";
 import { parseTranscript, filterTurns, detectFormat, applyPacedTiming } from "./parser.mjs";
 import { render } from "./renderer.mjs";
 import { getTheme, listThemes, getAllThemes } from "./themes.mjs";
+// SQLite cache — graceful fallback when better-sqlite3 isn't installed
+let dbModule = null;
+try { dbModule = await import("./db.mjs"); } catch { /* SQLite not available */ }
+const getCachedMeta = dbModule?.getCachedMeta || (() => null);
+const setCachedMeta = dbModule?.setCachedMeta || (() => {});
+const getCachedStats = dbModule?.getCachedStats || (() => null);
+const setCachedStats = dbModule?.setCachedStats || (() => {});
+const getFavorites = dbModule?.getFavorites || (() => []);
+const addFavorite = dbModule?.addFavorite || (() => {});
+const removeFavorite = dbModule?.removeFavorite || (() => {});
+const isFavorite = dbModule?.isFavorite || (() => false);
+const getTagsForSession = dbModule?.getTagsForSession || (() => []);
+const setTags = dbModule?.setTags || (() => {});
+const getAllTaggedSessions = dbModule?.getAllTaggedSessions || (() => ({}));
+const getCacheInfo = dbModule?.getCacheInfo || (() => ({ metaCount: 0, statsCount: 0, favCount: 0, tagCount: 0, dbSize: 0, dbPath: "n/a (SQLite not available)" }));
 
 const EDITOR_HTML_PATH = new URL("../template/editor.html", import.meta.url);
 const PKG = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8"));
@@ -537,7 +552,7 @@ function getProjectDetails(source, dirName) {
     const memoryMdPath = join(projPath, "memory", "MEMORY.md");
     try { if (existsSync(memoryMdPath)) memoryMd = readFileSync(memoryMdPath, "utf-8"); } catch { /* ignore */ }
 
-    // List sessions with previews
+    // List sessions with previews (using cache when possible)
     const files = readdirSync(projPath).filter((f) => f.endsWith(".jsonl")).sort().reverse();
     const sessionList = [];
     for (const file of files) {
@@ -545,24 +560,32 @@ function getProjectDetails(source, dirName) {
       let date = null;
       let size = 0;
       try {
-        const stat = statSync(fullPath);
-        date = stat.mtime.toISOString();
-        size = stat.size;
+        const fstat = statSync(fullPath);
+        date = fstat.mtime.toISOString();
+        size = fstat.size;
       } catch { /* ignore */ }
 
-      // Quick preview: read lines to get user messages, timestamps, turn count
+      const sessionId = file.replace(/\.jsonl$/, "");
+
+      // Try cache first
+      const cached = getCachedMeta(fullPath, date);
+      if (cached) {
+        sessionList.push({ ...cached, file });
+        continue;
+      }
+
+      // Parse fresh
       let preview = "";
       let turnCount = 0;
       let firstTimestamp = null;
       let lastTimestamp = null;
-      const userPreviews = []; // first 3 user messages for hover preview
+      const userPreviews = [];
       try {
         const content = readFileSync(fullPath, "utf-8");
         const lines = content.split("\n").filter((l) => l.trim());
         for (const line of lines) {
           try {
             const entry = JSON.parse(line);
-            // Track timestamps
             if (entry.timestamp) {
               if (!firstTimestamp) firstTimestamp = entry.timestamp;
               lastTimestamp = entry.timestamp;
@@ -579,7 +602,6 @@ function getProjectDetails(source, dirName) {
                   if (c.type === "text" && c.text) { userText = c.text; break; }
                 }
               }
-              // Clean system tags
               userText = userText.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").trim();
               if (!preview && userText) preview = userText.slice(0, 150);
               if (userPreviews.length < 3 && userText) {
@@ -590,24 +612,15 @@ function getProjectDetails(source, dirName) {
         }
       } catch { /* ignore read errors */ }
 
-      // Compute duration
       let duration = null;
       if (firstTimestamp && lastTimestamp) {
         duration = new Date(lastTimestamp).getTime() - new Date(firstTimestamp).getTime();
       }
 
-      const sessionId = file.replace(/\.jsonl$/, "");
-      sessionList.push({
-        sessionId,
-        file,
-        path: fullPath,
-        date,
-        size,
-        turnCount,
-        duration,
-        preview: preview.slice(0, 120),
-        userPreviews,
-      });
+      const meta = { sessionId, file, path: fullPath, date, size, turnCount, duration, preview: preview.slice(0, 120), userPreviews, firstTimestamp, lastTimestamp };
+      sessionList.push(meta);
+      // Cache for next time
+      try { setCachedMeta(fullPath, dirName, meta); } catch { /* ignore cache errors */ }
     }
 
     // Aggregate stats
@@ -958,24 +971,42 @@ async function handleApi(req, res, pathname) {
   // POST /api/projects/details — get project details (CLAUDE.md, MEMORY.md, sessions with previews)
   if (pathname === "/api/projects/details" && req.method === "POST") {
     const body = await readBody(req);
-    const { source, dirName } = body;
+    const { source, dirName, page, limit } = body;
     if (!source || !dirName) return error(res, "Missing source or dirName");
     try {
-      return json(res, getProjectDetails(source, dirName));
+      const details = getProjectDetails(source, dirName);
+      // Pagination: if page/limit specified, paginate sessions
+      if (limit && limit > 0) {
+        const p = Math.max(1, page || 1);
+        const total = details.sessions.length;
+        const start = (p - 1) * limit;
+        details.sessions = details.sessions.slice(start, start + limit);
+        details.pagination = { page: p, limit, total, pages: Math.ceil(total / limit) };
+      }
+      return json(res, details);
     } catch (e) {
       return error(res, e.message, 500);
     }
   }
 
-  // POST /api/session-stats — compute detailed stats for a session
+  // POST /api/session-stats — compute detailed stats for a session (cached)
   if (pathname === "/api/session-stats" && req.method === "POST") {
     const body = await readBody(req);
     const filePath = body.path;
     if (!filePath) return error(res, "Missing 'path' field");
     try {
       assertUnderHome(filePath);
+      let mtime = null;
+      try { mtime = statSync(filePath).mtime.toISOString(); } catch {}
+      // Check cache
+      if (mtime) {
+        const cached = getCachedStats(filePath, mtime);
+        if (cached) return json(res, cached);
+      }
       const turns = parseTranscript(filePath);
       const stats = computeSessionStats(turns);
+      // Cache result
+      if (mtime) try { setCachedStats(filePath, mtime, stats); } catch {}
       return json(res, stats);
     } catch (e) {
       return error(res, `Failed to compute stats: ${e.message}`, 500);
@@ -1167,6 +1198,79 @@ async function handleApi(req, res, pathname) {
     } catch (e) {
       return error(res, `Failed to render: ${e.message}`, 500);
     }
+  }
+
+  // ─── Favorites API (server-side persistent) ───
+
+  if (pathname === "/api/favorites" && req.method === "GET") {
+    return json(res, getFavorites());
+  }
+  if (pathname === "/api/favorites" && req.method === "POST") {
+    const body = await readBody(req);
+    if (!body.path) return error(res, "Missing path");
+    if (body.action === "remove") {
+      removeFavorite(body.path);
+    } else {
+      addFavorite(body.path, body.sessionId || "", body.preview || "", body.projectDir || "");
+    }
+    return json(res, { ok: true, favorites: getFavorites() });
+  }
+
+  // ─── Tags API (server-side persistent) ───
+
+  if (pathname === "/api/tags" && req.method === "GET") {
+    return json(res, getAllTaggedSessions());
+  }
+  if (pathname === "/api/tags" && req.method === "POST") {
+    const body = await readBody(req);
+    if (!body.path) return error(res, "Missing path");
+    setTags(body.path, body.tags || []);
+    return json(res, { ok: true });
+  }
+
+  // ─── Cache info ───
+
+  if (pathname === "/api/cache-info" && req.method === "GET") {
+    try {
+      return json(res, getCacheInfo());
+    } catch (e) {
+      return json(res, { error: e.message });
+    }
+  }
+
+  // ─── SSE: live file watcher ───
+
+  if (pathname === "/api/events" && req.method === "GET") {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    });
+    res.write("data: connected\n\n");
+
+    // Send heartbeat every 30s
+    const heartbeat = setInterval(() => {
+      res.write("data: heartbeat\n\n");
+    }, 30000);
+
+    // Watch for new sessions (check every 10s)
+    let lastSessionCount = null;
+    const watcher = setInterval(() => {
+      try {
+        const groups = discoverSessions();
+        const total = groups.reduce((s, g) => s + g.projects.reduce((s2, p) => s2 + p.sessions.length, 0), 0);
+        if (lastSessionCount !== null && total !== lastSessionCount) {
+          res.write(`data: ${JSON.stringify({ type: "sessions-changed", count: total })}\n\n`);
+        }
+        lastSessionCount = total;
+      } catch {}
+    }, 10000);
+
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      clearInterval(watcher);
+    });
+    return;
   }
 
   // POST /api/git-info — basic git info for a project path
