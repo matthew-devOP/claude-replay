@@ -102,10 +102,15 @@
   </footer>
 </div>
 
-<script type="module">
-  import { Terminal } from "/assets/xterm/xterm.js";
-  import { FitAddon } from "/assets/xterm/addon-fit.js";
-  import { WebLinksAddon } from "/assets/xterm/addon-web-links.js";
+<script src="/assets/xterm/xterm.js"></script>
+<script src="/assets/xterm/addon-fit.js"></script>
+<script src="/assets/xterm/addon-web-links.js"></script>
+<script>
+(function() {
+  // xterm UMD exports: Terminal on globalThis, addons on self
+  const Terminal = window.Terminal;
+  const FitAddon = window.FitAddon;
+  const WebLinksAddon = window.WebLinksAddon;
 
   const THEME_DATA = JSON.parse('/*THEMES_JSON*/');
   document.getElementById("appVersion").textContent = "v" + THEME_DATA.version;
@@ -210,6 +215,7 @@
       ws.close();
     });
   }
+})();
 </script>
 </body>
 </html>

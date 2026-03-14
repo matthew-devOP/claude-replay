@@ -1403,10 +1403,10 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
       // Serve xterm.js assets from node_modules
       if (pathname.startsWith("/assets/xterm/")) {
         const assetMap = {
-          "/assets/xterm/xterm.js": { file: "@xterm/xterm/lib/xterm.mjs", type: "text/javascript" },
+          "/assets/xterm/xterm.js": { file: "@xterm/xterm/lib/xterm.js", type: "text/javascript" },
           "/assets/xterm/xterm.css": { file: "@xterm/xterm/css/xterm.css", type: "text/css" },
-          "/assets/xterm/addon-fit.js": { file: "@xterm/addon-fit/lib/addon-fit.mjs", type: "text/javascript" },
-          "/assets/xterm/addon-web-links.js": { file: "@xterm/addon-web-links/lib/addon-web-links.mjs", type: "text/javascript" },
+          "/assets/xterm/addon-fit.js": { file: "@xterm/addon-fit/lib/addon-fit.js", type: "text/javascript" },
+          "/assets/xterm/addon-web-links.js": { file: "@xterm/addon-web-links/lib/addon-web-links.js", type: "text/javascript" },
         };
         const asset = assetMap[pathname];
         if (asset) {
@@ -1456,7 +1456,11 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
 
   // Attach WebSocket terminal server (async, non-blocking)
   import("./terminal.mjs")
-    .then(({ attachTerminalWs }) => attachTerminalWs(server))
+    .then(({ attachTerminalWs }) => {
+      console.log("Attaching terminal WebSocket...");
+      attachTerminalWs(server);
+      console.log("Terminal WebSocket attached successfully");
+    })
     .catch((e) => console.log("Terminal WebSocket not available:", e.message));
 
   return new Promise((_resolve) => {
