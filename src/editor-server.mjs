@@ -637,8 +637,11 @@ function computeSessionStats(turns) {
     bashCommands: [],    // { command, turn, is_error }
     filesRead: [],       // { path, turn }
     filesEdited: [],     // { path, turn, tool }  (Edit or Write)
-    agents: [],          // { prompt, description, turn }
+    agents: [],          // { prompt, description, turn, mode, subagent_type }
     plans: [],           // { content, turn }  (plan mode entries)
+    teams: [],           // { action, turn, input }
+    userMessages: [],    // { text, turn }
+    assistantTexts: [],  // { text, turn }
   };
 
   for (const turn of turns) {
@@ -646,7 +649,10 @@ function computeSessionStats(turns) {
       if (!stats.firstTimestamp) stats.firstTimestamp = turn.timestamp;
       stats.lastTimestamp = turn.timestamp;
     }
-    if (turn.user_text) stats.userCharacters += turn.user_text.length;
+    if (turn.user_text) {
+      stats.userCharacters += turn.user_text.length;
+      stats.userMessages.push({ text: turn.user_text, turn: turn.index });
+    }
 
     const blockCount = turn.blocks ? turn.blocks.length : 0;
     stats.totalBlocks += blockCount;
@@ -657,7 +663,9 @@ function computeSessionStats(turns) {
     for (const block of turn.blocks || []) {
       if (block.kind === "text") {
         stats.textBlocks++;
-        stats.assistantCharacters += (block.text || "").length;
+        const txt = block.text || "";
+        stats.assistantCharacters += txt.length;
+        if (txt.trim()) stats.assistantTexts.push({ text: txt, turn: turn.index });
       } else if (block.kind === "thinking") {
         stats.thinkingBlocks++;
         stats.thinkingCharacters += (block.text || "").length;
@@ -675,9 +683,10 @@ function computeSessionStats(turns) {
         // Collect detailed tool data
         if (name === "Bash" && input.command) {
           stats.bashCommands.push({
-            command: input.command.length > 500 ? input.command.slice(0, 500) + "..." : input.command,
+            command: input.command,
             turn: turn.index,
             is_error: !!tc.is_error,
+            description: input.description || "",
           });
         }
         if (name === "Read" && input.file_path) {
@@ -689,13 +698,23 @@ function computeSessionStats(turns) {
         if (name === "Agent") {
           stats.agents.push({
             description: input.description || "",
-            prompt: input.prompt ? (input.prompt.length > 300 ? input.prompt.slice(0, 300) + "..." : input.prompt) : "",
+            prompt: input.prompt || "",
             turn: turn.index,
             mode: input.mode || "",
             subagent_type: input.subagent_type || "",
+            run_in_background: !!input.run_in_background,
+            model: input.model || "",
           });
         }
-        // Detect plan mode (EnterPlanMode/ExitPlanMode tools, or Write to plan files)
+        // Team operations
+        if (name === "TeamCreate" || name === "TeamDelete") {
+          stats.teams.push({
+            action: name,
+            turn: turn.index,
+            input: input,
+          });
+        }
+        // Detect plan mode
         if (name === "EnterPlanMode" || name === "ExitPlanMode") {
           stats.plans.push({ tool: name, turn: turn.index });
         }
@@ -703,7 +722,7 @@ function computeSessionStats(turns) {
           stats.plans.push({
             tool: "Write",
             path: input.file_path,
-            content: input.content ? (input.content.length > 2000 ? input.content.slice(0, 2000) + "..." : input.content) : "",
+            content: input.content || "",
             turn: turn.index,
           });
         }

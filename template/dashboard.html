@@ -314,16 +314,37 @@
   color: var(--text-dim);
   margin-left: 8px;
 }
+.stats-detail-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
 .stats-detail-prompt {
   margin-top: 4px;
   font-size: 11px;
   color: var(--text-dim);
   white-space: pre-wrap;
-  max-height: 120px;
+  max-height: 300px;
   overflow-y: auto;
   padding: 6px 8px;
   background: var(--bg);
   border-radius: 4px;
+  border: 1px solid var(--border);
+  word-break: break-word;
+}
+.btn-copy {
+  cursor: pointer;
+  min-width: 28px;
+  font-size: 11px;
+}
+.stats-agent-badge {
+  font-size: 10px;
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  padding: 1px 6px;
+  border-radius: 3px;
   border: 1px solid var(--border);
 }
 
@@ -723,6 +744,22 @@
     wireSessionActions(details.sessions);
   }
 
+  // Copy to clipboard helper
+  function copyBtn(text, label) {
+    return `<button class="btn btn-small btn-copy" data-copy="${escapeHtml(text)}" title="Copy to clipboard">${label || '\uD83D\uDCCB'}</button>`;
+  }
+
+  // Delegated click handler for copy buttons
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-copy");
+    if (!btn) return;
+    const text = btn.dataset.copy;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = "\u2713";
+      setTimeout(() => { btn.textContent = "\uD83D\uDCCB"; }, 1500);
+    }).catch(() => toast("Copy failed", "error"));
+  });
+
   async function loadProjectStats(sessions) {
     const statsEl = document.getElementById("tab-stats");
     statsEl.innerHTML = '<div class="loading"><div class="spinner"></div> Computing stats...</div>';
@@ -734,15 +771,9 @@
 
     // Aggregate
     const toolTotals = {};
-    let totalDuration = 0;
-    let totalThinkingChars = 0;
-    let totalAssistantChars = 0;
-    let totalUserChars = 0;
-    let totalErrors = 0;
-    const allBashCmds = [];
-    const allFilesRead = {};
-    const allFilesEdited = {};
-    const allAgents = [];
+    let totalDuration = 0, totalThinkingChars = 0, totalAssistantChars = 0, totalUserChars = 0, totalErrors = 0;
+    const allBashCmds = [], allAgents = [], allTeams = [], allUserMsgs = [], allAssistantTexts = [];
+    const allFilesRead = {}, allFilesEdited = {};
 
     for (const r of results) {
       if (!r) continue;
@@ -755,80 +786,68 @@
       for (const [tool, count] of Object.entries(r.toolBreakdown || {})) {
         toolTotals[tool] = (toolTotals[tool] || 0) + count;
       }
-      for (const cmd of r.bashCommands || []) {
-        allBashCmds.push({ ...cmd, session: sid });
-      }
-      for (const f of r.filesRead || []) {
-        allFilesRead[f.path] = (allFilesRead[f.path] || 0) + 1;
-      }
-      for (const f of r.filesEdited || []) {
-        allFilesEdited[f.path] = { count: (allFilesEdited[f.path]?.count || 0) + 1, tool: f.tool };
-      }
-      for (const a of r.agents || []) {
-        allAgents.push({ ...a, session: sid });
-      }
+      for (const cmd of r.bashCommands || []) allBashCmds.push({ ...cmd, session: sid });
+      for (const f of r.filesRead || []) allFilesRead[f.path] = (allFilesRead[f.path] || 0) + 1;
+      for (const f of r.filesEdited || []) allFilesEdited[f.path] = { count: (allFilesEdited[f.path]?.count || 0) + 1, tool: f.tool };
+      for (const a of r.agents || []) allAgents.push({ ...a, session: sid });
+      for (const t of r.teams || []) allTeams.push({ ...t, session: sid });
+      for (const m of r.userMessages || []) allUserMsgs.push({ ...m, session: sid });
+      for (const t of r.assistantTexts || []) allAssistantTexts.push({ ...t, session: sid });
     }
 
     const sortedTools = Object.entries(toolTotals).sort((a, b) => b[1] - a[1]);
     const maxToolCount = sortedTools.length > 0 ? sortedTools[0][1] : 1;
 
-    let html = `
-      <div class="stats-grid">
-        <div class="stats-card">
-          <div class="stats-card-label">Total Duration</div>
-          <div class="stats-card-value">${formatDuration(totalDuration)}</div>
-          <div class="stats-card-sub">across ${toLoad.length} sessions</div>
-        </div>
-        <div class="stats-card">
-          <div class="stats-card-label">Tool Calls</div>
-          <div class="stats-card-value">${Object.values(toolTotals).reduce((s, v) => s + v, 0)}</div>
-          <div class="stats-card-sub">${totalErrors > 0 ? totalErrors + " errors" : "no errors"}</div>
-        </div>
-        <div class="stats-card">
-          <div class="stats-card-label">User Input</div>
-          <div class="stats-card-value">${formatSize(totalUserChars)}</div>
-        </div>
-        <div class="stats-card">
-          <div class="stats-card-label">Assistant Output</div>
-          <div class="stats-card-value">${formatSize(totalAssistantChars)}</div>
-          <div class="stats-card-sub">${formatSize(totalThinkingChars)} thinking</div>
-        </div>
-      </div>
-    `;
+    let html = `<div class="stats-grid">
+      <div class="stats-card"><div class="stats-card-label">Total Duration</div><div class="stats-card-value">${formatDuration(totalDuration)}</div><div class="stats-card-sub">across ${toLoad.length} sessions</div></div>
+      <div class="stats-card"><div class="stats-card-label">Tool Calls</div><div class="stats-card-value">${Object.values(toolTotals).reduce((s, v) => s + v, 0)}</div><div class="stats-card-sub">${totalErrors > 0 ? totalErrors + " errors" : "no errors"}</div></div>
+      <div class="stats-card"><div class="stats-card-label">User Input</div><div class="stats-card-value">${formatSize(totalUserChars)}</div><div class="stats-card-sub">${allUserMsgs.length} messages</div></div>
+      <div class="stats-card"><div class="stats-card-label">Assistant Output</div><div class="stats-card-value">${formatSize(totalAssistantChars)}</div><div class="stats-card-sub">${formatSize(totalThinkingChars)} thinking</div></div>
+    </div>`;
 
     // Tool usage bars
     if (sortedTools.length > 0) {
       html += '<div class="stats-section-title">Tool Usage</div>';
       for (const [tool, count] of sortedTools) {
         const pct = Math.max(2, (count / maxToolCount) * 100);
-        html += `<div class="stat-bar-row">
-          <span class="stat-bar-label">${escapeHtml(tool)}</span>
-          <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%"></div></div>
-          <span class="stat-bar-value">${count}</span>
-        </div>`;
+        html += `<div class="stat-bar-row"><span class="stat-bar-label">${escapeHtml(tool)}</span><div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%"></div></div><span class="stat-bar-value">${count}</span></div>`;
       }
     }
 
-    // Bash commands detail
-    if (allBashCmds.length > 0) {
-      html += '<details class="stats-detail"><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Bash Commands (' + allBashCmds.length + ')</summary>';
-      html += '<div class="stats-detail-list">';
-      for (const cmd of allBashCmds.slice(0, 100)) {
-        const errCls = cmd.is_error ? ' style="border-left-color:var(--red)"' : '';
-        html += `<div class="stats-detail-item"${errCls}>
-          <code>${escapeHtml(cmd.command)}</code>
-          <span class="stats-detail-meta">turn ${cmd.turn} \u00B7 ${cmd.session}</span>
-        </div>`;
+    // User Messages
+    if (allUserMsgs.length > 0) {
+      html += '<details class="stats-detail"><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">User Input (' + allUserMsgs.length + ' messages)</summary><div class="stats-detail-list">';
+      for (const m of allUserMsgs) {
+        html += `<div class="stats-detail-item"><div class="stats-detail-item-header"><span class="stats-detail-meta">turn ${m.turn} \u00B7 ${m.session}</span>${copyBtn(m.text)}</div><div class="stats-detail-prompt">${escapeHtml(m.text)}</div></div>`;
       }
-      if (allBashCmds.length > 100) html += '<div class="md-empty">...and ' + (allBashCmds.length - 100) + ' more</div>';
       html += '</div></details>';
     }
 
-    // Files read (top by frequency)
+    // Assistant Output
+    if (allAssistantTexts.length > 0) {
+      html += '<details class="stats-detail"><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Assistant Output (' + allAssistantTexts.length + ' blocks)</summary><div class="stats-detail-list">';
+      for (const t of allAssistantTexts.slice(0, 100)) {
+        html += `<div class="stats-detail-item"><div class="stats-detail-item-header"><span class="stats-detail-meta">turn ${t.turn} \u00B7 ${t.session}</span>${copyBtn(t.text)}</div><div class="stats-detail-prompt">${escapeHtml(t.text.length > 1000 ? t.text.slice(0, 1000) + '...' : t.text)}</div></div>`;
+      }
+      if (allAssistantTexts.length > 100) html += '<div class="md-empty">...and ' + (allAssistantTexts.length - 100) + ' more</div>';
+      html += '</div></details>';
+    }
+
+    // Bash commands
+    if (allBashCmds.length > 0) {
+      html += '<details class="stats-detail"><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Bash Commands (' + allBashCmds.length + ')</summary><div class="stats-detail-list">';
+      for (const cmd of allBashCmds.slice(0, 150)) {
+        const errCls = cmd.is_error ? ' style="border-left-color:var(--red)"' : '';
+        html += `<div class="stats-detail-item"${errCls}><div class="stats-detail-item-header"><span class="stats-detail-meta">turn ${cmd.turn} \u00B7 ${cmd.session}${cmd.description ? ' \u00B7 ' + escapeHtml(cmd.description) : ''}</span>${copyBtn(cmd.command)}</div><code>${escapeHtml(cmd.command)}</code></div>`;
+      }
+      if (allBashCmds.length > 150) html += '<div class="md-empty">...and ' + (allBashCmds.length - 150) + ' more</div>';
+      html += '</div></details>';
+    }
+
+    // Files read
     const sortedReads = Object.entries(allFilesRead).sort((a, b) => b[1] - a[1]);
     if (sortedReads.length > 0) {
-      html += '<details class="stats-detail"><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Files Read (' + sortedReads.length + ' unique)</summary>';
-      html += '<div class="stats-detail-list">';
+      html += '<details class="stats-detail"><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Files Read (' + sortedReads.length + ' unique)</summary><div class="stats-detail-list">';
       for (const [path, count] of sortedReads.slice(0, 50)) {
         html += `<div class="stats-detail-item"><code>${escapeHtml(path)}</code><span class="stats-detail-meta">${count}x</span></div>`;
       }
@@ -838,8 +857,7 @@
     // Files edited
     const sortedEdits = Object.entries(allFilesEdited).sort((a, b) => b[1].count - a[1].count);
     if (sortedEdits.length > 0) {
-      html += '<details class="stats-detail"><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Files Edited (' + sortedEdits.length + ' unique)</summary>';
-      html += '<div class="stats-detail-list">';
+      html += '<details class="stats-detail"><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Files Edited (' + sortedEdits.length + ' unique)</summary><div class="stats-detail-list">';
       for (const [path, info] of sortedEdits.slice(0, 50)) {
         html += `<div class="stats-detail-item"><code>${escapeHtml(path)}</code><span class="stats-detail-meta">${info.count}x ${info.tool}</span></div>`;
       }
@@ -848,13 +866,36 @@
 
     // Agents
     if (allAgents.length > 0) {
-      html += '<details class="stats-detail"><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Agents (' + allAgents.length + ')</summary>';
-      html += '<div class="stats-detail-list">';
+      html += '<details class="stats-detail"><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Agents (' + allAgents.length + ')</summary><div class="stats-detail-list">';
       for (const a of allAgents) {
+        const badges = [];
+        if (a.subagent_type) badges.push(a.subagent_type);
+        if (a.mode) badges.push('mode: ' + a.mode);
+        if (a.model) badges.push('model: ' + a.model);
+        if (a.run_in_background) badges.push('background');
+        const agentFullText = `Agent(description="${a.description}", subagent_type="${a.subagent_type}", mode="${a.mode}"${a.model ? ', model="' + a.model + '"' : ''}${a.run_in_background ? ', run_in_background=true' : ''})\n\nPrompt:\n${a.prompt}`;
         html += `<div class="stats-detail-item">
-          <div><strong>${escapeHtml(a.description || "Agent")}</strong>${a.subagent_type ? ' <span class="stats-detail-meta">' + escapeHtml(a.subagent_type) + '</span>' : ''}${a.mode ? ' <span class="stats-detail-meta">' + escapeHtml(a.mode) + '</span>' : ''}</div>
+          <div class="stats-detail-item-header">
+            <strong>${escapeHtml(a.description || "Agent")}</strong>
+            ${badges.map(b => '<span class="stats-agent-badge">' + escapeHtml(b) + '</span>').join(' ')}
+            ${copyBtn(agentFullText)}
+          </div>
           ${a.prompt ? '<div class="stats-detail-prompt">' + escapeHtml(a.prompt) + '</div>' : ''}
           <span class="stats-detail-meta">turn ${a.turn} \u00B7 ${a.session}</span>
+        </div>`;
+      }
+      html += '</div></details>';
+    }
+
+    // Teams
+    if (allTeams.length > 0) {
+      html += '<details class="stats-detail" open><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Teams (' + allTeams.length + ')</summary><div class="stats-detail-list">';
+      for (const t of allTeams) {
+        const inp = t.input || {};
+        html += `<div class="stats-detail-item" style="border-left-color:${t.action === 'TeamCreate' ? 'var(--green)' : 'var(--red)'}">
+          <div class="stats-detail-item-header"><strong>${escapeHtml(t.action)}</strong>${copyBtn(JSON.stringify(inp, null, 2))}</div>
+          <div class="stats-detail-prompt">${escapeHtml(JSON.stringify(inp, null, 2))}</div>
+          <span class="stats-detail-meta">turn ${t.turn} \u00B7 ${t.session}</span>
         </div>`;
       }
       html += '</div></details>';
@@ -898,9 +939,13 @@
           <div class="plan-card-header">
             <span class="session-id">${escapeHtml(p.session)}</span>
             <span class="stats-detail-meta">turn ${p.turn}${p.date ? ' \u00B7 ' + formatDate(p.date) : ''}</span>
+            <div style="margin-left:auto;display:flex;gap:6px">
+              ${p.path ? '<button class="btn btn-small btn-open-plan" data-path="' + escapeHtml(p.path) + '" title="Open in Finder">\uD83D\uDCC1</button>' : ''}
+              ${copyBtn(p.content, '\uD83D\uDCCB Copy')}
+            </div>
           </div>
-          <div class="plan-card-path"><code>${escapeHtml(p.path || '')}</code></div>
-          <div class="md-display" style="max-height:400px;font-size:12px;margin-top:8px">${escapeHtml(p.content)}</div>
+          ${p.path ? '<div class="plan-card-path"><code>' + escapeHtml(p.path) + '</code></div>' : ''}
+          <div class="md-display" style="max-height:none;font-size:12px;margin-top:8px">${escapeHtml(p.content)}</div>
         </div>`;
       } else {
         html += `<div class="plan-card">
@@ -913,6 +958,15 @@
     }
 
     plansEl.innerHTML = html;
+
+    // Wire open-in-finder for plan files
+    for (const btn of plansEl.querySelectorAll(".btn-open-plan")) {
+      btn.addEventListener("click", () => {
+        const dir = btn.dataset.path.split("/").slice(0, -1).join("/");
+        api("/api/open", { path: dir, action: "finder" });
+        toast("Opened plan folder in Finder");
+      });
+    }
   }
 
   async function loadGitTab(projectPath) {
