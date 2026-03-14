@@ -9,7 +9,7 @@ import { homedir } from "node:os";
 import { execFile } from "node:child_process";
 import { parseTranscript, filterTurns, detectFormat, applyPacedTiming } from "./parser.mjs";
 import { render } from "./renderer.mjs";
-import { getTheme, listThemes } from "./themes.mjs";
+import { getTheme, listThemes, getAllThemes } from "./themes.mjs";
 
 const EDITOR_HTML_PATH = new URL("../template/editor.html", import.meta.url);
 const PKG = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8"));
@@ -340,6 +340,95 @@ function discoverSessions() {
 }
 
 // ---------------------------------------------------------------------------
+// Git helpers
+// ---------------------------------------------------------------------------
+
+/** Run a git command in a directory, returns stdout or null on error. */
+function gitExec(cwd, args) {
+  return new Promise((resolve) => {
+    execFile("git", args, { cwd, timeout: 5000, maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      if (err) return resolve(null);
+      resolve(stdout.trim());
+    });
+  });
+}
+
+/** Get basic git info for a project path. */
+async function getGitInfo(projectPath) {
+  if (!existsSync(projectPath)) return null;
+
+  const isRepo = await gitExec(projectPath, ["rev-parse", "--is-inside-work-tree"]);
+  if (isRepo !== "true") return null;
+
+  const [branch, remotesRaw, branchesRaw, statusRaw] = await Promise.all([
+    gitExec(projectPath, ["rev-parse", "--abbrev-ref", "HEAD"]),
+    gitExec(projectPath, ["remote", "-v"]),
+    gitExec(projectPath, ["branch", "-a", "--no-color"]),
+    gitExec(projectPath, ["status", "--porcelain", "-b"]),
+  ]);
+
+  const branches = branchesRaw ? branchesRaw.split("\n").filter(l => l.trim()) : [];
+  const localBranches = branches.filter(b => !b.trim().startsWith("remotes/"));
+  const remoteBranches = branches.filter(b => b.trim().startsWith("remotes/"));
+
+  // Parse remotes
+  const remotes = [];
+  const seen = new Set();
+  for (const line of (remotesRaw || "").split("\n")) {
+    const m = line.match(/^(\S+)\s+(\S+)\s+\((\w+)\)/);
+    if (m && !seen.has(m[1])) {
+      seen.add(m[1]);
+      remotes.push({ name: m[1], url: m[2] });
+    }
+  }
+
+  // Parse status
+  const statusLines = (statusRaw || "").split("\n").filter(l => l.trim());
+  const branchLine = statusLines[0] || "";
+  const changes = statusLines.slice(1);
+  const modified = changes.filter(l => l.startsWith(" M") || l.startsWith("M ")).length;
+  const added = changes.filter(l => l.startsWith("A ") || l.startsWith("??")).length;
+  const deleted = changes.filter(l => l.startsWith("D ") || l.startsWith(" D")).length;
+
+  return {
+    isRepo: true,
+    branch: branch || "unknown",
+    localBranchCount: localBranches.length,
+    remoteBranchCount: remoteBranches.length,
+    localBranches: localBranches.map(b => b.replace(/^\*?\s*/, "").trim()),
+    remotes,
+    hasRemote: remotes.length > 0,
+    status: { modified, added, deleted, clean: changes.length === 0, total: changes.length },
+    branchLine,
+  };
+}
+
+/** Get detailed git info for the Git tab. */
+async function getGitDetails(projectPath) {
+  const info = await getGitInfo(projectPath);
+  if (!info) return null;
+
+  const [commitCountRaw, logRaw, graphRaw] = await Promise.all([
+    gitExec(projectPath, ["rev-list", "--count", "HEAD"]),
+    gitExec(projectPath, ["log", "--oneline", "-30", "--no-color"]),
+    gitExec(projectPath, ["log", "--graph", "--oneline", "--all", "--decorate", "-50", "--no-color"]),
+  ]);
+
+  const commitCount = parseInt(commitCountRaw) || 0;
+  const recentCommits = (logRaw || "").split("\n").filter(l => l.trim()).map(line => {
+    const m = line.match(/^([0-9a-f]+)\s+(.*)/);
+    return m ? { hash: m[1], message: m[2] } : { hash: "", message: line };
+  });
+
+  return {
+    ...info,
+    commitCount,
+    recentCommits,
+    graph: graphRaw || "",
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Project dashboard helpers
 // ---------------------------------------------------------------------------
 
@@ -501,6 +590,11 @@ function getProjectDetails(source, dirName) {
       });
     }
 
+    // Aggregate stats
+    const totalTurns = sessionList.reduce((s, x) => s + (x.turnCount || 0), 0);
+    const totalSize = sessionList.reduce((s, x) => s + (x.size || 0), 0);
+    const dates = sessionList.map((s) => s.date).filter(Boolean).sort();
+
     return {
       source,
       dirName,
@@ -509,10 +603,123 @@ function getProjectDetails(source, dirName) {
       claudeMd,
       memoryMd,
       sessions: sessionList,
+      stats: {
+        totalSessions: sessionList.length,
+        totalTurns,
+        totalSize,
+        dateRange: dates.length > 0 ? { first: dates[0], last: dates[dates.length - 1] } : null,
+      },
     };
   }
 
   throw new Error("Unsupported source: " + source);
+}
+
+/** Compute detailed statistics for a parsed session. */
+function computeSessionStats(turns) {
+  const stats = {
+    turnCount: turns.length,
+    totalBlocks: 0,
+    textBlocks: 0,
+    thinkingBlocks: 0,
+    toolUseBlocks: 0,
+    toolBreakdown: {},
+    firstTimestamp: null,
+    lastTimestamp: null,
+    duration: null,
+    avgBlocksPerTurn: 0,
+    longestTurn: { index: 0, blockCount: 0 },
+    userCharacters: 0,
+    assistantCharacters: 0,
+    thinkingCharacters: 0,
+    errorCount: 0,
+    // Detailed tool data
+    bashCommands: [],    // { command, turn, is_error }
+    filesRead: [],       // { path, turn }
+    filesEdited: [],     // { path, turn, tool }  (Edit or Write)
+    agents: [],          // { prompt, description, turn }
+    plans: [],           // { content, turn }  (plan mode entries)
+  };
+
+  for (const turn of turns) {
+    if (turn.timestamp) {
+      if (!stats.firstTimestamp) stats.firstTimestamp = turn.timestamp;
+      stats.lastTimestamp = turn.timestamp;
+    }
+    if (turn.user_text) stats.userCharacters += turn.user_text.length;
+
+    const blockCount = turn.blocks ? turn.blocks.length : 0;
+    stats.totalBlocks += blockCount;
+    if (blockCount > stats.longestTurn.blockCount) {
+      stats.longestTurn = { index: turn.index, blockCount };
+    }
+
+    for (const block of turn.blocks || []) {
+      if (block.kind === "text") {
+        stats.textBlocks++;
+        stats.assistantCharacters += (block.text || "").length;
+      } else if (block.kind === "thinking") {
+        stats.thinkingBlocks++;
+        stats.thinkingCharacters += (block.text || "").length;
+      } else if (block.kind === "tool_use" && block.tool_call) {
+        stats.toolUseBlocks++;
+        const tc = block.tool_call;
+        const name = tc.name || "unknown";
+        const input = tc.input || {};
+        stats.toolBreakdown[name] = (stats.toolBreakdown[name] || 0) + 1;
+        if (tc.is_error) stats.errorCount++;
+        if (tc.resultTimestamp) {
+          stats.lastTimestamp = tc.resultTimestamp;
+        }
+
+        // Collect detailed tool data
+        if (name === "Bash" && input.command) {
+          stats.bashCommands.push({
+            command: input.command.length > 500 ? input.command.slice(0, 500) + "..." : input.command,
+            turn: turn.index,
+            is_error: !!tc.is_error,
+          });
+        }
+        if (name === "Read" && input.file_path) {
+          stats.filesRead.push({ path: input.file_path, turn: turn.index });
+        }
+        if ((name === "Edit" || name === "Write") && input.file_path) {
+          stats.filesEdited.push({ path: input.file_path, turn: turn.index, tool: name });
+        }
+        if (name === "Agent") {
+          stats.agents.push({
+            description: input.description || "",
+            prompt: input.prompt ? (input.prompt.length > 300 ? input.prompt.slice(0, 300) + "..." : input.prompt) : "",
+            turn: turn.index,
+            mode: input.mode || "",
+            subagent_type: input.subagent_type || "",
+          });
+        }
+        // Detect plan mode (EnterPlanMode/ExitPlanMode tools, or Write to plan files)
+        if (name === "EnterPlanMode" || name === "ExitPlanMode") {
+          stats.plans.push({ tool: name, turn: turn.index });
+        }
+        if (name === "Write" && input.file_path && input.file_path.includes("/plans/")) {
+          stats.plans.push({
+            tool: "Write",
+            path: input.file_path,
+            content: input.content ? (input.content.length > 2000 ? input.content.slice(0, 2000) + "..." : input.content) : "",
+            turn: turn.index,
+          });
+        }
+      }
+      if (block.timestamp) {
+        stats.lastTimestamp = block.timestamp;
+      }
+    }
+  }
+
+  if (stats.firstTimestamp && stats.lastTimestamp) {
+    stats.duration = new Date(stats.lastTimestamp).getTime() - new Date(stats.firstTimestamp).getTime();
+  }
+  stats.avgBlocksPerTurn = turns.length > 0 ? Math.round(stats.totalBlocks / turns.length * 10) / 10 : 0;
+
+  return stats;
 }
 
 /** Convert turns array to markdown string (server-side export). */
@@ -721,6 +928,21 @@ async function handleApi(req, res, pathname) {
     }
   }
 
+  // POST /api/session-stats — compute detailed stats for a session
+  if (pathname === "/api/session-stats" && req.method === "POST") {
+    const body = await readBody(req);
+    const filePath = body.path;
+    if (!filePath) return error(res, "Missing 'path' field");
+    try {
+      assertUnderHome(filePath);
+      const turns = parseTranscript(filePath);
+      const stats = computeSessionStats(turns);
+      return json(res, stats);
+    } catch (e) {
+      return error(res, `Failed to compute stats: ${e.message}`, 500);
+    }
+  }
+
   // POST /api/export-md — generate markdown for a session and serve as download
   if (pathname === "/api/export-md" && req.method === "POST") {
     const body = await readBody(req);
@@ -756,10 +978,23 @@ async function handleApi(req, res, pathname) {
  * @returns {Promise<void>}
  */
 export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
-  const editorHtml = readFileSync(EDITOR_HTML_PATH, "utf-8");
+  const SHARED_CSS_PATH = new URL("../template/shared.css", import.meta.url);
+  let sharedCss = "";
+  try { sharedCss = readFileSync(SHARED_CSS_PATH, "utf-8"); } catch { /* */ }
+
+  const themesJson = JSON.stringify({ version: PKG.version, themes: getAllThemes() });
+
+  function injectShared(html) {
+    return html
+      .replace("/*SHARED_CSS*/", sharedCss)
+      .replaceAll("/*THEMES_JSON*/", themesJson);
+  }
+
+  const rawEditorHtml = readFileSync(EDITOR_HTML_PATH, "utf-8");
+  const editorHtml = injectShared(rawEditorHtml);
   const dashboardHtmlPath = new URL("../template/dashboard.html", import.meta.url);
   let dashboardHtml = "";
-  try { dashboardHtml = readFileSync(dashboardHtmlPath, "utf-8"); } catch { /* file may not exist yet */ }
+  try { dashboardHtml = injectShared(readFileSync(dashboardHtmlPath, "utf-8")); } catch { /* file may not exist yet */ }
 
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);

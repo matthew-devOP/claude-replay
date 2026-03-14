@@ -5,61 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%23bb9af7' stroke-width='2'/><polygon points='12,8 12,24 24,16' fill='%23bb9af7'/></svg>">
 <title>claude-replay editor</title>
+<style>/*SHARED_CSS*/</style>
 <style>
-:root, :root.dark {
-  --bg: #1a1b26;
-  --bg-surface: #24253a;
-  --bg-hover: #2f3147;
-  --text: #c0caf5;
-  --text-dim: #565f89;
-  --text-bright: #e0e6ff;
-  --accent: #bb9af7;
-  --accent-dim: #7957a8;
-  --green: #9ece6a;
-  --blue: #7aa2f7;
-  --orange: #ff9e64;
-  --red: #f7768e;
-  --cyan: #7dcfff;
-  --border: #3b3d57;
-  --tool-bg: #1e1f33;
-  --thinking-bg: #1c1d2e;
-}
-:root.light {
-  --bg: #f0f0f3;
-  --bg-surface: #ffffff;
-  --bg-hover: #e8e8ec;
-  --text: #3c3c43;
-  --text-dim: #8e8e93;
-  --text-bright: #1c1c1e;
-  --accent: #7c3aed;
-  --accent-dim: #a78bfa;
-  --green: #34c759;
-  --blue: #007aff;
-  --orange: #ff9500;
-  --red: #ff3b30;
-  --cyan: #32ade6;
-  --border: #d1d1d6;
-  --tool-bg: #f5f5f7;
-  --thinking-bg: #f0f0f3;
-}
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* Three-panel grid layout */
+/* Editor-specific styles */
 .app {
   display: grid;
   grid-template-columns: 260px 1fr 4px 1fr;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr auto;
   height: 100vh;
 }
+.app-header { grid-column: 1 / -1; }
+.app-footer { grid-column: 1 / -1; }
 body.sidebar-collapsed .app {
   grid-template-columns: 16px 1fr 4px 1fr;
 }
@@ -71,26 +27,19 @@ body.sidebar-collapsed .app .sidebar-section {
   display: none;
 }
 
-/* Top bar */
-.topbar {
+/* Editor toolbar (below shared header) */
+.editor-toolbar {
   grid-column: 1 / -1;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
-  padding: 8px 16px;
+  padding: 6px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 44px;
+  gap: 10px;
+  min-height: 38px;
 }
 
-.topbar h1 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--accent);
-  white-space: nowrap;
-}
-
-.topbar-title-input {
+.editor-toolbar-title-input {
   flex: 1;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -99,9 +48,10 @@ body.sidebar-collapsed .app .sidebar-section {
   padding: 4px 8px;
   font-size: 13px;
   min-width: 0;
+  font-family: inherit;
 }
 
-.topbar-title-input:focus { outline: 1px solid var(--accent); }
+.editor-toolbar-title-input:focus { outline: 1px solid var(--accent); }
 
 .sidebar-edge-toggle {
   position: fixed;
@@ -127,22 +77,9 @@ body.sidebar-collapsed .app .sidebar-section {
 .sidebar-edge-toggle:hover { color: var(--text-bright); background: var(--bg-hover); }
 body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
 
-.btn {
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.btn:hover { background: var(--accent-dim); color: var(--text-bright); }
-.btn-primary { background: var(--accent); color: var(--bg); font-weight: 600; }
-.btn-primary:hover { background: var(--accent-dim); color: var(--text-bright); }
+/* Editor btn overrides */
 .btn-warn { background: var(--orange); color: var(--bg); font-weight: 600; }
 .btn-warn:hover { background: #e0874e; color: var(--text-bright); }
-.theme-mode-btn { display: flex; align-items: center; padding: 4px 8px; }
 
 /* Left sidebar */
 .sidebar {
@@ -707,25 +644,47 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
 }
 
 /* Scrollbar styling */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+/* scrollbar styles in shared.css */
 </style>
 </head>
 <body>
+<script>
+  // Apply saved theme immediately to prevent flash
+  try {
+    const saved = localStorage.getItem("claude-replay-theme");
+    if (saved) {
+      const data = JSON.parse('/*THEMES_JSON*/');
+      const vars = data.themes[saved];
+      if (vars) {
+        for (const [k, v] of Object.entries(vars)) {
+          document.documentElement.style.setProperty("--" + k, v);
+        }
+      }
+    }
+  } catch {}
+</script>
 <div class="app">
-  <!-- Top bar -->
-  <div class="topbar">
-    <h1>claude-replay</h1>
-    <input type="text" class="topbar-title-input" id="titleInput" placeholder="Session title..." disabled>
+  <!-- Shared header -->
+  <header class="app-header">
+    <a href="/" class="app-logo">
+      <svg width="22" height="22" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"/><polygon points="12,8 12,24 24,16" fill="currentColor" style="color:var(--accent)"/></svg>
+      claude-replay
+      <span class="app-version" id="appVersion"></span>
+    </a>
+    <nav class="app-nav">
+      <a href="/">Projects</a>
+      <a href="/editor" class="active">Editor</a>
+    </nav>
+    <div class="app-header-right">
+      <div class="theme-switcher" id="themeSwitcher"></div>
+      <button class="btn-icon" id="helpBtn" title="Help">?</button>
+    </div>
+  </header>
+  <!-- Editor toolbar -->
+  <div class="editor-toolbar">
+    <input type="text" class="editor-toolbar-title-input" id="titleInput" placeholder="Session title..." disabled>
     <button class="btn" id="resetBtn" disabled>Reset Edits</button>
     <button class="btn btn-primary" id="exportBtn" disabled>Export HTML</button>
-    <button class="btn theme-mode-btn" id="themeModeBtn" title="Toggle dark/light mode">
-      <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-      <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-    </button>
-    <button class="btn" id="helpBtn" title="Help">?</button>
   </div>
 
   <!-- Left sidebar: Sessions + Options -->
@@ -757,8 +716,8 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     <div class="sidebar-section open" id="optionsSection">
       <div class="options-content">
         <div class="opt-row">
-          <label for="optTheme" title="Color theme for the replay player">Theme</label>
-          <select id="optTheme" title="Color theme for the replay player"></select>
+          <label for="optTheme" title="Color theme for the exported replay player">Export Theme</label>
+          <select id="optTheme" title="Color theme for the exported replay player"></select>
         </div>
         <div class="opt-row">
           <label for="optSpeed" title="Initial playback speed (0.1 - 10x)">Speed</label>
@@ -840,8 +799,15 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     </div>
     <iframe class="preview-iframe" id="previewIframe"></iframe>
   </div>
+  <footer class="app-footer">
+    <div class="footer-left" id="editorFooterLeft"></div>
+    <div class="footer-right" id="editorFooterRight"></div>
+  </footer>
 </div>
 <button class="sidebar-edge-toggle" id="sidebarToggleBtn" title="Toggle sidebar">&#8249;</button>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
 
 <!-- Help modal -->
 <div class="modal-overlay" id="helpModal">
@@ -942,7 +908,6 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
   const titleInput        = $("titleInput");
   const resetBtn          = $("resetBtn");
   const exportBtn         = $("exportBtn");
-  const themeModeBtn      = $("themeModeBtn");
   const helpBtn           = $("helpBtn");
   const helpModal         = $("helpModal");
   const helpModalClose    = $("helpModalClose");
@@ -1156,8 +1121,9 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
       turnsToolbar.classList.add("visible");
       renderTurns();
       schedulePreview();
+      updateEditorFooter();
     } catch (e) {
-      alert("Failed to load session: " + e.message);
+      toast("Failed to load session: " + e.message, "error");
     }
   }
 
@@ -1482,13 +1448,50 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     schedulePreview();
   });
 
-  // Dark/light mode
-  themeModeBtn.addEventListener("click", () => {
-    const isLight = document.documentElement.classList.toggle("light");
-    document.documentElement.classList.toggle("dark", !isLight);
-    themeModeBtn.querySelector(".icon-moon").style.display = isLight ? "none" : "block";
-    themeModeBtn.querySelector(".icon-sun").style.display = isLight ? "block" : "none";
-  });
+  // Theme switcher
+  const THEME_DATA = JSON.parse('/*THEMES_JSON*/');
+  (function initThemeSwitcher() {
+    const container = $("themeSwitcher");
+    const saved = localStorage.getItem("claude-replay-theme") || "tokyo-night";
+    for (const [name, vars] of Object.entries(THEME_DATA.themes)) {
+      const dot = document.createElement("button");
+      dot.className = "theme-dot" + (name === saved ? " active" : "");
+      dot.dataset.theme = name;
+      dot.title = name;
+      dot.style.background = vars.bg;
+      dot.innerHTML = '<span class="theme-dot-inner" style="background:' + vars.accent + '"></span>';
+      dot.addEventListener("click", () => {
+        document.body.classList.add("theme-transitioning");
+        for (const [k, v] of Object.entries(vars)) {
+          document.documentElement.style.setProperty("--" + k, v);
+        }
+        localStorage.setItem("claude-replay-theme", name);
+        container.querySelectorAll(".theme-dot").forEach(d => d.classList.toggle("active", d.dataset.theme === name));
+        requestAnimationFrame(() => setTimeout(() => document.body.classList.remove("theme-transitioning"), 350));
+      });
+      container.appendChild(dot);
+    }
+    $("appVersion").textContent = "v" + THEME_DATA.version;
+    $("editorFooterRight").textContent = "claude-replay v" + THEME_DATA.version;
+  })();
+
+  // Footer update
+  function updateEditorFooter() {
+    const parts = [];
+    if (currentTurns.length) parts.push(currentTurns.length + " turns");
+    if (excludedTurns.size) parts.push(excludedTurns.size + " excluded");
+    if (bookmarks.size) parts.push(bookmarks.size + " bookmarks");
+    $("editorFooterLeft").textContent = parts.join(" \u00B7 ");
+  }
+
+  // Toast
+  function toast(message, type) {
+    const el = document.createElement("div");
+    el.className = "toast toast-" + (type || "success");
+    el.textContent = message;
+    $("toastContainer").appendChild(el);
+    setTimeout(() => { el.classList.add("toast-out"); setTimeout(() => el.remove(), 300); }, 3000);
+  }
 
   // Help modal
   helpBtn.addEventListener("click", () => helpModal.classList.add("open"));
@@ -1498,6 +1501,7 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && helpModal.classList.contains("open")) helpModal.classList.remove("open");
+    if (e.key === "?" && e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") helpModal.classList.toggle("open");
   });
 
   // Resize handle

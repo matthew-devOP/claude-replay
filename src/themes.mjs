@@ -212,3 +212,21 @@ export function themeToCss(theme) {
 export function listThemes() {
   return Object.keys(BUILTIN_THEMES).sort();
 }
+
+/**
+ * Return all built-in themes as { name: { variable: value } } maps.
+ * Strips extraCss (only relevant to player), returns clean variable maps
+ * suitable for client-side theme switching via style.setProperty().
+ * @returns {Record<string, Record<string, string>>}
+ */
+export function getAllThemes() {
+  const result = {};
+  for (const [name, theme] of Object.entries(BUILTIN_THEMES)) {
+    const vars = {};
+    for (const v of THEME_VARS) {
+      if (v in theme) vars[v] = theme[v];
+    }
+    result[name] = vars;
+  }
+  return result;
+}

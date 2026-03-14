@@ -9,7 +9,10 @@ services:
       - ${HOME}/.cursor:${HOME}/.cursor:ro
       - ${HOME}/.codex:${HOME}/.codex:ro
       # Project dirs (needed for CLAUDE.md reading and path resolution)
-      # Mount your work directory or specific projects as needed:
       - ${HOME}:${HOME}:ro
+      # Dev mode: mount source code for live reload (no rebuild needed)
+      - ./src:/app/src:ro
+      - ./template:/app/template:ro
+      - ./bin:/app/bin:ro
     environment:
       - HOME=${HOME}
