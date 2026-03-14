@@ -29,13 +29,17 @@ Claude Code, Cursor, and Codex CLI store conversation transcripts as JSONL files
 ## Features
 
 - Self-contained HTML output (no dependencies)
-- Interactive playback with speed control
-- Collapse/expand tool calls and thinking blocks (Claude's internal reasoning traces)
+- Interactive playback with speed control (0.5x to 20x)
+- Collapse/expand tool calls and thinking blocks
 - Bookmarks / chapters
 - Secret redaction before export
-- Multiple color themes
+- 6 built-in color themes with live switching
 - Terminal-style bottom-to-top scroll
 - Embeddable via iframe
+- **Export as PDF or Markdown** directly from the player
+- **Project dashboard** with session browser, stats, and git integration
+- **Transcript viewer** with full-text search and content filters
+- **Docker support** for containerized development
 - Web-based editor UI for visual session editing and preview
 
 ## Use cases
@@ -96,9 +100,9 @@ Codex CLI (OpenAI) transcripts are also supported — the format is auto-detecte
 claude-replay ~/.codex/sessions/2026/03/12/rollout-<id>.jsonl -o replay.html
 ```
 
-## Web Editor
+## Dashboard & Web Editor
 
-The default experience. Launch it by running `claude-replay` with no arguments:
+Launch by running `claude-replay` with no arguments:
 
 ```bash
 claude-replay
@@ -107,14 +111,48 @@ claude-replay --port 8080
 
 ![Editor](https://raw.githubusercontent.com/es617/claude-replay/main/docs/editor-demo.gif)
 
-The editor provides:
-- **Session browser** — auto-discovers sessions from `~/.claude/projects/`, `~/.cursor/projects/`, and `~/.codex/sessions/`, plus a folder navigator for JSONL files stored elsewhere
+### Project Dashboard (`/`)
+
+The landing page provides a project-centric view of all your AI sessions:
+
+- **Project browser** — sidebar listing all discovered projects with git branch, session count, and last activity
+- **Session table** — sortable by date, turns, or size, with quick actions (Replay, Transcript, Edit, Export MD)
+- **CLAUDE.md / MEMORY.md** — view project documentation and memory files
+- **Stats tab** — aggregated statistics across sessions:
+  - Tool usage breakdown with visual bars
+  - All bash commands, files read/edited, agents launched (with full prompts)
+  - User input and assistant output sections with copy-to-clipboard
+  - Team operations (TeamCreate/TeamDelete)
+- **Plans tab** — plan mode entries across sessions with full content
+- **Git tab** — repository info, branches, remotes, recent commits, and git graph visualization
+- **Quick actions** — Open in Finder, Open in Terminal (iTerm2 / Terminal.app)
+- **Transcript viewer** — full conversation viewer with:
+  - Live search with match highlighting and arrow navigation
+  - Content filters (User, Assistant, Tools, Thinking)
+  - Rich tool call rendering with command preview and results
+
+### Replay Viewer (`/replay`)
+
+Sessions open in a dedicated replay page with:
+- Shared header with navigation back to dashboard
+- Theme dropdown with live theme switching (persisted across pages)
+- Full player controls in an embedded iframe
+
+### Session Editor (`/editor`)
+
+The editor provides granular control over replay generation:
 - **Turn editor** — include/exclude turns, edit user prompts, expand assistant blocks (read-only), add bookmarks
-- **Options panel** — theme, speed, thinking/tool call toggles, redaction rules, labels
+- **Options panel** — export theme, speed, thinking/tool call toggles, redaction rules, labels
 - **Live preview** — updates as you edit, renders the same output as the CLI
 - **Export** — download the final HTML replay
 
-The editor runs a local server on `127.0.0.1` (localhost only, not exposed to the network). It never modifies your original JSONL files — all edits are held in memory and only affect the exported output.
+### Theme System
+
+6 built-in themes switchable from any page via the header dropdown. Selection persists across pages via localStorage.
+
+Available themes: `tokyo-night` (default), `monokai`, `solarized-dark`, `github-light`, `dracula`, `bubbles`.
+
+All pages run on a local server on `127.0.0.1` (localhost only). Original JSONL files are never modified.
 
 ## Usage
 
@@ -221,8 +259,9 @@ The generated HTML file is a fully self-contained interactive player:
 - **Play/Pause** — auto-advances through turns with block-by-block animation
 - **Step forward/back** — navigate one block at a time within turns
 - **Progress bar** — click to jump to any point; session timer shows elapsed/total time
-- **Speed control** — 0.5x to 5x playback speed
+- **Speed control** — 0.5x to 20x playback speed
 - **Toggle checkboxes** — show/hide thinking blocks and tool calls
+- **Export** — download as Markdown or print as PDF directly from the player
 
 ### Keyboard shortcuts
 
@@ -334,6 +373,22 @@ Generated HTML files use two layers of optimization (zero external dependencies)
 
 - **Minified CSS/JS** — the player template is minified with esbuild (mangled variable names, whitespace removed). Use `--no-minify` for readable output.
 - **Compressed data** — transcript JSON is deflate-compressed and base64-encoded, typically reducing output size by ~60-70%. The browser decompresses it natively at load time using `DecompressionStream` (Chrome 80+, Firefox 113+, Safari 16.4+). For older browsers, use `--no-compress` to embed raw JSON.
+
+### Docker
+
+Run claude-replay in a container with access to your session data:
+
+```bash
+docker compose up
+```
+
+The default `docker-compose.yml` mounts your home directory (read-only) so the dashboard can discover projects and read CLAUDE.md files. The server listens on `http://127.0.0.1:7331`.
+
+For development, source files are mounted directly so changes take effect on container restart — no rebuild needed:
+
+```bash
+docker compose restart  # pick up code changes
+```
 
 ### Development
 
