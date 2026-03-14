@@ -983,6 +983,44 @@ async function handleApi(req, res, pathname) {
     }
   }
 
+  // POST /api/transcript — full turn data for transcript viewer (not truncated)
+  if (pathname === "/api/transcript" && req.method === "POST") {
+    const body = await readBody(req);
+    const filePath = body.path;
+    if (!filePath) return error(res, "Missing 'path' field");
+    try {
+      assertUnderHome(filePath);
+      const turns = parseTranscript(filePath);
+      // Return full data but strip very large fields to keep response reasonable
+      const fullTurns = turns.map((t) => ({
+        index: t.index,
+        user_text: t.user_text,
+        timestamp: t.timestamp,
+        system_events: t.system_events || [],
+        blocks: t.blocks.map((b) => {
+          if (b.kind === "tool_use" && b.tool_call) {
+            const tc = b.tool_call;
+            const input = tc.input || {};
+            // For tool calls, include structured input for good preview
+            return {
+              kind: b.kind,
+              tool_call: {
+                name: tc.name,
+                input: input,
+                result: tc.result ? (tc.result.length > 2000 ? tc.result.slice(0, 2000) + "..." : tc.result) : null,
+                is_error: tc.is_error,
+              },
+            };
+          }
+          return { kind: b.kind, text: b.text || "" };
+        }),
+      }));
+      return json(res, { turns: fullTurns });
+    } catch (e) {
+      return error(res, `Failed to load transcript: ${e.message}`, 500);
+    }
+  }
+
   // POST /api/render-replay — render player HTML for iframe embedding (not download)
   if (pathname === "/api/render-replay" && req.method === "POST") {
     const body = await readBody(req);

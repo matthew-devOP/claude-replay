@@ -388,137 +388,266 @@
   flex-direction: column;
 }
 .transcript-overlay.open { display: flex; }
-.transcript-toolbar {
+
+/* Transcript header */
+.transcript-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
+  gap: 16px;
+  padding: 0 20px;
+  height: 48px;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.transcript-toolbar-title {
+.transcript-header-title {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-bright);
-  margin-right: auto;
 }
-.transcript-search-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.transcript-search-input {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text);
-  padding: 4px 8px;
-  font-size: 12px;
-  font-family: inherit;
-  width: 220px;
-}
-.transcript-search-input:focus { outline: 1px solid var(--accent); }
-.transcript-search-count {
+.transcript-header-meta {
   font-size: 11px;
   color: var(--text-dim);
-  min-width: 60px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
 }
-.transcript-search-nav {
-  display: flex;
-  gap: 2px;
-}
-.transcript-search-nav button {
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 4px;
-  width: 28px;
-  height: 28px;
-  cursor: pointer;
-  font-size: 12px;
+.transcript-header-right {
+  margin-left: auto;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
 }
-.transcript-search-nav button:hover { border-color: var(--accent); }
 .transcript-close {
   background: var(--bg-hover);
   border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 4px;
-  padding: 4px 12px;
+  border-radius: 6px;
+  padding: 5px 14px;
   cursor: pointer;
   font-size: 12px;
   font-family: inherit;
+  transition: all 0.15s;
 }
-.transcript-close:hover { border-color: var(--red); color: var(--red); }
+.transcript-close:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Search bar */
+.transcript-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.transcript-search-input {
+  flex: 1;
+  max-width: 400px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.transcript-search-input:focus { outline: none; border-color: var(--accent); }
+.transcript-search-count {
+  font-size: 12px;
+  color: var(--text-dim);
+  min-width: 70px;
+  font-variant-numeric: tabular-nums;
+}
+.transcript-search-nav {
+  display: flex;
+  gap: 4px;
+}
+.transcript-search-nav button {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.transcript-search-nav button:hover { border-color: var(--accent); color: var(--accent); }
+.transcript-search-nav button:disabled { opacity: 0.3; cursor: default; }
+
+/* Filter toggles */
+.transcript-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
+}
+.transcript-filter-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.transcript-filter-btn:hover { color: var(--text); border-color: var(--text-dim); }
+.transcript-filter-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(187,154,247,0.08); }
+
+/* Transcript body */
 .transcript-body {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 24px 60px;
+  padding: 20px 24px 60px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
 }
 .transcript-turn {
-  margin-bottom: 20px;
-  border-left: 3px solid var(--border);
-  padding-left: 12px;
+  margin-bottom: 24px;
 }
 .transcript-turn-header {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-dim);
-  margin-bottom: 4px;
-  font-weight: 600;
+  margin-bottom: 6px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.transcript-turn-num {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--text);
 }
 .transcript-user {
   background: var(--bg-surface);
-  border-radius: 6px;
-  padding: 10px 14px;
-  margin-bottom: 6px;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
   border-left: 3px solid var(--accent);
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 13px;
   color: var(--text-bright);
+  line-height: 1.6;
 }
+.transcript-role-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.transcript-role-label.user { color: var(--accent); }
+.transcript-role-label.assistant { color: var(--cyan); }
 .transcript-assistant {
-  padding: 6px 14px;
+  padding: 8px 16px;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text);
-  line-height: 1.6;
+  line-height: 1.7;
+  border-left: 3px solid var(--cyan);
+  margin-bottom: 4px;
 }
 .transcript-tool {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 6px 10px;
-  margin: 4px 0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 6px 0;
   font-size: 11px;
   font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  overflow-x: auto;
 }
-.transcript-tool-name { color: var(--cyan); font-weight: 600; }
-.transcript-thinking {
-  border-left: 2px solid var(--text-dim);
-  padding-left: 10px;
+.transcript-tool-name {
+  color: var(--cyan);
+  font-weight: 600;
+  margin-right: 6px;
+}
+.transcript-tool-preview {
   color: var(--text-dim);
-  font-size: 11px;
-  margin: 4px 0;
+  word-break: break-all;
+}
+.transcript-tool code.transcript-tool-preview {
+  color: var(--text);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  display: block;
+  margin-top: 4px;
+  white-space: pre-wrap;
+}
+.transcript-tool-result {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--green);
   white-space: pre-wrap;
   word-break: break-word;
+  max-height: 150px;
+  overflow-y: auto;
 }
+.transcript-tool-prompt {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.transcript-thinking {
+  border-left: 2px solid var(--text-dim);
+  padding: 6px 12px;
+  color: var(--text-dim);
+  font-size: 11px;
+  margin: 6px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border-radius: 0 6px 6px 0;
+}
+.transcript-system-event {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 4px 12px;
+  border-left: 2px solid var(--orange);
+  margin: 4px 0;
+}
+
+/* Search highlights */
 mark.search-highlight {
-  background: var(--orange);
-  color: var(--bg);
+  background: rgba(255, 158, 100, 0.3);
+  color: inherit;
   border-radius: 2px;
-  padding: 0 1px;
+  padding: 1px 2px;
+  border-bottom: 2px solid var(--orange);
 }
 mark.search-highlight.active {
   background: var(--accent);
   color: #fff;
-  outline: 2px solid var(--accent);
+  border-bottom-color: var(--accent);
+  border-radius: 3px;
+  outline: 2px solid rgba(187,154,247,0.4);
 }
 
 @media (max-width: 768px) {
@@ -591,17 +720,26 @@ mark.search-highlight.active {
 
 <!-- Transcript viewer -->
 <div class="transcript-overlay" id="transcriptOverlay">
-  <div class="transcript-toolbar">
-    <span class="transcript-toolbar-title" id="transcriptTitle">Transcript</span>
-    <div class="transcript-search-wrap">
-      <input type="text" class="transcript-search-input" id="transcriptSearch" placeholder="Search in conversation...">
-      <span class="transcript-search-count" id="transcriptSearchCount"></span>
-      <div class="transcript-search-nav">
-        <button id="searchPrev" title="Previous match">\u25B2</button>
-        <button id="searchNext" title="Next match">\u25BC</button>
-      </div>
+  <div class="transcript-header">
+    <span class="transcript-header-title" id="transcriptTitle">Transcript</span>
+    <span class="transcript-header-meta" id="transcriptMeta"></span>
+    <div class="transcript-header-right">
+      <button class="transcript-close" id="transcriptClose">Close <kbd style="font-size:10px;opacity:0.5;margin-left:4px">Esc</kbd></button>
     </div>
-    <button class="transcript-close" id="transcriptClose">Close</button>
+  </div>
+  <div class="transcript-search-bar">
+    <input type="text" class="transcript-search-input" id="transcriptSearch" placeholder="Search in conversation... (Enter = next, Shift+Enter = prev)">
+    <span class="transcript-search-count" id="transcriptSearchCount"></span>
+    <div class="transcript-search-nav">
+      <button id="searchPrev" title="Previous (Shift+Enter)">&larr;</button>
+      <button id="searchNext" title="Next (Enter)">&rarr;</button>
+    </div>
+    <div class="transcript-filters">
+      <button class="transcript-filter-btn active" data-filter="user" id="filterUser">User</button>
+      <button class="transcript-filter-btn active" data-filter="assistant" id="filterAssistant">Assistant</button>
+      <button class="transcript-filter-btn active" data-filter="tools" id="filterTools">Tools</button>
+      <button class="transcript-filter-btn active" data-filter="thinking" id="filterThinking">Thinking</button>
+    </div>
   </div>
   <div class="transcript-body" id="transcriptBody"></div>
 </div>
@@ -1365,7 +1503,7 @@ mark.search-highlight.active {
         btn.textContent = "...";
         btn.disabled = true;
         try {
-          const data = await api("/api/load", { path: s.path });
+          const data = await api("/api/transcript", { path: s.path });
           openTranscript(s.sessionId.slice(0, 8), data.turns);
         } catch (e) { toast("Failed to load: " + e.message, "error"); }
         btn.textContent = "Transcript";
@@ -1381,12 +1519,73 @@ mark.search-highlight.active {
   const transcriptSearch = document.getElementById("transcriptSearch");
   const transcriptSearchCount = document.getElementById("transcriptSearchCount");
   const transcriptTitle = document.getElementById("transcriptTitle");
+  const transcriptMeta = document.getElementById("transcriptMeta");
 
   let searchMatches = [];
   let searchCurrentIdx = -1;
+  let transcriptTurns = null;
+
+  // Filters
+  const filters = { user: true, assistant: true, tools: true, thinking: true };
+  for (const key of ["user", "assistant", "tools", "thinking"]) {
+    const btn = document.getElementById("filter" + key.charAt(0).toUpperCase() + key.slice(1));
+    btn.addEventListener("click", () => {
+      filters[key] = !filters[key];
+      btn.classList.toggle("active", filters[key]);
+      applyFilters();
+      if (transcriptSearch.value.trim()) doSearch();
+    });
+  }
+
+  function applyFilters() {
+    for (const el of transcriptBody.querySelectorAll("[data-block-type]")) {
+      const type = el.dataset.blockType;
+      el.style.display = filters[type] ? "" : "none";
+    }
+  }
+
+  function toolPreviewText(tc) {
+    const inp = tc.input || {};
+    if (tc.name === "Bash") return inp.command ? truncateStr(inp.command, 200) : "";
+    if (tc.name === "Read") return inp.file_path || "";
+    if (tc.name === "Edit") return (inp.file_path || "") + (inp.old_string ? " (edit)" : "");
+    if (tc.name === "Write") return (inp.file_path || "") + " (write)";
+    if (tc.name === "Grep" || tc.name === "Glob") return (inp.pattern || "") + (inp.path ? " in " + inp.path : "");
+    if (tc.name === "Agent") return (inp.description || "") + (inp.subagent_type ? " [" + inp.subagent_type + "]" : "");
+    return truncateStr(JSON.stringify(inp), 120);
+  }
+
+  function renderToolBlock(tc) {
+    const inp = tc.input || {};
+    const name = tc.name || "tool";
+    let html = '<div class="transcript-tool">';
+    html += '<span class="transcript-tool-name">' + escapeHtml(name) + '</span> ';
+
+    if (name === "Bash" && inp.command) {
+      html += '<code class="transcript-tool-preview">' + escapeHtml(inp.command) + '</code>';
+    } else if ((name === "Read" || name === "Edit" || name === "Write") && inp.file_path) {
+      html += '<span class="transcript-tool-preview">' + escapeHtml(inp.file_path) + '</span>';
+    } else if (name === "Agent") {
+      html += '<span class="transcript-tool-preview">' + escapeHtml(inp.description || "") + '</span>';
+      if (inp.prompt) {
+        html += '<div class="transcript-tool-prompt">' + escapeHtml(truncateStr(inp.prompt, 500)) + '</div>';
+      }
+    } else {
+      html += '<span class="transcript-tool-preview">' + escapeHtml(toolPreviewText(tc)) + '</span>';
+    }
+
+    if (tc.result) {
+      const cls = tc.is_error ? ' style="color:var(--red)"' : '';
+      html += '<div class="transcript-tool-result"' + cls + '>' + escapeHtml(truncateStr(tc.result, 500)) + '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
 
   function openTranscript(title, turns) {
-    transcriptTitle.textContent = "Transcript \u2014 " + title;
+    transcriptTurns = turns;
+    transcriptTitle.textContent = title;
+    transcriptMeta.textContent = turns.length + " turns";
     transcriptSearch.value = "";
     transcriptSearchCount.textContent = "";
     searchMatches = [];
@@ -1395,27 +1594,45 @@ mark.search-highlight.active {
     let html = "";
     for (const turn of turns) {
       html += '<div class="transcript-turn">';
-      html += '<div class="transcript-turn-header">Turn ' + turn.index + (turn.timestamp ? ' \u00B7 ' + turn.timestamp : '') + '</div>';
+      html += '<div class="transcript-turn-header"><span class="transcript-turn-num">#' + turn.index + '</span>' + (turn.timestamp ? turn.timestamp : '') + '</div>';
+
       if (turn.user_text) {
-        html += '<div class="transcript-user">' + escapeHtml(turn.user_text) + '</div>';
+        html += '<div data-block-type="user"><div class="transcript-role-label user">User</div><div class="transcript-user">' + escapeHtml(turn.user_text) + '</div></div>';
       }
-      for (const block of turn.blocks || []) {
-        if (block.kind === "text") {
-          html += '<div class="transcript-assistant">' + escapeHtml(block.text || "") + '</div>';
-        } else if (block.kind === "thinking") {
-          html += '<div class="transcript-thinking">' + escapeHtml((block.text || "").slice(0, 500)) + (block.text && block.text.length > 500 ? "..." : "") + '</div>';
-        } else if (block.kind === "tool_use" && block.name) {
-          html += '<div class="transcript-tool"><span class="transcript-tool-name">' + escapeHtml(block.name) + '</span> ' + escapeHtml(truncateStr(JSON.stringify(block.input || {}), 200)) + '</div>';
-        } else if (block.kind === "tool_use" && block.tool_call) {
-          const tc = block.tool_call || block;
-          html += '<div class="transcript-tool"><span class="transcript-tool-name">' + escapeHtml(tc.name || "tool") + '</span> ' + escapeHtml(truncateStr(JSON.stringify(tc.input || {}), 200)) + '</div>';
+
+      if (turn.system_events && turn.system_events.length) {
+        for (const ev of turn.system_events) {
+          html += '<div class="transcript-system-event" data-block-type="tools">' + escapeHtml(ev) + '</div>';
         }
+      }
+
+      const blocks = turn.blocks || [];
+      if (blocks.length > 0) {
+        let hasAssistant = false;
+        for (const block of blocks) {
+          if (block.kind === "text" && block.text) {
+            if (!hasAssistant) {
+              html += '<div data-block-type="assistant"><div class="transcript-role-label assistant">Assistant</div>';
+              hasAssistant = true;
+            }
+            html += '<div class="transcript-assistant">' + escapeHtml(block.text) + '</div>';
+          } else if (block.kind === "thinking" && block.text) {
+            if (hasAssistant) { html += '</div>'; hasAssistant = false; }
+            html += '<div data-block-type="thinking"><div class="transcript-thinking">' + escapeHtml(block.text) + '</div></div>';
+          } else if (block.kind === "tool_use" && block.tool_call) {
+            if (hasAssistant) { html += '</div>'; hasAssistant = false; }
+            html += '<div data-block-type="tools">' + renderToolBlock(block.tool_call) + '</div>';
+          }
+        }
+        if (hasAssistant) html += '</div>';
       }
       html += '</div>';
     }
+
     transcriptBody.innerHTML = html;
+    applyFilters();
     transcriptOverlay.classList.add("open");
-    transcriptSearch.focus();
+    setTimeout(() => transcriptSearch.focus(), 100);
   }
 
   function truncateStr(s, max) {
@@ -1434,12 +1651,21 @@ mark.search-highlight.active {
 
     if (!query) {
       transcriptSearchCount.textContent = "";
+      document.getElementById("searchPrev").disabled = true;
+      document.getElementById("searchNext").disabled = true;
       return;
     }
 
-    // Walk text nodes and wrap matches
+    // Walk visible text nodes and wrap matches
     const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "gi");
-    const walker = document.createTreeWalker(transcriptBody, NodeFilter.SHOW_TEXT);
+    const walker = document.createTreeWalker(transcriptBody, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        // Skip hidden blocks
+        const blockEl = node.parentElement.closest("[data-block-type]");
+        if (blockEl && blockEl.style.display === "none") return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
     const textNodes = [];
     while (walker.nextNode()) textNodes.push(walker.currentNode);
 
@@ -1467,11 +1693,15 @@ mark.search-highlight.active {
     }
 
     searchMatches = Array.from(transcriptBody.querySelectorAll("mark.search-highlight"));
-    transcriptSearchCount.textContent = searchMatches.length + " found";
+    const hasMatches = searchMatches.length > 0;
+    document.getElementById("searchPrev").disabled = !hasMatches;
+    document.getElementById("searchNext").disabled = !hasMatches;
 
-    if (searchMatches.length > 0) {
+    if (hasMatches) {
       searchCurrentIdx = 0;
       highlightCurrent();
+    } else {
+      transcriptSearchCount.textContent = "0 results";
     }
   }
 
@@ -1500,7 +1730,7 @@ mark.search-highlight.active {
   let searchDebounce = null;
   transcriptSearch.addEventListener("input", () => {
     clearTimeout(searchDebounce);
-    searchDebounce = setTimeout(doSearch, 250);
+    searchDebounce = setTimeout(doSearch, 200);
   });
   transcriptSearch.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.shiftKey ? searchPrev() : searchNext(); e.preventDefault(); }
