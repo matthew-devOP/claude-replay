@@ -107,10 +107,11 @@
 <script src="/assets/xterm/addon-web-links.js"></script>
 <script>
 (function() {
-  // xterm UMD exports: Terminal on globalThis, addons on self
-  const Terminal = window.Terminal;
-  const FitAddon = window.FitAddon;
-  const WebLinksAddon = window.WebLinksAddon;
+  // xterm UMD: each export is { ClassName: class } or the class itself
+  function unwrap(obj, name) { return obj && obj[name] ? obj[name] : obj; }
+  const Terminal = unwrap(window.Terminal, "Terminal");
+  const FitAddon = unwrap(window.FitAddon, "FitAddon");
+  const WebLinksAddon = unwrap(window.WebLinksAddon, "WebLinksAddon");
 
   const THEME_DATA = JSON.parse('/*THEMES_JSON*/');
   document.getElementById("appVersion").textContent = "v" + THEME_DATA.version;
