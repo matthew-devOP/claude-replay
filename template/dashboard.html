@@ -2493,9 +2493,14 @@ mark.search-highlight.active {
           html += '<div class="pop-turn"><div class="pop-turn-label">Turn ' + p.turn + '</div><div class="pop-turn-text">' + escapeHtml(p.text) + '</div></div>';
         }
         hoverPopover.innerHTML = html;
-        const rect = tr.getBoundingClientRect();
-        hoverPopover.style.top = Math.min(rect.top, window.innerHeight - 200) + "px";
-        hoverPopover.style.left = Math.min(rect.right + 8, window.innerWidth - 420) + "px";
+        // Position below the Preview cell (2nd td)
+        const previewCell = tr.querySelectorAll("td")[1];
+        const cellRect = previewCell ? previewCell.getBoundingClientRect() : tr.getBoundingClientRect();
+        const popH = 180; // approximate
+        const top = cellRect.bottom + 4;
+        const adjustedTop = (top + popH > window.innerHeight) ? cellRect.top - popH - 4 : top;
+        hoverPopover.style.top = Math.max(8, adjustedTop) + "px";
+        hoverPopover.style.left = cellRect.left + "px";
         hoverPopover.classList.add("visible");
       } catch {}
     }, 500);
