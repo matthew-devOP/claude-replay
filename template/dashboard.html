@@ -411,7 +411,14 @@
       <a href="/editor">Editor</a>
     </nav>
     <div class="app-header-right">
-      <div class="theme-switcher" id="themeSwitcher"></div>
+      <div class="theme-dropdown" id="themeDropdown">
+        <button class="theme-dropdown-btn" id="themeDropdownBtn">
+          <span class="theme-dot-mini" id="themeDotPreview"></span>
+          <span id="themeNameLabel">Theme</span>
+          <span class="theme-dropdown-arrow">\u25BC</span>
+        </button>
+        <div class="theme-dropdown-menu" id="themeDropdownMenu"></div>
+      </div>
       <button class="btn-icon" id="helpBtn" title="Keyboard shortcuts (?)">?</button>
     </div>
   </header>
@@ -473,35 +480,56 @@
 
   // ─── Theme Switcher ───
 
+  let currentTheme = localStorage.getItem("claude-replay-theme") || "tokyo-night";
+
   function applyTheme(name) {
     const vars = THEME_DATA.themes[name];
     if (!vars) return;
+    currentTheme = name;
     document.body.classList.add("theme-transitioning");
     for (const [k, v] of Object.entries(vars)) {
       document.documentElement.style.setProperty("--" + k, v);
     }
     localStorage.setItem("claude-replay-theme", name);
-    document.querySelectorAll(".theme-dot").forEach(d => {
-      d.classList.toggle("active", d.dataset.theme === name);
-    });
+    document.querySelectorAll(".theme-dropdown-item").forEach(d =>
+      d.classList.toggle("active", d.dataset.theme === name)
+    );
+    document.getElementById("themeDotPreview").style.background = vars.accent;
+    document.getElementById("themeNameLabel").textContent = name;
     requestAnimationFrame(() => {
       setTimeout(() => document.body.classList.remove("theme-transitioning"), 350);
     });
   }
 
   function initThemeSwitcher() {
-    const container = document.getElementById("themeSwitcher");
-    const saved = localStorage.getItem("claude-replay-theme") || "tokyo-night";
+    const menu = document.getElementById("themeDropdownMenu");
+    const btn = document.getElementById("themeDropdownBtn");
+    const dropdown = document.getElementById("themeDropdown");
+
     for (const [name, vars] of Object.entries(THEME_DATA.themes)) {
-      const dot = document.createElement("button");
-      dot.className = "theme-dot" + (name === saved ? " active" : "");
-      dot.dataset.theme = name;
-      dot.title = name;
-      dot.style.background = vars.bg;
-      dot.innerHTML = `<span class="theme-dot-inner" style="background:${vars.accent}"></span>`;
-      dot.addEventListener("click", () => applyTheme(name));
-      container.appendChild(dot);
+      const item = document.createElement("button");
+      item.className = "theme-dropdown-item" + (name === currentTheme ? " active" : "");
+      item.dataset.theme = name;
+      item.innerHTML = '<span class="theme-dot-mini" style="background:' + vars.accent + '"></span>' + name;
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdown.classList.remove("open");
+        applyTheme(name);
+      });
+      menu.appendChild(item);
     }
+
+    const initVars = THEME_DATA.themes[currentTheme];
+    if (initVars) {
+      document.getElementById("themeDotPreview").style.background = initVars.accent;
+      document.getElementById("themeNameLabel").textContent = currentTheme;
+    }
+
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle("open");
+    });
+    document.addEventListener("click", () => dropdown.classList.remove("open"));
   }
 
   // ─── Toast ───

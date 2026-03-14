@@ -35,60 +35,7 @@
   color: var(--red);
   font-size: 14px;
 }
-/* Theme dropdown */
-.theme-dropdown {
-  position: relative;
-}
-.theme-dropdown-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 10px;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-.theme-dropdown-btn:hover { border-color: var(--accent); }
-.theme-dropdown-btn .theme-dot-mini {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-}
-.theme-dropdown-menu {
-  display: none;
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px 0;
-  z-index: 200;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  min-width: 160px;
-}
-.theme-dropdown.open .theme-dropdown-menu { display: block; }
-.theme-dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--text-dim);
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: left;
-  font-family: inherit;
-}
-.theme-dropdown-item:hover { background: var(--bg-hover); color: var(--text); }
-.theme-dropdown-item.active { color: var(--accent); font-weight: 600; }
+/* Theme dropdown styles in shared.css */
 </style>
 </head>
 <body>

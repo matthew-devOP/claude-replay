@@ -676,7 +676,14 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
       <a href="/editor" class="active">Editor</a>
     </nav>
     <div class="app-header-right">
-      <div class="theme-switcher" id="themeSwitcher"></div>
+      <div class="theme-dropdown" id="themeDropdown">
+        <button class="theme-dropdown-btn" id="themeDropdownBtn">
+          <span class="theme-dot-mini" id="themeDotPreview"></span>
+          <span id="themeNameLabel">Theme</span>
+          <span class="theme-dropdown-arrow">\u25BC</span>
+        </button>
+        <div class="theme-dropdown-menu" id="themeDropdownMenu"></div>
+      </div>
       <button class="btn-icon" id="helpBtn" title="Help">?</button>
     </div>
   </header>
@@ -1448,29 +1455,44 @@ body.sidebar-collapsed .sidebar-edge-toggle { left: 16px; }
     schedulePreview();
   });
 
-  // Theme switcher
+  // Theme dropdown
   const THEME_DATA = JSON.parse('/*THEMES_JSON*/');
-  (function initThemeSwitcher() {
-    const container = $("themeSwitcher");
+  (function initThemeDropdown() {
+    const menu = $("themeDropdownMenu");
+    const btn = $("themeDropdownBtn");
+    const dropdown = $("themeDropdown");
     const saved = localStorage.getItem("claude-replay-theme") || "tokyo-night";
+
     for (const [name, vars] of Object.entries(THEME_DATA.themes)) {
-      const dot = document.createElement("button");
-      dot.className = "theme-dot" + (name === saved ? " active" : "");
-      dot.dataset.theme = name;
-      dot.title = name;
-      dot.style.background = vars.bg;
-      dot.innerHTML = '<span class="theme-dot-inner" style="background:' + vars.accent + '"></span>';
-      dot.addEventListener("click", () => {
+      const item = document.createElement("button");
+      item.className = "theme-dropdown-item" + (name === saved ? " active" : "");
+      item.dataset.theme = name;
+      item.innerHTML = '<span class="theme-dot-mini" style="background:' + vars.accent + '"></span>' + name;
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdown.classList.remove("open");
         document.body.classList.add("theme-transitioning");
         for (const [k, v] of Object.entries(vars)) {
           document.documentElement.style.setProperty("--" + k, v);
         }
         localStorage.setItem("claude-replay-theme", name);
-        container.querySelectorAll(".theme-dot").forEach(d => d.classList.toggle("active", d.dataset.theme === name));
+        menu.querySelectorAll(".theme-dropdown-item").forEach(d => d.classList.toggle("active", d.dataset.theme === name));
+        $("themeDotPreview").style.background = vars.accent;
+        $("themeNameLabel").textContent = name;
         requestAnimationFrame(() => setTimeout(() => document.body.classList.remove("theme-transitioning"), 350));
       });
-      container.appendChild(dot);
+      menu.appendChild(item);
     }
+
+    const initVars = THEME_DATA.themes[saved];
+    if (initVars) {
+      $("themeDotPreview").style.background = initVars.accent;
+      $("themeNameLabel").textContent = saved;
+    }
+
+    btn.addEventListener("click", (e) => { e.stopPropagation(); dropdown.classList.toggle("open"); });
+    document.addEventListener("click", () => dropdown.classList.remove("open"));
+
     $("appVersion").textContent = "v" + THEME_DATA.version;
     $("editorFooterRight").textContent = "claude-replay v" + THEME_DATA.version;
   })();
