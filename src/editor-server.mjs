@@ -964,6 +964,52 @@ async function handleApi(req, res, pathname) {
     }
   }
 
+  // POST /api/git-info — basic git info for a project path
+  if (pathname === "/api/git-info" && req.method === "POST") {
+    const body = await readBody(req);
+    if (!body.path) return error(res, "Missing 'path' field");
+    try {
+      const info = await getGitInfo(body.path);
+      return json(res, info || { isRepo: false });
+    } catch (e) {
+      return json(res, { isRepo: false });
+    }
+  }
+
+  // POST /api/git-details — detailed git info (branches, commits, graph)
+  if (pathname === "/api/git-details" && req.method === "POST") {
+    const body = await readBody(req);
+    if (!body.path) return error(res, "Missing 'path' field");
+    try {
+      const details = await getGitDetails(body.path);
+      return json(res, details || { isRepo: false });
+    } catch (e) {
+      return json(res, { isRepo: false });
+    }
+  }
+
+  // POST /api/open — open a path in Finder or Terminal
+  if (pathname === "/api/open" && req.method === "POST") {
+    const body = await readBody(req);
+    if (!body.path) return error(res, "Missing 'path' field");
+    const target = body.path;
+    // Only allow opening paths under home
+    try { assertUnderHome(target); } catch { return error(res, "Access denied"); }
+
+    if (body.action === "finder") {
+      execFile("open", [target], () => {});
+      return json(res, { ok: true });
+    }
+    if (body.action === "terminal") {
+      // Try iTerm2 first, fall back to Terminal.app
+      execFile("open", ["-a", "iTerm", target], (err) => {
+        if (err) execFile("open", ["-a", "Terminal", target], () => {});
+      });
+      return json(res, { ok: true });
+    }
+    return error(res, "Unknown action: " + body.action);
+  }
+
   return error(res, "Not found", 404);
 }
 

@@ -217,6 +217,81 @@
   margin-bottom: 10px;
 }
 
+/* Git info in sidebar */
+.project-git-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+.git-badge {
+  color: var(--cyan);
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 600;
+}
+.git-branches { color: var(--text-dim); }
+.git-dirty { color: var(--orange); font-size: 8px; }
+
+/* Git status in detail header */
+.detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.detail-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.detail-git-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.git-remote-badge {
+  font-size: 11px;
+  color: var(--blue);
+}
+.git-no-remote {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+.git-dirty-badge {
+  font-size: 11px;
+  color: var(--orange);
+  font-weight: 600;
+}
+.git-clean-badge {
+  font-size: 11px;
+  color: var(--green);
+}
+
+/* Git tab */
+.git-hash {
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--orange);
+  margin-right: 6px;
+}
+.git-graph-pre {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text);
+  overflow-x: auto;
+  max-height: 500px;
+  overflow-y: auto;
+  white-space: pre;
+  margin-top: 8px;
+}
+
 /* Stats detail sections */
 .stats-detail { margin-bottom: 8px; }
 .stats-detail-list { margin-top: 8px; }
@@ -502,6 +577,7 @@
           <span>${p.sessionCount} session${p.sessionCount !== 1 ? "s" : ""}</span>
           <span>${formatDate(p.lastActivity)}</span>
         </div>
+        <div class="project-git-info" id="gitInfo${i}"></div>
       </div>
     `).join("");
 
@@ -513,6 +589,21 @@
       for (const c of projectListEl.querySelectorAll(".project-card")) c.classList.remove("active");
       card.classList.add("active");
     });
+
+    // Load git info async for each project
+    projects.forEach(async (p, i) => {
+      const el = document.getElementById("gitInfo" + i);
+      if (!el) return;
+      try {
+        const git = await api("/api/git-info", { path: p.path });
+        p._git = git;
+        if (git && git.isRepo) {
+          el.innerHTML = `<span class="git-badge">\u2387 ${escapeHtml(git.branch)}</span>` +
+            (git.localBranchCount > 1 ? `<span class="git-branches">${git.localBranchCount} branches</span>` : "") +
+            (git.status && !git.status.clean ? `<span class="git-dirty">\u25CF</span>` : "");
+        }
+      } catch { /* ignore */ }
+    });
   }
 
   // ─── Project detail ───
@@ -523,15 +614,43 @@
     detailEl.style.display = "block";
     detailEl.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
 
-    const details = await api("/api/projects/details", { source: project.source, dirName: project.dirName });
+    const [details, gitInfo] = await Promise.all([
+      api("/api/projects/details", { source: project.source, dirName: project.dirName }),
+      api("/api/git-info", { path: project.path }).catch(() => ({ isRepo: false })),
+    ]);
     activeDetails = details;
     updateFooter();
 
     const stats = details.stats;
+
+    // Git status badge
+    let gitBadge = "";
+    if (gitInfo && gitInfo.isRepo) {
+      const statusParts = [];
+      if (gitInfo.status && !gitInfo.status.clean) {
+        if (gitInfo.status.modified) statusParts.push(gitInfo.status.modified + " modified");
+        if (gitInfo.status.added) statusParts.push(gitInfo.status.added + " new");
+        if (gitInfo.status.deleted) statusParts.push(gitInfo.status.deleted + " deleted");
+      }
+      gitBadge = `<div class="detail-git-row">
+        <span class="git-badge">\u2387 ${escapeHtml(gitInfo.branch)}</span>
+        <span class="git-branches">${gitInfo.localBranchCount} branch${gitInfo.localBranchCount !== 1 ? "es" : ""}</span>
+        ${gitInfo.hasRemote ? '<span class="git-remote-badge">\u2601 ' + escapeHtml(gitInfo.remotes[0].name) + '</span>' : '<span class="git-no-remote">no remote</span>'}
+        ${!gitInfo.status?.clean ? '<span class="git-dirty-badge">' + statusParts.join(", ") + '</span>' : '<span class="git-clean-badge">\u2713 clean</span>'}
+      </div>`;
+    }
+
     let html = `
       <div class="detail-header">
-        <div class="detail-title">${escapeHtml(details.name)}</div>
+        <div class="detail-title-row">
+          <div class="detail-title">${escapeHtml(details.name)}</div>
+          <div class="detail-actions">
+            <button class="btn btn-small" id="openFinderBtn" title="Open in Finder">\uD83D\uDCC1 Finder</button>
+            <button class="btn btn-small" id="openTermBtn" title="Open in Terminal">\uD83D\uDCBB Terminal</button>
+          </div>
+        </div>
         <div class="detail-path">${escapeHtml(details.claudeProjectPath)}</div>
+        ${gitBadge}
         <div class="detail-stats-row">
           <div class="detail-stat"><strong>${stats.totalSessions}</strong> sessions</div>
           <div class="detail-stat"><strong>${stats.totalTurns}</strong> turns</div>
@@ -543,12 +662,14 @@
         <div class="tab active" data-tab="sessions">Sessions (${details.sessions.length})</div>
         <div class="tab" data-tab="stats">Stats</div>
         <div class="tab" data-tab="plans">Plans</div>
+        ${gitInfo && gitInfo.isRepo ? '<div class="tab" data-tab="git">Git</div>' : ""}
         ${details.claudeMd ? '<div class="tab" data-tab="claude-md">CLAUDE.md</div>' : ""}
         ${details.memoryMd ? '<div class="tab" data-tab="memory-md">MEMORY.md</div>' : ""}
       </div>
       <div class="tab-content active" id="tab-sessions">${renderSessionTable(details.sessions)}</div>
       <div class="tab-content" id="tab-stats"><div class="loading"><div class="spinner"></div> Click to load stats...</div></div>
       <div class="tab-content" id="tab-plans"><div class="loading"><div class="spinner"></div> Click to load plans...</div></div>
+      ${gitInfo && gitInfo.isRepo ? '<div class="tab-content" id="tab-git"><div class="loading"><div class="spinner"></div> Click to load git details...</div></div>' : ""}
     `;
 
     if (details.claudeMd) {
@@ -563,7 +684,7 @@
     // Tab switching
     let statsLoaded = false;
     let plansLoaded = false;
-    let cachedStatsResults = null;
+    let gitLoaded = false;
     const tabs = detailEl.querySelectorAll(".tab");
     tabs.forEach((tab) => {
       tab.addEventListener("click", () => {
@@ -580,7 +701,23 @@
           plansLoaded = true;
           loadProjectPlans(details.sessions);
         }
+        if (tab.dataset.tab === "git" && !gitLoaded) {
+          gitLoaded = true;
+          loadGitTab(project.path);
+        }
       });
+    });
+
+    // Open in Finder / Terminal
+    const finderBtn = document.getElementById("openFinderBtn");
+    const termBtn = document.getElementById("openTermBtn");
+    if (finderBtn) finderBtn.addEventListener("click", () => {
+      api("/api/open", { path: project.path, action: "finder" });
+      toast("Opened in Finder");
+    });
+    if (termBtn) termBtn.addEventListener("click", () => {
+      api("/api/open", { path: project.path, action: "terminal" });
+      toast("Opened in Terminal");
     });
 
     wireSessionActions(details.sessions);
@@ -776,6 +913,83 @@
     }
 
     plansEl.innerHTML = html;
+  }
+
+  async function loadGitTab(projectPath) {
+    const gitEl = document.getElementById("tab-git");
+    if (!gitEl) return;
+    gitEl.innerHTML = '<div class="loading"><div class="spinner"></div> Loading git details...</div>';
+
+    const git = await api("/api/git-details", { path: projectPath }).catch(() => null);
+    if (!git || !git.isRepo) {
+      gitEl.innerHTML = '<div class="md-empty">Not a git repository.</div>';
+      return;
+    }
+
+    let html = '';
+
+    // Overview cards
+    html += `<div class="stats-grid">
+      <div class="stats-card">
+        <div class="stats-card-label">Current Branch</div>
+        <div class="stats-card-value" style="font-size:16px">\u2387 ${escapeHtml(git.branch)}</div>
+        <div class="stats-card-sub">${git.status?.clean ? '\u2713 clean working tree' : git.status?.total + ' uncommitted changes'}</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-label">Commits</div>
+        <div class="stats-card-value">${git.commitCount.toLocaleString()}</div>
+        <div class="stats-card-sub">on current branch</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-label">Branches</div>
+        <div class="stats-card-value">${git.localBranchCount}</div>
+        <div class="stats-card-sub">${git.remoteBranchCount} remote</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-label">Remotes</div>
+        <div class="stats-card-value">${git.remotes.length}</div>
+        <div class="stats-card-sub">${git.remotes.map(r => escapeHtml(r.name)).join(", ") || "none"}</div>
+      </div>
+    </div>`;
+
+    // Remotes detail
+    if (git.remotes.length > 0) {
+      html += '<div class="stats-section-title" style="margin-top:20px">Remotes</div>';
+      for (const r of git.remotes) {
+        html += `<div class="stats-detail-item"><strong>${escapeHtml(r.name)}</strong> <code>${escapeHtml(r.url)}</code></div>`;
+      }
+    }
+
+    // Branches
+    if (git.localBranches.length > 0) {
+      html += '<details class="stats-detail" open><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Local Branches (' + git.localBranches.length + ')</summary>';
+      html += '<div class="stats-detail-list">';
+      for (const b of git.localBranches) {
+        const isCurrent = b === git.branch;
+        html += `<div class="stats-detail-item"${isCurrent ? ' style="border-left-color:var(--accent)"' : ''}>
+          ${isCurrent ? '<strong>' : ''}${escapeHtml(b)}${isCurrent ? ' \u2190 current</strong>' : ''}
+        </div>`;
+      }
+      html += '</div></details>';
+    }
+
+    // Recent commits
+    if (git.recentCommits.length > 0) {
+      html += '<details class="stats-detail" open><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Recent Commits (' + Math.min(30, git.commitCount) + ' of ' + git.commitCount + ')</summary>';
+      html += '<div class="stats-detail-list">';
+      for (const c of git.recentCommits) {
+        html += `<div class="stats-detail-item"><span class="git-hash">${escapeHtml(c.hash)}</span> ${escapeHtml(c.message)}</div>`;
+      }
+      html += '</div></details>';
+    }
+
+    // Git graph
+    if (git.graph) {
+      html += '<details class="stats-detail" open><summary class="stats-section-title" style="cursor:pointer;margin-top:20px">Git Graph</summary>';
+      html += '<pre class="git-graph-pre">' + escapeHtml(git.graph) + '</pre></details>';
+    }
+
+    gitEl.innerHTML = html;
   }
 
   let currentSortKey = "date";
