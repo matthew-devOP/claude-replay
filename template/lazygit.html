@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%23bb9af7' stroke-width='2'/><polygon points='12,8 12,24 24,16' fill='%23bb9af7'/></svg>">
+<title>LazyGit — claude-replay</title>
+<style>/*SHARED_CSS*/</style>
+<link rel="stylesheet" href="/assets/xterm/xterm.css">
+<style>
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+}
+.terminal-container {
+  background: #1a1b26;
+  overflow: hidden;
+  position: relative;
+}
+.terminal-container .xterm {
+  height: 100%;
+  padding: 4px;
+}
+.terminal-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-dim);
+  font-size: 14px;
+  z-index: 10;
+  background: var(--bg);
+}
+.terminal-loading.hidden { display: none; }
+.terminal-error {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text-dim);
+  font-size: 14px;
+  background: var(--bg);
+}
+.terminal-error.visible { display: flex; }
+.terminal-error .error-msg { color: var(--red); }
+.project-indicator {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+</style>
+</head>
+<body>
+<script>
+  try {
+    const saved = localStorage.getItem("claude-replay-theme");
+    if (saved) {
+      const data = JSON.parse('/*THEMES_JSON*/');
+      const vars = data.themes[saved];
+      if (vars) {
+        for (const [k, v] of Object.entries(vars))
+          document.documentElement.style.setProperty("--" + k, v);
+      }
+    }
+  } catch {}
+</script>
+<div class="app">
+  <header class="app-header">
+    <a href="/" class="app-logo">
+      <svg width="22" height="22" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"/><polygon points="12,8 12,24 24,16" fill="currentColor" style="color:var(--accent)"/></svg>
+      claude-replay
+      <span class="app-version" id="appVersion"></span>
+    </a>
+    <nav class="app-nav">
+      <a href="/">Projects</a>
+      <a href="/editor">Editor</a>
+      <a href="/docs">Docs</a>
+    </nav>
+    <div class="app-header-right">
+      <span class="project-indicator" id="projectPath"></span>
+    </div>
+  </header>
+  <div class="terminal-container" id="terminalContainer">
+    <div class="terminal-loading" id="termLoading">
+      <div class="spinner"></div> Connecting to lazygit...
+    </div>
+    <div class="terminal-error" id="termError">
+      <div class="error-msg" id="termErrorMsg"></div>
+      <a href="/" class="btn">Back to Dashboard</a>
+    </div>
+    <div id="terminal"></div>
+  </div>
+  <footer class="app-footer">
+    <div class="footer-left">lazygit — press <kbd style="background:var(--bg-hover);border:1px solid var(--border);padding:0 4px;border-radius:3px;font-size:10px;">q</kbd> to quit</div>
+    <div class="footer-right" id="footerRight"></div>
+  </footer>
+</div>
+
+<script type="module">
+  import { Terminal } from "/assets/xterm/xterm.js";
+  import { FitAddon } from "/assets/xterm/addon-fit.js";
+  import { WebLinksAddon } from "/assets/xterm/addon-web-links.js";
+
+  const THEME_DATA = JSON.parse('/*THEMES_JSON*/');
+  document.getElementById("appVersion").textContent = "v" + THEME_DATA.version;
+  document.getElementById("footerRight").textContent = "claude-replay v" + THEME_DATA.version;
+
+  const params = new URLSearchParams(location.search);
+  const projectPath = params.get("path") || "";
+  const cmd = params.get("cmd") || "lazygit";
+
+  document.getElementById("projectPath").textContent = projectPath.split("/").slice(-2).join("/");
+
+  if (!projectPath) {
+    document.getElementById("termLoading").classList.add("hidden");
+    document.getElementById("termError").classList.add("visible");
+    document.getElementById("termErrorMsg").textContent = "No project path specified.";
+  } else {
+    startTerminal();
+  }
+
+  function startTerminal() {
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: 13,
+      fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace",
+      theme: {
+        background: "#1a1b26",
+        foreground: "#c0caf5",
+        cursor: "#c0caf5",
+        selectionBackground: "rgba(187, 154, 247, 0.3)",
+        black: "#15161e",
+        red: "#f7768e",
+        green: "#9ece6a",
+        yellow: "#e0af68",
+        blue: "#7aa2f7",
+        magenta: "#bb9af7",
+        cyan: "#7dcfff",
+        white: "#a9b1d6",
+        brightBlack: "#414868",
+        brightRed: "#f7768e",
+        brightGreen: "#9ece6a",
+        brightYellow: "#e0af68",
+        brightBlue: "#7aa2f7",
+        brightMagenta: "#bb9af7",
+        brightCyan: "#7dcfff",
+        brightWhite: "#c0caf5",
+      },
+      allowProposedApi: true,
+    });
+
+    const fitAddon = new FitAddon();
+    const webLinksAddon = new WebLinksAddon();
+    term.loadAddon(fitAddon);
+    term.loadAddon(webLinksAddon);
+
+    const container = document.getElementById("terminal");
+    term.open(container);
+    fitAddon.fit();
+
+    // WebSocket connection
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${location.host}/ws/terminal?path=${encodeURIComponent(projectPath)}&cmd=${encodeURIComponent(cmd)}&cols=${term.cols}&rows=${term.rows}`;
+
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      document.getElementById("termLoading").classList.add("hidden");
+      term.focus();
+    };
+
+    ws.onmessage = (e) => {
+      term.write(e.data);
+    };
+
+    ws.onerror = () => {
+      document.getElementById("termLoading").classList.add("hidden");
+      document.getElementById("termError").classList.add("visible");
+      document.getElementById("termErrorMsg").textContent = "WebSocket connection failed. Is the server running?";
+    };
+
+    ws.onclose = () => {
+      term.write("\r\n\x1b[90m[Connection closed]\x1b[0m\r\n");
+    };
+
+    // Terminal input → WebSocket
+    term.onData((data) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
+      }
+    });
+
+    // Handle terminal resize
+    const resizeObserver = new ResizeObserver(() => {
+      fitAddon.fit();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+      }
+    });
+    resizeObserver.observe(container);
+
+    // Cleanup on page unload
+    window.addEventListener("beforeunload", () => {
+      ws.close();
+    });
+  }
+</script>
+</body>
+</html>

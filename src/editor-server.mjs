@@ -1389,6 +1389,41 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
         }
       }
 
+      // LazyGit terminal page: /lazygit
+      if (pathname === "/lazygit" && req.method === "GET") {
+        const lazygitHtmlPath = new URL("../template/lazygit.html", import.meta.url);
+        let lazygitHtml = "";
+        try { lazygitHtml = injectShared(readFileSync(lazygitHtmlPath, "utf-8")); } catch { /* */ }
+        if (lazygitHtml) {
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Content-Length": Buffer.byteLength(lazygitHtml) });
+          return res.end(lazygitHtml);
+        }
+      }
+
+      // Serve xterm.js assets from node_modules
+      if (pathname.startsWith("/assets/xterm/")) {
+        const assetMap = {
+          "/assets/xterm/xterm.js": { file: "@xterm/xterm/lib/xterm.mjs", type: "text/javascript" },
+          "/assets/xterm/xterm.css": { file: "@xterm/xterm/css/xterm.css", type: "text/css" },
+          "/assets/xterm/addon-fit.js": { file: "@xterm/addon-fit/lib/addon-fit.mjs", type: "text/javascript" },
+          "/assets/xterm/addon-web-links.js": { file: "@xterm/addon-web-links/lib/addon-web-links.mjs", type: "text/javascript" },
+        };
+        const asset = assetMap[pathname];
+        if (asset) {
+          try {
+            const { createRequire } = await import("node:module");
+            const require = createRequire(import.meta.url);
+            const assetPath = require.resolve(asset.file);
+            const content = readFileSync(assetPath);
+            res.writeHead(200, { "Content-Type": asset.type, "Content-Length": content.length, "Cache-Control": "public, max-age=86400" });
+            return res.end(content);
+          } catch (e) {
+            res.writeHead(404, { "Content-Type": "text/plain" });
+            return res.end("Asset not found: " + e.message);
+          }
+        }
+      }
+
       // Docs page: /docs
       if (pathname === "/docs" && req.method === "GET") {
         const docsHtmlPath = new URL("../template/docs.html", import.meta.url);
@@ -1418,6 +1453,11 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
       }
     }
   });
+
+  // Attach WebSocket terminal server (async, non-blocking)
+  import("./terminal.mjs")
+    .then(({ attachTerminalWs }) => attachTerminalWs(server))
+    .catch((e) => console.log("Terminal WebSocket not available:", e.message));
 
   return new Promise((_resolve) => {
     server.on("error", (err) => {

@@ -1448,6 +1448,7 @@ mark.search-highlight.active {
           <div class="detail-actions">
             <button class="btn btn-small" id="openFinderBtn" title="Open in Finder">\uD83D\uDCC1 Finder</button>
             <button class="btn btn-small" id="openTermBtn" title="Open in Terminal">\uD83D\uDCBB Terminal</button>
+            <button class="btn btn-small" id="openLazygitBtn" title="Open LazyGit in browser" style="border-color:var(--green);color:var(--green)">\u2387 LazyGit</button>
           </div>
         </div>
         <div class="detail-path">${escapeHtml(details.claudeProjectPath)}</div>
@@ -1519,6 +1520,10 @@ mark.search-highlight.active {
     if (termBtn) termBtn.addEventListener("click", () => {
       api("/api/open", { path: project.path, action: "terminal" });
       toast("Opened in Terminal");
+    });
+    const lazygitBtn = document.getElementById("openLazygitBtn");
+    if (lazygitBtn) lazygitBtn.addEventListener("click", () => {
+      window.open("/lazygit?path=" + encodeURIComponent(project.path), "_blank");
     });
 
     wireSessionActions(details.sessions);
