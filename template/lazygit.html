@@ -17,10 +17,15 @@
   background: #1a1b26;
   overflow: hidden;
   position: relative;
+  min-height: 0;
 }
-.terminal-container .xterm {
+.terminal-container .xterm,
+.terminal-container .xterm-screen {
+  height: 100% !important;
+}
+#terminal {
   height: 100%;
-  padding: 4px;
+  width: 100%;
 }
 .terminal-loading {
   position: absolute;
