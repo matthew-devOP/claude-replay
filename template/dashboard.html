@@ -1128,24 +1128,10 @@
 
   function wireSessionActions(sessions) {
     for (const btn of detailEl.querySelectorAll(".btn-replay")) {
-      btn.addEventListener("click", async () => {
+      btn.addEventListener("click", () => {
         const s = sessions[parseInt(btn.dataset.idx)];
-        btn.textContent = "...";
-        btn.disabled = true;
-        try {
-          const loadRes = await api("/api/load", { path: s.path });
-          const exportRes = await fetch("/api/export", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sessionId: loadRes.sessionId, options: { title: s.sessionId.slice(0, 8) } }),
-          });
-          const blob = await exportRes.blob();
-          const url = URL.createObjectURL(blob);
-          window.open(url, "_blank");
-          toast("Replay opened in new tab");
-        } catch (e) { toast("Export failed: " + e.message, "error"); }
-        btn.textContent = "Replay";
-        btn.disabled = false;
+        const url = "/replay?path=" + encodeURIComponent(s.path) + "&id=" + encodeURIComponent(s.sessionId.slice(0, 8));
+        window.open(url, "_blank");
       });
     }
 

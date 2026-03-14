@@ -983,6 +983,42 @@ async function handleApi(req, res, pathname) {
     }
   }
 
+  // POST /api/render-replay — render player HTML for iframe embedding (not download)
+  if (pathname === "/api/render-replay" && req.method === "POST") {
+    const body = await readBody(req);
+    const filePath = body.path;
+    if (!filePath) return error(res, "Missing 'path' field");
+    try {
+      assertUnderHome(filePath);
+      const format = detectFormat(filePath);
+      const turns = parseTranscript(filePath);
+      const themeName = body.theme || "tokyo-night";
+      const html = render(turns, {
+        speed: 1.0,
+        showThinking: true,
+        showToolCalls: true,
+        theme: getThemeSafe(themeName),
+        redactSecrets: true,
+        redactRules: [],
+        userLabel: "User",
+        assistantLabel: format === "codex" ? "Codex" : format === "cursor" ? "Assistant" : "Claude",
+        title: body.title || "",
+        description: "",
+        ogImage: "",
+        bookmarks: [],
+        minified: false,
+        compress: true,
+      });
+      res.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Length": Buffer.byteLength(html),
+      });
+      return res.end(html);
+    } catch (e) {
+      return error(res, `Failed to render: ${e.message}`, 500);
+    }
+  }
+
   // POST /api/git-info — basic git info for a project path
   if (pathname === "/api/git-info" && req.method === "POST") {
     const body = await readBody(req);
@@ -1083,6 +1119,25 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
           "Content-Length": Buffer.byteLength(editorHtml),
         });
         return res.end(editorHtml);
+      }
+
+      // Replay wrapper page: /replay?path=<encoded-path>
+      if (pathname === "/replay" && req.method === "GET") {
+        const replayHtmlPath = new URL("../template/replay.html", import.meta.url);
+        let replayHtml = "";
+        try { replayHtml = injectShared(readFileSync(replayHtmlPath, "utf-8")); } catch { /* */ }
+        if (replayHtml) {
+          res.writeHead(200, {
+            "Content-Type": "text/html; charset=utf-8",
+            "Content-Length": Buffer.byteLength(replayHtml),
+          });
+          return res.end(replayHtml);
+        }
+      }
+
+      // Serve rendered player HTML for iframe embedding: /api/render-replay
+      if (pathname === "/api/render-replay" && req.method === "POST") {
+        return await handleApi(req, res, pathname);
       }
 
       if (pathname.startsWith("/api/")) {
