@@ -918,6 +918,112 @@ body.in-iframe .bar-title:hover {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* Export dropdown */
+.export-wrap { position: relative; flex-shrink: 0; }
+.export-popover {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 0;
+  z-index: 200;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  min-width: 160px;
+}
+.export-wrap.open .export-popover { display: block; }
+.export-popover button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 8px 14px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.export-popover button:hover { background: var(--bg-hover); color: var(--text); }
+
+/* Print styles for PDF export */
+@media print {
+  body {
+    background: #fff !important;
+    color: #222 !important;
+    font-size: 11px !important;
+  }
+  .controls, .splash, .progress-wrap { display: none !important; }
+  .transcript {
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+  .turn {
+    opacity: 1 !important;
+    margin-bottom: 16px !important;
+    page-break-inside: avoid;
+  }
+  .turn:not(:first-child) { page-break-before: auto; }
+  .turn .turn-body { display: block !important; }
+  .turn.collapsed .turn-body { display: block !important; }
+  .block-wrapper { display: block !important; }
+  .block-wrapper.block-hidden { display: block !important; }
+  .thinking-block .thinking-body { display: block !important; max-height: none !important; }
+  .thinking-block { border-left-color: #999 !important; }
+  .tool-block .tool-body { display: block !important; }
+  .tool-group .tool-group-body { display: block !important; }
+  .collapsible-wrap.is-collapsed .collapsible-content { max-height: none !important; overflow: visible !important; }
+  .collapsible-fade { display: none !important; }
+  .collapsible-toggle { display: none !important; }
+  .turn-header {
+    background: #f5f5f5 !important;
+    border-bottom: 1px solid #ddd !important;
+    color: #333 !important;
+  }
+  .turn-header-label { color: #000 !important; }
+  .role-section.role-user {
+    background: #f9f9f9 !important;
+    border-left-color: #7c3aed !important;
+  }
+  .role-section.role-assistant { border-left-color: #0891b2 !important; }
+  .role-label.role-user-label { color: #7c3aed !important; }
+  .role-label.role-assistant-label { color: #0891b2 !important; }
+  .assistant-text, .user-text, .thinking-body { color: #222 !important; }
+  .assistant-text pre, .user-text pre, .thinking-body pre {
+    background: #f5f5f5 !important;
+    border: 1px solid #ddd !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+  }
+  .assistant-text code, .user-text code { background: #f0f0f0 !important; }
+  .tool-block {
+    background: #fafafa !important;
+    border: 1px solid #ddd !important;
+  }
+  .tool-input { color: #555 !important; background: #fafafa !important; max-height: none !important; }
+  .tool-result { color: #166534 !important; background: #f0fdf4 !important; border-top: 1px solid #ddd !important; max-height: none !important; }
+  .tool-result.tool-result-error { color: #991b1b !important; background: #fef2f2 !important; }
+  .tool-name { color: #0891b2 !important; }
+  .tool-args-preview { color: #666 !important; }
+  .tool-indicator { background: #0891b2 !important; }
+  .tool-indicator.tool-error { background: #dc2626 !important; }
+  .diff-line-del { color: #991b1b !important; background: #fef2f2 !important; }
+  .diff-line-add { color: #166534 !important; background: #f0fdf4 !important; }
+  .diff-view, .tool-input, .tool-result { max-height: none !important; overflow: visible !important; }
+  .timestamp { color: #666 !important; }
+  .turn-header-ts { color: #666 !important; }
+  .bookmark-divider { opacity: 1 !important; color: #c2410c !important; border-left-color: #c2410c !important; }
+  .cursor { display: none !important; }
+  .block-spinner { display: none !important; }
+  a { color: #2563eb !important; }
+  .bg-task-badge { background: #f5f5f5 !important; border-color: #ddd !important; color: #333 !important; }
+}
 </style>
 </head>
 <body>
@@ -945,6 +1051,13 @@ body.in-iframe .bar-title:hover {
             <label><input type="checkbox" id="toggle-tools" /*CHECKED_TOOLS*/> Tools</label>
           </div>
         </div>
+        <div class="export-wrap" id="export-wrap">
+          <button id="export-btn" title="Export"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a.5.5 0 0 1 .5.5v8.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V1.5A.5.5 0 0 1 8 1z"/><path d="M2 13.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/></svg></button>
+          <div class="export-popover" id="export-popover">
+            <button id="export-md-btn">&#128196; Export as Markdown</button>
+            <button id="export-pdf-btn">&#128438; Export as PDF</button>
+          </div>
+        </div>
       </div>
       <div class="more-wrap" id="more-wrap">
         <button id="more-btn" title="More">&#x22EE;</button>
@@ -957,6 +1070,9 @@ body.in-iframe .bar-title:hover {
           <label><input type="checkbox" id="toggle-thinking2" /*CHECKED_THINKING*/> Thinking</label>
           <label><input type="checkbox" id="toggle-tools2" /*CHECKED_TOOLS*/> Tools</label>
           <hr class="more-divider">
+          <hr class="more-divider">
+          <button id="export-md-btn2" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;color:var(--text-dim);font-family:inherit;font-size:12px;padding:6px 0;cursor:pointer;">&#128196; Export Markdown</button>
+          <button id="export-pdf-btn2" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;color:var(--text-dim);font-family:inherit;font-size:12px;padding:6px 0;cursor:pointer;">&#128438; Export PDF</button>
           <div id="more-chapters" style="display:none">
             <hr class="more-divider">
             <div id="more-chapter-list"></div>
@@ -2136,8 +2252,11 @@ body.in-iframe .bar-title:hover {
   // § UI WIRING
   // ═══════════════════════════════════════════
 
+  const exportWrap = $("#export-wrap");
+  const exportBtn = $("#export-btn");
+
   // Popover management — single close-all + single document click handler
-  const popoverWraps = [speedWrap, filterWrap, chapterWrap, moreWrap].filter(Boolean);
+  const popoverWraps = [speedWrap, filterWrap, chapterWrap, moreWrap, exportWrap].filter(Boolean);
 
   function closeAllPopovers(exceptEl) {
     for (const el of popoverWraps) {
@@ -2483,6 +2602,122 @@ body.in-iframe .bar-title:hover {
   });
 
   $("#splash-play").addEventListener("click", () => startPlay());
+
+  // ═══════════════════════════════════════════
+  // § EXPORT (Markdown + PDF)
+  // ═══════════════════════════════════════════
+
+  function turnsToMarkdown() {
+    const pageTitle = document.title || "Claude Session";
+    const lines = ["# " + pageTitle, ""];
+
+    for (const turn of TURNS) {
+      lines.push("---", "");
+      let header = `## Turn ${turn.index}`;
+      if (turn.timestamp) {
+        header += ` — ${new Date(turn.timestamp).toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC")}`;
+      }
+      lines.push(header, "");
+
+      // User message
+      if (turn.user_text) {
+        lines.push("### User", "", turn.user_text, "");
+      }
+
+      // System events
+      if (turn.system_events && turn.system_events.length) {
+        for (const ev of turn.system_events) {
+          lines.push(`> **System:** ${ev}`, "");
+        }
+      }
+
+      // Assistant blocks
+      if (turn.blocks && turn.blocks.length) {
+        lines.push("### Assistant", "");
+        for (const block of turn.blocks) {
+          if (block.kind === "text") {
+            lines.push(block.text || "", "");
+          } else if (block.kind === "thinking") {
+            lines.push("<details>", "<summary>Thinking</summary>", "", block.text || "", "", "</details>", "");
+          } else if (block.kind === "tool_use" && block.tool_call) {
+            const tc = block.tool_call;
+            lines.push(`#### Tool: ${tc.name || "unknown"}`);
+            // Input
+            const inp = tc.input || {};
+            if (tc.name === "Bash" && inp.command) {
+              lines.push("", "```bash", inp.command, "```", "");
+            } else if ((tc.name === "Edit" || tc.name === "Write") && inp.file_path) {
+              lines.push("", `**File:** \`${inp.file_path}\``);
+              if (tc.name === "Edit" && inp.old_string != null) {
+                lines.push("", "```diff");
+                for (const l of String(inp.old_string).split("\n")) lines.push("- " + l);
+                for (const l of String(inp.new_string).split("\n")) lines.push("+ " + l);
+                lines.push("```", "");
+              } else if (inp.content != null) {
+                lines.push("", "```", inp.content, "```", "");
+              }
+            } else if (tc.name === "Read" && inp.file_path) {
+              lines.push("", `**File:** \`${inp.file_path}\``, "");
+            } else if ((tc.name === "Grep" || tc.name === "Glob") && inp.pattern) {
+              lines.push("", `**Pattern:** \`${inp.pattern}\`${inp.path ? ` in \`${inp.path}\`` : ""}`, "");
+            } else {
+              try {
+                lines.push("", "```json", JSON.stringify(inp, null, 2), "```", "");
+              } catch { lines.push("", String(inp), ""); }
+            }
+            // Result
+            if (tc.result != null) {
+              const label = tc.is_error ? "**Error:**" : "**Result:**";
+              lines.push(label, "", "```", tc.result, "```", "");
+            }
+          }
+        }
+      }
+    }
+    return lines.join("\n");
+  }
+
+  function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+  }
+
+  function safeFilename(title) {
+    return title.replace(/[^a-zA-Z0-9_\-. ]/g, "_").replace(/_+/g, "_").slice(0, 80);
+  }
+
+  function exportMarkdown() {
+    const md = turnsToMarkdown();
+    const title = safeFilename(document.title || "claude-session");
+    downloadFile(md, title + ".md", "text/markdown;charset=utf-8");
+    closeAllPopovers();
+  }
+
+  function exportPdf() {
+    closeAllPopovers();
+    window.print();
+  }
+
+  // Export popover toggle
+  exportBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const wasOpen = exportWrap.classList.contains("open");
+    closeAllPopovers();
+    if (!wasOpen) exportWrap.classList.add("open");
+  });
+
+  // Wire export buttons
+  $("#export-md-btn").addEventListener("click", exportMarkdown);
+  $("#export-pdf-btn").addEventListener("click", exportPdf);
+  $("#export-md-btn2").addEventListener("click", exportMarkdown);
+  $("#export-pdf-btn2").addEventListener("click", exportPdf);
+
   document.body.dataset.ready = "1";
 })();
 </script>

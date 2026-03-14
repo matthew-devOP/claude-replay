@@ -3,8 +3,8 @@
  */
 
 import { createServer } from "node:http";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { resolve, join, dirname } from "node:path";
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
+import { resolve, join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
 import { execFile } from "node:child_process";
 import { parseTranscript, filterTurns, detectFormat, applyPacedTiming } from "./parser.mjs";
@@ -340,6 +340,234 @@ function discoverSessions() {
 }
 
 // ---------------------------------------------------------------------------
+// Project dashboard helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Decode a Claude projects directory name back to the original filesystem path.
+ * e.g. "-Users-foo-work-myproject" → "/Users/foo/work/myproject"
+ * Uses filesystem probing to handle ambiguous dashes (e.g. usernames containing dashes).
+ */
+function claudeDirToProjectPath(dirName) {
+  const parts = dirName.replace(/^-+/, "").split("-");
+  // Greedily build the path, checking which segments exist on disk
+  let path = "";
+  let i = 0;
+  while (i < parts.length) {
+    // Try progressively longer dash-joined segments
+    let found = false;
+    for (let end = i + 1; end <= parts.length; end++) {
+      const segment = parts.slice(i, end).join("-");
+      const candidate = path + "/" + segment;
+      // If this is not the last segment, check if it exists as a directory
+      if (end < parts.length) {
+        try {
+          if (statSync(candidate).isDirectory()) {
+            path = candidate;
+            i = end;
+            found = true;
+            break;
+          }
+        } catch { /* doesn't exist, try longer segment */ }
+      } else {
+        // Last segment — accept it (might be a file or dir)
+        path = candidate;
+        i = end;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      // Fallback: just use the single part
+      path += "/" + parts[i];
+      i++;
+    }
+  }
+  return path;
+}
+
+/** Discover projects grouped by source, with metadata. */
+function discoverProjects() {
+  const home = homedir();
+  const projects = [];
+
+  // Claude Code projects
+  const claudeBase = join(home, ".claude", "projects");
+  try {
+    const dirs = readdirSync(claudeBase).filter((d) => {
+      try { return statSync(join(claudeBase, d)).isDirectory(); } catch { return false; }
+    });
+    for (const dir of dirs) {
+      const projPath = join(claudeBase, dir);
+      const files = readdirSync(projPath).filter((f) => f.endsWith(".jsonl"));
+      if (files.length === 0) continue;
+      // Find latest activity
+      let lastActivity = null;
+      for (const f of files) {
+        try {
+          const mtime = statSync(join(projPath, f)).mtime;
+          if (!lastActivity || mtime > lastActivity) lastActivity = mtime;
+        } catch { /* ignore */ }
+      }
+      const realPath = claudeDirToProjectPath(dir);
+      const displayName = basename(realPath);
+      projects.push({
+        source: "claude",
+        dirName: dir,
+        name: displayName,
+        path: realPath,
+        claudeProjectPath: projPath,
+        sessionCount: files.length,
+        lastActivity: lastActivity ? lastActivity.toISOString() : null,
+      });
+    }
+  } catch { /* directory doesn't exist */ }
+
+  // Sort by last activity descending
+  projects.sort((a, b) => (b.lastActivity || "").localeCompare(a.lastActivity || ""));
+  return projects;
+}
+
+/** Get detailed project information including CLAUDE.md, MEMORY.md, and session previews. */
+function getProjectDetails(source, dirName) {
+  const home = homedir();
+
+  if (source === "claude") {
+    const projPath = join(home, ".claude", "projects", dirName);
+    if (!existsSync(projPath)) throw new Error("Project not found");
+
+    const realPath = claudeDirToProjectPath(dirName);
+
+    // Read CLAUDE.md from the actual project directory
+    let claudeMd = null;
+    const claudeMdPath = join(realPath, "CLAUDE.md");
+    try { if (existsSync(claudeMdPath)) claudeMd = readFileSync(claudeMdPath, "utf-8"); } catch { /* ignore */ }
+
+    // Read MEMORY.md from the claude project directory
+    let memoryMd = null;
+    const memoryMdPath = join(projPath, "memory", "MEMORY.md");
+    try { if (existsSync(memoryMdPath)) memoryMd = readFileSync(memoryMdPath, "utf-8"); } catch { /* ignore */ }
+
+    // List sessions with previews
+    const files = readdirSync(projPath).filter((f) => f.endsWith(".jsonl")).sort().reverse();
+    const sessionList = [];
+    for (const file of files) {
+      const fullPath = join(projPath, file);
+      let date = null;
+      let size = 0;
+      try {
+        const stat = statSync(fullPath);
+        date = stat.mtime.toISOString();
+        size = stat.size;
+      } catch { /* ignore */ }
+
+      // Quick preview: read first few lines to get first user message and turn count
+      let preview = "";
+      let turnCount = 0;
+      try {
+        const content = readFileSync(fullPath, "utf-8");
+        const lines = content.split("\n").filter((l) => l.trim());
+        for (const line of lines) {
+          try {
+            const entry = JSON.parse(line);
+            if (entry.type === "human" || entry.role === "human" || entry.type === "user" || entry.role === "user") {
+              turnCount++;
+              if (!preview && typeof entry.message === "string") {
+                preview = entry.message.slice(0, 150);
+              } else if (!preview && entry.message?.content) {
+                const content = Array.isArray(entry.message.content) ? entry.message.content : [entry.message.content];
+                for (const c of content) {
+                  if (typeof c === "string") { preview = c.slice(0, 150); break; }
+                  if (c.type === "text" && c.text) { preview = c.text.slice(0, 150); break; }
+                }
+              }
+            }
+          } catch { /* skip bad lines */ }
+        }
+      } catch { /* ignore read errors */ }
+
+      // Clean preview: strip system tags
+      preview = preview.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").trim();
+
+      const sessionId = file.replace(/\.jsonl$/, "");
+      sessionList.push({
+        sessionId,
+        file,
+        path: fullPath,
+        date,
+        size,
+        turnCount,
+        preview: preview.slice(0, 120),
+      });
+    }
+
+    return {
+      source,
+      dirName,
+      name: realPath,
+      claudeProjectPath: projPath,
+      claudeMd,
+      memoryMd,
+      sessions: sessionList,
+    };
+  }
+
+  throw new Error("Unsupported source: " + source);
+}
+
+/** Convert turns array to markdown string (server-side export). */
+function turnsToMarkdown(turns, title) {
+  const lines = ["# " + (title || "Claude Session"), ""];
+  for (const turn of turns) {
+    lines.push("---", "");
+    let header = `## Turn ${turn.index}`;
+    if (turn.timestamp) {
+      header += ` — ${new Date(turn.timestamp).toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC")}`;
+    }
+    lines.push(header, "");
+    if (turn.user_text) {
+      lines.push("### User", "", turn.user_text, "");
+    }
+    if (turn.system_events && turn.system_events.length) {
+      for (const ev of turn.system_events) lines.push(`> **System:** ${ev}`, "");
+    }
+    if (turn.blocks && turn.blocks.length) {
+      lines.push("### Assistant", "");
+      for (const block of turn.blocks) {
+        if (block.kind === "text") {
+          lines.push(block.text || "", "");
+        } else if (block.kind === "thinking") {
+          lines.push("<details>", "<summary>Thinking</summary>", "", block.text || "", "", "</details>", "");
+        } else if (block.kind === "tool_use" && block.tool_call) {
+          const tc = block.tool_call;
+          lines.push(`#### Tool: ${tc.name || "unknown"}`);
+          const inp = tc.input || {};
+          if (tc.name === "Bash" && inp.command) {
+            lines.push("", "```bash", inp.command, "```", "");
+          } else if ((tc.name === "Edit" || tc.name === "Write") && inp.file_path) {
+            lines.push("", `**File:** \`${inp.file_path}\``);
+            if (tc.name === "Edit" && inp.old_string != null) {
+              lines.push("", "```diff");
+              for (const l of String(inp.old_string).split("\n")) lines.push("- " + l);
+              for (const l of String(inp.new_string).split("\n")) lines.push("+ " + l);
+              lines.push("```", "");
+            } else if (inp.content != null) {
+              lines.push("", "```", inp.content, "```", "");
+            }
+          } else {
+            try { lines.push("", "```json", JSON.stringify(inp, null, 2), "```", ""); } catch { lines.push(""); }
+          }
+          if (tc.result != null) {
+            lines.push(tc.is_error ? "**Error:**" : "**Result:**", "", "```", tc.result, "```", "");
+          }
+        }
+      }
+    }
+  }
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
 // API route handler
 // ---------------------------------------------------------------------------
 
@@ -476,6 +704,44 @@ async function handleApi(req, res, pathname) {
     return json(res, { turns: summarizeTurns(session.workingTurns) });
   }
 
+  // GET /api/projects — list all discovered projects with metadata
+  if (pathname === "/api/projects" && req.method === "GET") {
+    return json(res, discoverProjects());
+  }
+
+  // POST /api/projects/details — get project details (CLAUDE.md, MEMORY.md, sessions with previews)
+  if (pathname === "/api/projects/details" && req.method === "POST") {
+    const body = await readBody(req);
+    const { source, dirName } = body;
+    if (!source || !dirName) return error(res, "Missing source or dirName");
+    try {
+      return json(res, getProjectDetails(source, dirName));
+    } catch (e) {
+      return error(res, e.message, 500);
+    }
+  }
+
+  // POST /api/export-md — generate markdown for a session and serve as download
+  if (pathname === "/api/export-md" && req.method === "POST") {
+    const body = await readBody(req);
+    const filePath = body.path;
+    if (!filePath) return error(res, "Missing 'path' field");
+    try {
+      assertUnderHome(filePath);
+      const turns = parseTranscript(filePath);
+      const md = turnsToMarkdown(turns, body.title || basename(filePath, ".jsonl"));
+      const filename = (body.title || "session").replace(/[^a-zA-Z0-9_-]/g, "_") + ".md";
+      res.writeHead(200, {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Length": Buffer.byteLength(md),
+      });
+      return res.end(md);
+    } catch (e) {
+      return error(res, `Failed to export: ${e.message}`, 500);
+    }
+  }
+
   return error(res, "Not found", 404);
 }
 
@@ -491,13 +757,27 @@ async function handleApi(req, res, pathname) {
  */
 export function startEditor(port, { open = true } = {}) {
   const editorHtml = readFileSync(EDITOR_HTML_PATH, "utf-8");
+  const dashboardHtmlPath = new URL("../template/dashboard.html", import.meta.url);
+  let dashboardHtml = "";
+  try { dashboardHtml = readFileSync(dashboardHtmlPath, "utf-8"); } catch { /* file may not exist yet */ }
 
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
 
     try {
+      // Dashboard is the new landing page
       if (pathname === "/" && req.method === "GET") {
+        const html = dashboardHtml || editorHtml;
+        res.writeHead(200, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Length": Buffer.byteLength(html),
+        });
+        return res.end(html);
+      }
+
+      // Editor still accessible at /editor
+      if (pathname === "/editor" && req.method === "GET") {
         res.writeHead(200, {
           "Content-Type": "text/html; charset=utf-8",
           "Content-Length": Buffer.byteLength(editorHtml),
