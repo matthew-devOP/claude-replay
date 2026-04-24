@@ -12,6 +12,10 @@ struct SessionStats: Codable, Hashable, Sendable {
     let agents: [AgentInfo]
     let duration: TimeInterval?
     let charCounts: CharCounts
+    let avgBlocksPerTurn: Double
+    let longestTurn: LongestTurn?
+    let userMessages: [UserMessage]
+    let assistantTexts: [AssistantText]
 
     // MARK: - Nested types
 
@@ -32,14 +36,14 @@ struct SessionStats: Codable, Hashable, Sendable {
     struct CharCounts: Codable, Hashable, Sendable {
         let user: Int
         let assistant: Int
-        let toolResult: Int
+        let thinking: Int
 
-        var total: Int { user + assistant + toolResult }
+        var total: Int { user + assistant + thinking }
 
         enum CodingKeys: String, CodingKey {
             case user
             case assistant
-            case toolResult = "tool_result"
+            case thinking
         }
     }
 
@@ -57,19 +61,36 @@ struct SessionStats: Codable, Hashable, Sendable {
         }
     }
 
+    struct LongestTurn: Codable, Hashable, Sendable {
+        let index: Int
+        let blockCount: Int
+    }
+
+    struct UserMessage: Codable, Hashable, Sendable {
+        let text: String
+        let turn: Int
+    }
+
+    struct AssistantText: Codable, Hashable, Sendable {
+        let text: String
+        let turn: Int
+    }
+
     struct AgentInfo: Codable, Identifiable, Hashable, Sendable {
-        var id: String { "\(turnIndex)-\(toolUseId)" }
+        var id: String { "\(turnIndex)-\(name)" }
 
         let turnIndex: Int
-        let toolUseId: String
+        let name: String
         let model: String?
-        let prompt: String?
+        let prompt: String
+        let mode: String?
 
         enum CodingKeys: String, CodingKey {
             case turnIndex = "turn_index"
-            case toolUseId = "tool_use_id"
+            case name
             case model
             case prompt
+            case mode
         }
     }
 
@@ -84,5 +105,9 @@ struct SessionStats: Codable, Hashable, Sendable {
         case agents
         case duration
         case charCounts = "char_counts"
+        case avgBlocksPerTurn = "avg_blocks_per_turn"
+        case longestTurn = "longest_turn"
+        case userMessages = "user_messages"
+        case assistantTexts = "assistant_texts"
     }
 }

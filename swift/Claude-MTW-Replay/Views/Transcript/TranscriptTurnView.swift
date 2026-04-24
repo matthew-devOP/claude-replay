@@ -1,5 +1,6 @@
 import SwiftUI
 struct TranscriptTurnView: View {
+    @Environment(AppState.self) private var appState
     let turn: Turn
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -12,6 +13,6 @@ struct TranscriptTurnView: View {
                 case .toolUse: ToolCallView(block: block)
                 }
             }
-        }.padding(8).background(Color(hex: "#24253a").opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+        }.padding(8).background(appState.theme.bgSurface.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
     }
 }

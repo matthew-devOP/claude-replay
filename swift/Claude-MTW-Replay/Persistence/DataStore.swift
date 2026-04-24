@@ -120,6 +120,21 @@ final class DataStore {
         }
     }
 
+    func setTags(path: String, tags: [String]) {
+        let descriptor = FetchDescriptor<TagEntity>(
+            predicate: #Predicate { $0.path == path }
+        )
+        if let existing = try? context.fetch(descriptor) {
+            for entity in existing {
+                context.delete(entity)
+            }
+        }
+        for tag in tags {
+            context.insert(TagEntity(path: path, tag: tag))
+        }
+        try? context.save()
+    }
+
     func getAllTaggedSessions() -> [TagEntity] {
         let descriptor = FetchDescriptor<TagEntity>()
         return (try? context.fetch(descriptor)) ?? []

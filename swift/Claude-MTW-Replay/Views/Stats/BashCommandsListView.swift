@@ -1,6 +1,6 @@
 import SwiftUI
 struct BashCommandsListView: View {
-    let commands: [BashCommand]
+    let commands: [SessionStats.BashCommand]
     var body: some View {
         VStack(alignment: .leading) {
             Text("Bash Commands (\(commands.count))").font(.headline)

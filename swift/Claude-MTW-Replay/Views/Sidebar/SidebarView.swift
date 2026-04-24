@@ -6,7 +6,18 @@ struct SidebarView: View {
     @State private var searchText = ""
 
     var body: some View {
-        List(selection: Binding(get: { appState.sidebarSelection }, set: { appState.sidebarSelection = $0 })) {
+        List(selection: Binding(
+            get: { appState.sidebarSelection },
+            set: { newValue in
+                appState.sidebarSelection = newValue
+                if let dirName = newValue,
+                   let project = vm.projects.first(where: { $0.dirName == dirName }) {
+                    appState.selectProject(project)
+                }
+            }
+        )) {
+            FavoritesSectionView()
+            TagsSectionView()
             ForEach(["claude", "cursor", "codex"], id: \.self) { source in
                 let projects = vm.groupedBySource[source] ?? []
                 if !projects.isEmpty {
@@ -14,7 +25,6 @@ struct SidebarView: View {
                         ForEach(projects, id: \.dirName) { project in
                             ProjectRowView(project: project)
                                 .tag(project.dirName)
-                                .onTapGesture { appState.selectProject(project.dirName) }
                         }
                     }
                 }
@@ -22,8 +32,29 @@ struct SidebarView: View {
         }
         .searchable(text: $vm.searchText, prompt: "Filter projects")
         .navigationTitle("Projects")
-        .task { await vm.loadProjects() }
-        .refreshable { await vm.loadProjects() }
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Image("mascot")
+                    .resizable()
+                    .interpolation(.none)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 20)
+            }
+            ToolbarItem(placement: .automatic) {
+                AccountSwitcherMenu()
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task { await vm.loadProjects(claudeAccountDir: appState.claudeAccountDir) }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .help("Refresh Projects")
+            }
+        }
+        .task(id: appState.claudeAccountDir) {
+            await vm.loadProjects(claudeAccountDir: appState.claudeAccountDir)
+        }
     }
 
     private func sourceLabel(_ source: String) -> String {

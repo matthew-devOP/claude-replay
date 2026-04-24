@@ -41,7 +41,7 @@ struct ExportOptions: Codable, Hashable, Sendable {
         title: "",
         description: "",
         ogImage: nil,
-        redactSecrets: false,
+        redactSecrets: true,
         bookmarks: [],
         minified: false,
         compress: true,

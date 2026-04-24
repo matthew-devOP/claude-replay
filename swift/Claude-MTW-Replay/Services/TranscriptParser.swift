@@ -1,14 +1,5 @@
 import Foundation
 
-// MARK: - TranscriptFormat
-
-enum TranscriptFormat: String {
-    case claudeCode = "claude-code"
-    case cursor = "cursor"
-    case codex = "codex"
-    case unknown = "unknown"
-}
-
 // MARK: - FilterOptions
 
 struct FilterOptions {
@@ -749,8 +740,8 @@ enum TranscriptParser {
                 return result
             }
             result = result.filter { t in
-                guard !t.timestamp.isEmpty,
-                      let dt = isoFormatter.date(from: t.timestamp) ?? parseFlexibleDate(t.timestamp) else {
+                guard let ts = t.timestamp, !ts.isEmpty,
+                      let dt = isoFormatter.date(from: ts) ?? parseFlexibleDate(ts) else {
                     return false
                 }
                 return dt >= dtFrom
@@ -762,8 +753,8 @@ enum TranscriptParser {
                 return result
             }
             result = result.filter { t in
-                guard !t.timestamp.isEmpty,
-                      let dt = isoFormatter.date(from: t.timestamp) ?? parseFlexibleDate(t.timestamp) else {
+                guard let ts = t.timestamp, !ts.isEmpty,
+                      let dt = isoFormatter.date(from: ts) ?? parseFlexibleDate(ts) else {
                     return false
                 }
                 return dt <= dtTo

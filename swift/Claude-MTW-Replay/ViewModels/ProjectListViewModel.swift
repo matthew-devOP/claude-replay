@@ -7,10 +7,10 @@ final class ProjectListViewModel {
     var searchText = ""
     var errorMessage: String?
 
-    func loadProjects() async {
+    func loadProjects(claudeAccountDir: String = ".claude") async {
         isLoading = true
         defer { isLoading = false }
-        projects = SessionDiscovery.discoverProjects()
+        projects = SessionDiscovery.discoverProjects(claudeAccountDir: claudeAccountDir)
     }
 
     var filteredProjects: [ProjectEntry] {

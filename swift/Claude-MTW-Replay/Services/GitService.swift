@@ -29,8 +29,12 @@ enum GitService {
         proc.standardOutput = pipe; proc.standardError = Pipe()
         do {
             try proc.run()
-            proc.waitUntilExit()
-            guard proc.terminationStatus == 0 else { return nil }
+            let status = await withCheckedContinuation { continuation in
+                proc.terminationHandler = { process in
+                    continuation.resume(returning: process.terminationStatus)
+                }
+            }
+            guard status == 0 else { return nil }
             return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch { return nil }
     }
@@ -50,9 +54,9 @@ enum GitService {
     static func getGitDetails(projectPath: URL) async -> GitDetails? {
         guard let countStr = await gitExec(cwd: projectPath, args: ["rev-list", "--count", "HEAD"]),
               let count = Int(countStr) else { return nil }
-        let logStr = await gitExec(cwd: projectPath, args: ["log", "--oneline", "--format=%H|%s|%an|%ad", "--date=relative", "-30"]) ?? ""
+        let logStr = await gitExec(cwd: projectPath, args: ["log", "--oneline", "--format=%H%x1f%s%x1f%an%x1f%ad", "--date=relative", "-30"]) ?? ""
         let commits = logStr.split(separator: "\n").compactMap { line -> GitCommit? in
-            let parts = line.split(separator: "|", maxSplits: 3).map(String.init)
+            let parts = line.split(separator: "\u{1f}", maxSplits: 3).map(String.init)
             guard parts.count >= 4 else { return nil }
             return GitCommit(id: parts[0], hash: String(parts[0].prefix(8)), message: parts[1], author: parts[2], date: parts[3])
         }

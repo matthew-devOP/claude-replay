@@ -1,5 +1,6 @@
 import SwiftUI
 struct TranscriptSearchBar: View {
+    @Environment(AppState.self) private var appState
     @Binding var searchText: String; let matchCount: Int; let onNext: () -> Void; let onPrev: () -> Void
     var body: some View {
         HStack {
@@ -11,6 +12,6 @@ struct TranscriptSearchBar: View {
                 Button { onNext() } label: { Image(systemName: "chevron.down") }
                 Button { searchText = "" } label: { Image(systemName: "xmark.circle.fill") }
             }
-        }.padding(8).background(Color(hex: "#24253a"))
+        }.padding(8).background(appState.theme.bgSurface)
     }
 }

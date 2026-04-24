@@ -60,49 +60,43 @@ let secretPatterns: [RedactRule] = {
 
 // MARK: - Public API
 
-/// Replace detected secrets in a string with `[REDACTED]`.
-func redactSecrets(_ text: String) -> String {
-    var result = text
-    let nsRange = NSRange(result.startIndex..., in: result)
-    _ = nsRange // just to declare once for the initial range
+enum SecretRedactor {
 
-    for rule in secretPatterns {
-        // Recompute range each iteration because replacements change length.
-        let currentRange = NSRange(result.startIndex..., in: result)
-        result = rule.pattern.stringByReplacingMatches(
-            in: result,
-            options: [],
-            range: currentRange,
-            withTemplate: redactedPlaceholder
-        )
-    }
-    return result
-}
-
-/// Recursively walk a JSON-compatible object (dictionaries, arrays, strings)
-/// and redact any secret values found in strings.
-///
-/// Supported types: `String`, `[Any]`, `[String: Any]`.  All other types are
-/// returned unchanged.
-func redactObject(_ obj: Any) -> Any {
-    if let str = obj as? String {
-        return redactSecrets(str)
-    }
-    if let arr = obj as? [Any] {
-        return arr.map { redactObject($0) }
-    }
-    if let dict = obj as? [String: Any] {
-        var out: [String: Any] = [:]
-        for (key, value) in dict {
-            out[key] = redactObject(value)
+    /// Replace detected secrets in a string with `[REDACTED]`.
+    static func redactSecrets(_ text: String) -> String {
+        var result = text
+        for rule in secretPatterns {
+            let currentRange = NSRange(result.startIndex..., in: result)
+            result = rule.pattern.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: currentRange,
+                withTemplate: redactedPlaceholder
+            )
         }
-        return out
+        return result
     }
-    return obj
-}
 
-/// Build a closure that captures the shared pattern list and redacts strings.
-/// Useful when you want to pass a redactor as a first-class function.
-func buildRedactor() -> (String) -> String {
-    return { text in redactSecrets(text) }
+    /// Recursively walk a JSON-compatible object and redact secret strings.
+    static func redactObject(_ obj: Any) -> Any {
+        if let str = obj as? String {
+            return redactSecrets(str)
+        }
+        if let arr = obj as? [Any] {
+            return arr.map { redactObject($0) }
+        }
+        if let dict = obj as? [String: Any] {
+            var out: [String: Any] = [:]
+            for (key, value) in dict {
+                out[key] = redactObject(value)
+            }
+            return out
+        }
+        return obj
+    }
+
+    /// Build a closure that captures the shared pattern list and redacts strings.
+    static func buildRedactor() -> (String) -> String {
+        return { text in redactSecrets(text) }
+    }
 }

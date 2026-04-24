@@ -152,19 +152,33 @@ final class FileWatcher {
 
 extension FileWatcher {
 
-    /// Watch multiple session root directories at once and consolidate events
-    /// through a single handler.
+    /// Watch multiple session root directories and their immediate
+    /// subdirectories so that new sessions within existing projects are
+    /// detected, not just new project directories.
     static func watchSessionDirectories(
         handler: @escaping Handler
     ) -> [FileWatcher] {
         let fm = FileManager.default
         let roots = fm.sessionRootDirectories.map(\.url)
+        var watchers: [FileWatcher] = []
 
-        return roots.compactMap { rootURL -> FileWatcher? in
-            guard fm.isDirectory(at: rootURL.path) else { return nil }
-            let watcher = FileWatcher(url: rootURL, handler: handler)
-            watcher.start()
-            return watcher
+        for rootURL in roots {
+            guard fm.isDirectory(at: rootURL.path) else { continue }
+
+            // Watch the root directory itself (detects new project dirs)
+            let rootWatcher = FileWatcher(url: rootURL, handler: handler)
+            rootWatcher.start()
+            watchers.append(rootWatcher)
+
+            // Also watch each project subdirectory (detects new session files)
+            for subdir in fm.sortedSubdirectories(at: rootURL) {
+                let subdirURL = rootURL.appendingPathComponent(subdir)
+                let subWatcher = FileWatcher(url: subdirURL, handler: handler)
+                subWatcher.start()
+                watchers.append(subWatcher)
+            }
         }
+
+        return watchers
     }
 }

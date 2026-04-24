@@ -8,7 +8,10 @@ struct GitActionsView: View {
         }
     }
     private func openInTerminal() {
-        let script = "tell application \"Terminal\" to do script \"cd \(projectPath)\""
+        let escaped = projectPath
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let script = "tell application \"Terminal\" to do script \"cd \\\"\(escaped)\\\"\""
         if let appleScript = NSAppleScript(source: script) { appleScript.executeAndReturnError(nil) }
     }
 }

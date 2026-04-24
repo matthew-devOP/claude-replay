@@ -66,6 +66,13 @@ enum SessionDiscovery {
 
     private static let fm = FileManager.default
 
+    /// Absolute URL to the current Claude account's `projects` directory.
+    /// Defaults to `~/.claude/projects`; when `accountDir` is set (e.g. `.claude-work`)
+    /// it points to `~/.claude-work/projects`.
+    private static func claudeProjectsURL(accountDir: String) -> URL {
+        fm.homeDirectoryURL.appendingPathComponent(accountDir).appendingPathComponent("projects")
+    }
+
     // MARK: - claudeDirToProjectPath
 
     /// Reconstruct a real filesystem path from a Claude project directory name
@@ -111,13 +118,20 @@ enum SessionDiscovery {
 
     /// Discover all sessions grouped by tool (Claude Code, Cursor, Codex CLI).
     /// Direct port of the JS `discoverSessions()`.
-    static func discoverSessions() -> [SessionGroup] {
+    static func discoverSessions(claudeAccountDir: String = ".claude") -> [SessionGroup] {
         let home = fm.homeDirectoryURL
         var groups: [SessionGroup] = []
 
         // ── Claude Code ─────────────────────────────────────────────────
-        let claudeBase = home.appendingPathComponent(".claude/projects")
-        var claudeGroup = SessionGroup(name: "Claude Code", projects: [])
+        let claudeBase = claudeProjectsURL(accountDir: claudeAccountDir)
+        let accountLabel: String = {
+            if claudeAccountDir == ".claude" { return "Claude Code" }
+            if claudeAccountDir.hasPrefix(".claude-") || claudeAccountDir.hasPrefix(".claude_") {
+                return "Claude Code (\(claudeAccountDir.dropFirst(".claude-".count)))"
+            }
+            return "Claude Code (\(claudeAccountDir))"
+        }()
+        var claudeGroup = SessionGroup(name: accountLabel, projects: [])
         for proj in fm.sortedSubdirectories(at: claudeBase) {
             let projURL = claudeBase.appendingPathComponent(proj)
             let files = fm.jsonlFiles(in: projURL)
@@ -219,25 +233,23 @@ enum SessionDiscovery {
 
     // MARK: - discoverProjects
 
-    /// Discover Claude Code projects with aggregate metadata.  Direct port of
-    /// the JS `discoverProjects()`.
-    static func discoverProjects() -> [ProjectEntry] {
+    /// Discover projects from all tools (Claude Code, Cursor, Codex CLI) with
+    /// aggregate metadata.
+    static func discoverProjects(claudeAccountDir: String = ".claude") -> [ProjectEntry] {
         let home = fm.homeDirectoryURL
         var projects: [ProjectEntry] = []
 
-        let claudeBase = home.appendingPathComponent(".claude/projects")
+        // ── Claude Code ──────────────────────────────────────────────────
+        let claudeBase = claudeProjectsURL(accountDir: claudeAccountDir)
         for dir in fm.sortedSubdirectories(at: claudeBase) {
             let projURL = claudeBase.appendingPathComponent(dir)
             let files = fm.jsonlFiles(in: projURL)
             guard !files.isEmpty else { continue }
 
-            // Find latest activity across all session files
             var lastActivity: Date?
             for file in files {
                 if let mtime = fm.modificationDate(of: projURL.appendingPathComponent(file)) {
-                    if lastActivity == nil || mtime > lastActivity! {
-                        lastActivity = mtime
-                    }
+                    if lastActivity == nil || mtime > lastActivity! { lastActivity = mtime }
                 }
             }
 
@@ -255,6 +267,78 @@ enum SessionDiscovery {
             ))
         }
 
+        // ── Cursor ───────────────────────────────────────────────────────
+        let cursorBase = home.appendingPathComponent(".cursor/projects")
+        for dir in fm.sortedSubdirectories(at: cursorBase) {
+            let transcriptsDir = cursorBase
+                .appendingPathComponent(dir)
+                .appendingPathComponent("agent-transcripts")
+            let sessionDirs = fm.sortedSubdirectories(at: transcriptsDir)
+            guard !sessionDirs.isEmpty else { continue }
+
+            var lastActivity: Date?
+            var sessionCount = 0
+            for id in sessionDirs {
+                let idDir = transcriptsDir.appendingPathComponent(id)
+                let candidate1 = idDir.appendingPathComponent("transcript.jsonl")
+                let candidate2 = idDir.appendingPathComponent(id + ".jsonl")
+                let filePath = fm.isRegularFile(at: candidate1) ? candidate1
+                             : fm.isRegularFile(at: candidate2) ? candidate2
+                             : nil
+                guard let filePath else { continue }
+                sessionCount += 1
+                if let mtime = fm.modificationDate(of: filePath) {
+                    if lastActivity == nil || mtime > lastActivity! { lastActivity = mtime }
+                }
+            }
+            guard sessionCount > 0 else { continue }
+
+            let realPath = claudeDirToProjectPath(dir)
+            let displayName = URL(fileURLWithPath: realPath).lastPathComponent
+
+            projects.append(ProjectEntry(
+                source: "cursor",
+                dirName: dir,
+                name: displayName,
+                path: realPath,
+                claudeProjectPath: nil,
+                sessionCount: sessionCount,
+                lastActivity: lastActivity
+            ))
+        }
+
+        // ── Codex CLI ────────────────────────────────────────────────────
+        let codexBase = home.appendingPathComponent(".codex/sessions")
+        for year in fm.sortedSubdirectories(at: codexBase).reversed() {
+            let yearURL = codexBase.appendingPathComponent(year)
+            for month in fm.sortedSubdirectories(at: yearURL).reversed() {
+                let monthURL = yearURL.appendingPathComponent(month)
+                for day in fm.sortedSubdirectories(at: monthURL).reversed() {
+                    let dayURL = monthURL.appendingPathComponent(day)
+                    let files = fm.jsonlFiles(in: dayURL)
+                    guard !files.isEmpty else { continue }
+
+                    var lastActivity: Date?
+                    for file in files {
+                        if let mtime = fm.modificationDate(of: dayURL.appendingPathComponent(file)) {
+                            if lastActivity == nil || mtime > lastActivity! { lastActivity = mtime }
+                        }
+                    }
+
+                    let dirName = "\(year)/\(month)/\(day)"
+                    projects.append(ProjectEntry(
+                        source: "codex",
+                        dirName: dirName,
+                        name: "\(year)-\(month)-\(day)",
+                        path: dayURL.path,
+                        claudeProjectPath: nil,
+                        sessionCount: files.count,
+                        lastActivity: lastActivity
+                    ))
+                }
+            }
+        }
+
         // Sort by last activity descending
         projects.sort { ($0.lastActivity ?? .distantPast) > ($1.lastActivity ?? .distantPast) }
         return projects
@@ -264,12 +348,10 @@ enum SessionDiscovery {
 
     /// Get detailed project information including CLAUDE.md, MEMORY.md, and
     /// session metadata.  Direct port of the JS `getProjectDetails()`.
-    static func getProjectDetails(source: String, dirName: String) -> ProjectDetails? {
-        let home = fm.homeDirectoryURL
-
+    static func getProjectDetails(source: String, dirName: String, claudeAccountDir: String = ".claude") -> ProjectDetails? {
         guard source == "claude" else { return nil }
 
-        let projURL = home.appendingPathComponent(".claude/projects").appendingPathComponent(dirName)
+        let projURL = claudeProjectsURL(accountDir: claudeAccountDir).appendingPathComponent(dirName)
         guard fm.isDirectory(at: projURL.path) else { return nil }
 
         let realPath = claudeDirToProjectPath(dirName)

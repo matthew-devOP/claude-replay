@@ -7,10 +7,10 @@ final class SessionListViewModel {
     var sortAscending = false
     var searchText = ""
 
-    func loadSessions(projectDirName: String) async {
+    func loadSessions(projectDirName: String, source: String = "claude", claudeAccountDir: String = ".claude") async {
         isLoading = true
         defer { isLoading = false }
-        if let details = SessionDiscovery.getProjectDetails(source: "claude", dirName: projectDirName) {
+        if let details = SessionDiscovery.getProjectDetails(source: source, dirName: projectDirName, claudeAccountDir: claudeAccountDir) {
             sessions = details.sessions
         }
     }

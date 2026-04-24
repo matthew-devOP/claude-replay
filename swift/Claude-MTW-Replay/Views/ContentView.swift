@@ -19,7 +19,6 @@ struct ContentView: View {
                 }
             }
         }
-        .frame(minWidth: 900, minHeight: 600)
         .sheet(isPresented: $state.showExportSheet) { ExportSheet() }
         .sheet(isPresented: $state.showSearchSheet) { GlobalSearchView() }
         .sheet(isPresented: $state.showKeyboardShortcuts) { KeyboardShortcutsView() }

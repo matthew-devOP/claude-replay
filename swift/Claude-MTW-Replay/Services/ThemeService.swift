@@ -13,11 +13,47 @@ private let themeVars: [String] = [
 
 /// A theme is a dictionary of CSS variable names to hex values,
 /// plus an optional `extraCss` key for additional stylesheet rules.
-typealias Theme = [String: String]
+typealias ThemeDict = [String: String]
 
 // MARK: - Built-in theme definitions (exact hex values from themes.mjs)
 
-private let builtinThemes: [String: Theme] = [
+private let builtinThemes: [String: ThemeDict] = [
+    "claude-dark": [
+        "bg": "#1f1b18",
+        "bg-surface": "#2a2420",
+        "bg-hover": "#362e28",
+        "text": "#e8ddd1",
+        "text-dim": "#988878",
+        "text-bright": "#faf4eb",
+        "accent": "#d97757",
+        "accent-dim": "#a85a3f",
+        "green": "#8dbb6e",
+        "blue": "#7aafd4",
+        "orange": "#e08c65",
+        "red": "#e77666",
+        "cyan": "#7dc8c8",
+        "border": "#3a322c",
+        "tool-bg": "#241e1b",
+        "thinking-bg": "#1e1917",
+    ],
+    "claude-light": [
+        "bg": "#faf4eb",
+        "bg-surface": "#f0e8d9",
+        "bg-hover": "#e4dac5",
+        "text": "#3c2e23",
+        "text-dim": "#8a7460",
+        "text-bright": "#1f1410",
+        "accent": "#cc6633",
+        "accent-dim": "#a0401f",
+        "green": "#5e8944",
+        "blue": "#4a85b0",
+        "orange": "#d97757",
+        "red": "#c0523a",
+        "cyan": "#4d9e9e",
+        "border": "#d9ccb8",
+        "tool-bg": "#f0e8d9",
+        "thinking-bg": "#ecdecb",
+    ],
     "tokyo-night": [
         "bg": "#1a1b26",
         "bg-surface": "#24253a",
@@ -170,84 +206,72 @@ private let builtinThemes: [String: Theme] = [
 
 // MARK: - Public API
 
-/// Get a built-in theme by name.
-/// - Parameter name: One of the built-in theme names.
-/// - Throws: If the name is not recognised.
-/// - Returns: The theme dictionary.
-func getTheme(_ name: String) throws -> Theme {
-    guard let theme = builtinThemes[name] else {
-        let available = builtinThemes.keys.sorted().joined(separator: ", ")
-        throw NSError(
-            domain: "ThemeService",
-            code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "Unknown theme '\(name)'. Available: \(available)"]
-        )
+enum ThemeService {
+
+    static func getTheme(_ name: String) throws -> ThemeDict {
+        guard let theme = builtinThemes[name] else {
+            let available = builtinThemes.keys.sorted().joined(separator: ", ")
+            throw NSError(
+                domain: "ThemeService",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Unknown theme '\(name)'. Available: \(available)"]
+            )
+        }
+        return theme
     }
-    return theme
-}
 
-/// Return a sorted list of built-in theme names.
-func listThemes() -> [String] {
-    builtinThemes.keys.sorted()
-}
+    static func listThemes() -> [String] {
+        builtinThemes.keys.sorted()
+    }
 
-/// Return all built-in themes as clean variable maps (no extraCss),
-/// suitable for client-side theme switching via `style.setProperty()`.
-func getAllThemes() -> [String: Theme] {
-    var result: [String: Theme] = [:]
-    for (name, theme) in builtinThemes {
-        var vars: Theme = [:]
+    static func getAllThemes() -> [String: ThemeDict] {
+        var result: [String: ThemeDict] = [:]
+        for (name, theme) in builtinThemes {
+            var vars: ThemeDict = [:]
+            for v in themeVars {
+                if let value = theme[v] {
+                    vars[v] = value
+                }
+            }
+            result[name] = vars
+        }
+        return result
+    }
+
+    static func loadThemeFile(_ filePath: String) throws -> ThemeDict {
+        let url = URL(fileURLWithPath: filePath)
+        let data = try Data(contentsOf: url)
+
+        guard let custom = try JSONSerialization.jsonObject(with: data) as? [String: String] else {
+            throw NSError(
+                domain: "ThemeService",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Theme file must be a JSON object"]
+            )
+        }
+
+        guard let defaults = builtinThemes["tokyo-night"] else {
+            return custom
+        }
+
+        var merged = defaults
+        for (key, value) in custom {
+            merged[key] = value
+        }
+        return merged
+    }
+
+    static func themeToCss(_ theme: ThemeDict) -> String {
+        var lines: [String] = []
         for v in themeVars {
             if let value = theme[v] {
-                vars[v] = value
+                lines.append("  --\(v): \(value);")
             }
         }
-        result[name] = vars
-    }
-    return result
-}
-
-/// Load a custom theme from a JSON file on disk.
-/// Missing keys are filled from the tokyo-night defaults.
-/// - Parameter filePath: Absolute path to a `.json` theme file.
-/// - Throws: If the file cannot be read or parsed.
-/// - Returns: A complete theme dictionary.
-func loadThemeFile(_ filePath: String) throws -> Theme {
-    let url = URL(fileURLWithPath: filePath)
-    let data = try Data(contentsOf: url)
-
-    guard let custom = try JSONSerialization.jsonObject(with: data) as? [String: String] else {
-        throw NSError(
-            domain: "ThemeService",
-            code: 2,
-            userInfo: [NSLocalizedDescriptionKey: "Theme file must be a JSON object"]
-        )
-    }
-
-    guard let defaults = builtinThemes["tokyo-night"] else {
-        return custom
-    }
-
-    // Merge: custom values override tokyo-night defaults.
-    var merged = defaults
-    for (key, value) in custom {
-        merged[key] = value
-    }
-    return merged
-}
-
-/// Convert a theme dictionary to a CSS `:root` block string.
-/// If the theme contains an `extraCss` key its value is appended after the block.
-func themeToCss(_ theme: Theme) -> String {
-    var lines: [String] = []
-    for v in themeVars {
-        if let value = theme[v] {
-            lines.append("  --\(v): \(value);")
+        var css = ":root {\n" + lines.joined(separator: "\n") + "\n}"
+        if let extra = theme["extraCss"] {
+            css += "\n" + extra
         }
+        return css
     }
-    var css = ":root {\n" + lines.joined(separator: "\n") + "\n}"
-    if let extra = theme["extraCss"] {
-        css += "\n" + extra
-    }
-    return css
 }

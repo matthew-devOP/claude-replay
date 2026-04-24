@@ -17,7 +17,7 @@ final class EditorViewModel {
         isLoading = true
         defer { isLoading = false }
         guard let text = try? String(contentsOf: path, encoding: .utf8) else { return }
-        originalTurns = TranscriptParser.parseTranscript(text: text)
+        originalTurns = TranscriptParser.parseTranscriptFromText(text)
         workingTurns = originalTurns
         excludedTurns = []
         bookmarks = []

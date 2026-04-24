@@ -2,7 +2,7 @@ import Foundation
 
 /// A single match from searching across sessions.
 struct SearchResult: Codable, Identifiable, Hashable, Sendable {
-    var id: String { "\(sessionPath)-\(turnIndex)-\(matchText.prefix(40))" }
+    let id: UUID
 
     let projectName: String
     let sessionPath: String
@@ -12,6 +12,7 @@ struct SearchResult: Codable, Identifiable, Hashable, Sendable {
     let context: String
 
     init(
+        id: UUID = UUID(),
         projectName: String,
         sessionPath: String,
         turnIndex: Int,
@@ -19,6 +20,7 @@ struct SearchResult: Codable, Identifiable, Hashable, Sendable {
         role: String,
         context: String
     ) {
+        self.id = id
         self.projectName = projectName
         self.sessionPath = sessionPath
         self.turnIndex = turnIndex

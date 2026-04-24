@@ -134,8 +134,8 @@ struct ToolCall: Codable, Identifiable, Hashable, Sendable {
 
 struct AssistantBlock: Codable, Identifiable, Hashable, Sendable {
     let id: UUID
-    let kind: BlockKind
-    let text: String
+    var kind: BlockKind
+    var text: String
     var toolCall: ToolCall?
     var timestamp: String?
 
@@ -166,9 +166,9 @@ struct AssistantBlock: Codable, Identifiable, Hashable, Sendable {
 
 struct Turn: Codable, Identifiable, Hashable, Sendable {
     let id: UUID
-    let index: Int
-    let userText: String
-    let blocks: [AssistantBlock]
+    var index: Int
+    var userText: String
+    var blocks: [AssistantBlock]
     var timestamp: String?
     var systemEvents: [String]?
 

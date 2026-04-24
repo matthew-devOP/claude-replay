@@ -1,16 +1,17 @@
 import SwiftUI
 struct ReplayControlsView: View {
+    @Environment(AppState.self) private var appState
     @Bindable var vm: ReplayViewModel
     var body: some View {
         VStack(spacing: 8) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Rectangle().fill(Color(hex: "#3b3d57")).frame(height: 4)
-                    Rectangle().fill(Color(hex: "#bb9af7")).frame(width: geo.size.width * vm.progress, height: 4)
+                    Rectangle().fill(appState.theme.border).frame(height: 4)
+                    Rectangle().fill(appState.theme.accent).frame(width: geo.size.width * vm.progress, height: 4)
                 }.frame(height: 6).clipShape(Capsule())
                 .onTapGesture { location in
                     let pct = location.x / geo.size.width
-                    vm.seekToTurn(Int(pct * Double(vm.turns.count)) + 1)
+                    vm.seekToTurn(max(1, Int(pct * Double(vm.turns.count))))
                 }
             }.frame(height: 6).padding(.horizontal)
             HStack(spacing: 16) {
@@ -26,7 +27,7 @@ struct ReplayControlsView: View {
                 Toggle("Tools", isOn: $vm.showToolCalls).toggleStyle(.button).font(.caption)
             }.padding(.horizontal).padding(.bottom, 8)
         }
-        .background(Color(hex: "#24253a"))
+        .background(appState.theme.bgSurface)
         .onKeyPress(.space) { vm.togglePlay(); return .handled }
         .onKeyPress(.rightArrow) { vm.stepForward(); return .handled }
         .onKeyPress(.leftArrow) { vm.stepBack(); return .handled }

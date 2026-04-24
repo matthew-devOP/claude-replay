@@ -1,6 +1,7 @@
 import SwiftUI
 struct AgentsListView: View {
-    let agents: [AgentInfo]
+    @Environment(AppState.self) private var appState
+    let agents: [SessionStats.AgentInfo]
     var body: some View {
         VStack(alignment: .leading) {
             Text("Sub-Agents (\(agents.count))").font(.headline)
@@ -8,7 +9,7 @@ struct AgentsListView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack { Text(agent.name).bold(); if let m = agent.model { Text(m).font(.caption).foregroundStyle(.secondary) } }
                     Text(agent.prompt).font(.caption).foregroundStyle(.secondary).lineLimit(3)
-                }.padding(6).background(Color(hex: "#24253a"), in: RoundedRectangle(cornerRadius: 6))
+                }.padding(6).background(appState.theme.bgSurface, in: RoundedRectangle(cornerRadius: 6))
             }
         }
     }

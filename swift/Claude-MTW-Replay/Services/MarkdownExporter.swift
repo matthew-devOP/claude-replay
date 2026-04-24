@@ -37,10 +37,10 @@ enum MarkdownExporter {
 
                 for block in turn.blocks {
                     switch block.kind {
-                    case "text":
+                    case .text:
                         lines.append(contentsOf: [block.text, ""])
 
-                    case "thinking":
+                    case .thinking:
                         lines.append(contentsOf: [
                             "<details>",
                             "<summary>Thinking</summary>",
@@ -51,7 +51,7 @@ enum MarkdownExporter {
                             ""
                         ])
 
-                    case "tool_use":
+                    case .toolUse:
                         guard let tc = block.toolCall else { continue }
                         lines.append("#### Tool: \(tc.name)")
 

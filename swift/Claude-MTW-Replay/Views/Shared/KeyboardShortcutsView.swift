@@ -2,9 +2,17 @@ import SwiftUI
 struct KeyboardShortcutsView: View {
     @Environment(\.dismiss) private var dismiss
     let shortcuts: [(String, String)] = [
-        ("Space", "Play / Pause"), ("→", "Step forward"), ("←", "Step back"),
-        ("⇧→", "Next turn"), ("⇧←", "Previous turn"), ("⌘1-6", "Switch tabs"),
-        ("⌘F", "Search"), ("⌘E", "Export"), ("?", "This help")
+        ("Space / K", "Play / Pause"),
+        ("→ / L", "Step forward"),
+        ("← / H", "Step back"),
+        ("⇧→", "Next turn"),
+        ("⇧←", "Previous turn"),
+        ("T", "Toggle thinking blocks"),
+        ("Escape", "Stop playback"),
+        ("⌘1-6", "Switch tabs"),
+        ("⌘F", "Search"),
+        ("⌘E", "Export"),
+        ("?", "This help"),
     ]
     var body: some View {
         VStack(spacing: 16) {

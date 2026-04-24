@@ -9,15 +9,33 @@ struct GlobalSearchView: View {
         VStack(spacing: 12) {
             HStack { TextField("Search across sessions...", text: $query).onSubmit { search() }; Button("Search") { search() }.disabled(query.isEmpty) }
             if isSearching { ProgressView() } else {
-                List(results) { r in SearchResultRowView(result: r) }
+                List(results) { r in
+                    Button {
+                        appState.selectSession(r.sessionPath)
+                        dismiss()
+                    } label: {
+                        SearchResultRowView(result: r)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             Button("Close") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
         }.padding().frame(width: 600, height: 500)
     }
     private func search() {
-        guard let dir = appState.selectedProjectDirName else { return }
         isSearching = true
-        results = SearchService.search(query: query, in: dir)
-        isSearching = false
+        results = []
+        Task.detached { [query, selectedDir = appState.selectedProjectDirName, accountDir = appState.claudeAccountDir] in
+            let found: [SearchResult]
+            if let dir = selectedDir {
+                found = SearchService.search(query: query, in: dir)
+            } else {
+                found = SearchService.searchAllProjects(query: query, claudeAccountDir: accountDir)
+            }
+            await MainActor.run {
+                results = found
+                isSearching = false
+            }
+        }
     }
 }

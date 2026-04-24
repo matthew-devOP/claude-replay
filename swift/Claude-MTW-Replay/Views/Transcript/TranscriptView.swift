@@ -10,6 +10,11 @@ struct TranscriptView: View {
                 ForEach(vm.filteredTurns, id: \.index) { turn in TranscriptTurnView(turn: turn) }
             }.padding() }
         }
+        .onChange(of: vm.searchText) { vm.updateMatchCount() }
+        .onChange(of: vm.showUser) { vm.updateMatchCount() }
+        .onChange(of: vm.showAssistant) { vm.updateMatchCount() }
+        .onChange(of: vm.showTools) { vm.updateMatchCount() }
+        .onChange(of: vm.showThinking) { vm.updateMatchCount() }
         .task(id: appState.selectedSessionPath) {
             if let p = appState.selectedSessionPath { await vm.loadSession(path: URL(fileURLWithPath: p)) }
         }

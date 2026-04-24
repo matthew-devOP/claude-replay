@@ -11,8 +11,6 @@ final class ReplayViewModel {
     var showThinking = true
     var showToolCalls = true
     var bookmarks: [Bookmark] = []
-    var elapsedTime: TimeInterval = 0
-    var totalTime: TimeInterval = 0
     var isLoading = false
     var errorMessage: String?
 
@@ -35,8 +33,7 @@ final class ReplayViewModel {
         defer { isLoading = false }
         do {
             let text = try String(contentsOf: path, encoding: .utf8)
-            turns = TranscriptParser.parseTranscript(text: text)
-            calculateTotalTime()
+            turns = TranscriptParser.parseTranscriptFromText(text)
             currentTurnIndex = 0
             revealedBlockCount = 0
         } catch {
@@ -49,6 +46,7 @@ final class ReplayViewModel {
     }
 
     func play() {
+        playbackTask?.cancel()
         isPlaying = true
         playbackTask = Task { @MainActor in
             while isPlaying && currentTurnIndex < turns.count {
@@ -82,7 +80,7 @@ final class ReplayViewModel {
             revealedBlockCount += 1
         } else if currentTurnIndex < turns.count {
             currentTurnIndex += 1
-            revealedBlockCount = 1
+            revealedBlockCount = 0
         }
     }
 
@@ -119,17 +117,20 @@ final class ReplayViewModel {
 
     private func adaptiveDelay(for turn: Turn, blockIndex: Int) -> Double {
         let block = turn.blocks[blockIndex]
-        let charCount = Double(block.text.count)
+        let charCount: Double
+        if block.kind == .toolUse, let tc = block.toolCall {
+            // For tool calls, use result length if available, else serialized input length
+            if let result = tc.result {
+                charCount = Double(result.count)
+            } else {
+                let inputDesc = tc.input.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+                charCount = Double(inputDesc.count)
+            }
+        } else {
+            charCount = Double(block.text.count)
+        }
         let baseDelay = min(max(charCount * 0.03, 0.6), 10.0)
         return baseDelay / speed
     }
 
-    private func calculateTotalTime() {
-        guard let first = turns.first?.timestamp?.parseISO8601(),
-              let last = turns.last?.timestamp?.parseISO8601() else {
-            totalTime = Double(turns.count) * 5.0
-            return
-        }
-        totalTime = last.timeIntervalSince(first)
-    }
 }

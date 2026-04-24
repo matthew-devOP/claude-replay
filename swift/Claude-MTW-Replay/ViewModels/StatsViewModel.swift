@@ -9,7 +9,7 @@ final class StatsViewModel {
         isLoading = true
         defer { isLoading = false }
         guard let text = try? String(contentsOf: path, encoding: .utf8) else { return }
-        let turns = TranscriptParser.parseTranscript(text: text)
+        let turns = TranscriptParser.parseTranscriptFromText(text)
         stats = StatsComputer.compute(turns: turns)
     }
 }

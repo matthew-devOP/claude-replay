@@ -149,10 +149,28 @@ enum HTMLExtractor {
         return json
     }
 
-    /// Decompress zlib (deflate) data.
+    /// Decompress raw deflate or zlib-wrapped data.
+    /// Handles both raw deflate (from Node.js) and zlib-wrapped (from Apple COMPRESSION_ZLIB).
     private static func inflate(_ data: Data) -> Data? {
+        // Try as-is first (handles zlib-wrapped data)
+        if let result = inflateRaw(data), result.count > 0 {
+            return result
+        }
+        // If data is raw deflate (no zlib header), prepend zlib header for Apple's decompressor
+        if data.count > 0, data[0] != 0x78 {
+            var wrapped = Data([0x78, 0x9C]) // zlib header: default compression
+            wrapped.append(data)
+            // Append dummy Adler-32 checksum (decompressor may ignore it)
+            wrapped.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+            if let result = inflateRaw(wrapped), result.count > 0 {
+                return result
+            }
+        }
+        return nil
+    }
+
+    private static func inflateRaw(_ data: Data) -> Data? {
         let sourceBytes = [UInt8](data)
-        // Allocate a generous destination buffer (10x source or at least 64KB)
         let destinationSize = max(sourceBytes.count * 10, 65536)
         var destinationBuffer = [UInt8](repeating: 0, count: destinationSize)
 
@@ -163,6 +181,18 @@ enum HTMLExtractor {
         )
 
         guard decodedSize > 0 else { return nil }
+        // If buffer was full, retry with larger buffer
+        if decodedSize == destinationSize {
+            let largerSize = sourceBytes.count * 50
+            var largerBuffer = [UInt8](repeating: 0, count: largerSize)
+            let retrySize = compression_decode_buffer(
+                &largerBuffer, largerSize,
+                sourceBytes, sourceBytes.count,
+                nil, COMPRESSION_ZLIB
+            )
+            guard retrySize > 0 else { return nil }
+            return Data(largerBuffer.prefix(retrySize))
+        }
         return Data(destinationBuffer.prefix(decodedSize))
     }
 }

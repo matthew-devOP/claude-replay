@@ -11,7 +11,11 @@ struct SettingsView: View {
                 Picker("Default Theme", selection: $defaultTheme) {
                     ForEach(ThemeService.listThemes(), id: \.self) { Text($0).tag($0) }
                 }
-                Slider(value: $defaultSpeed, in: 0.5...20, step: 0.5) { Text("Speed: \(defaultSpeed, specifier: "%.1f")x") }
+                Picker("Speed", selection: $defaultSpeed) {
+                    ForEach(ReplayViewModel.speedSteps, id: \.self) { step in
+                        Text("\(step, specifier: step == Double(Int(step)) ? "%.0f" : "%.1f")x").tag(step)
+                    }
+                }
                 Toggle("Show thinking blocks", isOn: $showThinking)
                 Toggle("Show tool calls", isOn: $showTools)
             }

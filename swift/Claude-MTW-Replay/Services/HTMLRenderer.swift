@@ -1,110 +1,6 @@
 import Foundation
 import Compression
 
-// MARK: - Data types used for rendering
-
-/// Represents a tool call within an assistant block.
-struct ToolCall: Codable {
-    let name: String
-    let input: [String: AnyCodable]
-    var result: String?
-    var isError: Bool?
-    var resultTimestamp: String?
-
-    enum CodingKeys: String, CodingKey {
-        case name, input, result
-        case isError = "is_error"
-        case resultTimestamp
-    }
-}
-
-/// A single assistant block (text, thinking, or tool_use).
-struct AssistantBlock: Codable {
-    let kind: String          // "text", "thinking", "tool_use"
-    var text: String
-    var timestamp: String?
-    var toolCall: ToolCall?
-
-    enum CodingKeys: String, CodingKey {
-        case kind, text, timestamp
-        case toolCall = "tool_call"
-    }
-}
-
-/// A single turn in the conversation.
-struct Turn: Codable {
-    let index: Int
-    var userText: String
-    var blocks: [AssistantBlock]
-    var timestamp: String?
-    var systemEvents: [String]?
-
-    enum CodingKeys: String, CodingKey {
-        case index
-        case userText = "user_text"
-        case blocks, timestamp
-        case systemEvents = "system_events"
-    }
-}
-
-/// A bookmark for a specific turn.
-struct Bookmark: Codable {
-    let turnIndex: Int
-    let label: String
-}
-
-/// A type-erased Codable wrapper for heterogeneous JSON values.
-struct AnyCodable: Codable {
-    let value: Any
-
-    init(_ value: Any) {
-        self.value = value
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if container.decodeNil() {
-            value = NSNull()
-        } else if let b = try? container.decode(Bool.self) {
-            value = b
-        } else if let i = try? container.decode(Int.self) {
-            value = i
-        } else if let d = try? container.decode(Double.self) {
-            value = d
-        } else if let s = try? container.decode(String.self) {
-            value = s
-        } else if let arr = try? container.decode([AnyCodable].self) {
-            value = arr.map(\.value)
-        } else if let dict = try? container.decode([String: AnyCodable].self) {
-            value = dict.mapValues(\.value)
-        } else {
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported type")
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch value {
-        case is NSNull:
-            try container.encodeNil()
-        case let b as Bool:
-            try container.encode(b)
-        case let i as Int:
-            try container.encode(i)
-        case let d as Double:
-            try container.encode(d)
-        case let s as String:
-            try container.encode(s)
-        case let arr as [Any]:
-            try container.encode(arr.map { AnyCodable($0) })
-        case let dict as [String: Any]:
-            try container.encode(dict.mapValues { AnyCodable($0) })
-        default:
-            try container.encodeNil()
-        }
-    }
-}
-
 // MARK: - Render options
 
 struct RenderOptions {
@@ -119,6 +15,7 @@ struct RenderOptions {
     var description: String = "Interactive AI session replay"
     var ogImage: String = "https://es617.github.io/claude-replay/og.png"
     var compress: Bool = true
+    var redactSecrets: Bool = true
     var bookmarks: [Bookmark] = []
 }
 
@@ -161,8 +58,8 @@ enum HTMLRenderer {
 
         let bookmarksJson = (try? encoder.encode(options.bookmarks))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
-        let turnsData = turnsToJsonData(turns)
-        let turnsJson = (try? encoder.encode(turnsData))
+        let turnsData = turnsToJsonData(turns, redact: options.redactSecrets)
+        let turnsJson = (try? JSONSerialization.data(withJSONObject: turnsData, options: [.sortedKeys]))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
 
         let embedData: (String) -> String = options.compress ? compressForEmbed : escapeJsonForScript
@@ -199,7 +96,8 @@ enum HTMLRenderer {
             .replacingOccurrences(of: "<!--", with: "<\\!--")
     }
 
-    /// Compress a JSON string to base64-encoded deflate for embedding.
+    /// Compress a JSON string to base64-encoded raw deflate for embedding.
+    /// Produces raw deflate (RFC 1951) to match Node.js zlib.deflateSync().
     static func compressForEmbed(_ json: String) -> String {
         guard let sourceData = json.data(using: .utf8) else { return "" }
         let sourceBytes = [UInt8](sourceData)
@@ -213,15 +111,70 @@ enum HTMLRenderer {
         )
 
         guard compressedSize > 0 else { return "" }
-        let compressedData = Data(destinationBuffer.prefix(compressedSize))
+        var compressedData = Data(destinationBuffer.prefix(compressedSize))
+        // Strip zlib wrapper to get raw deflate: remove 2-byte header and 4-byte Adler-32 checksum
+        if compressedData.count > 6, compressedData[0] == 0x78 {
+            compressedData = compressedData.dropFirst(2).dropLast(4)
+        }
         return compressedData.base64EncodedString()
     }
 
-    /// Prepare turns for serialization (mirrors turnsToJsonData in renderer.mjs).
-    static func turnsToJsonData(_ turns: [Turn]) -> [Turn] {
-        // In Swift we return turns as-is (redaction can be added later).
-        // The Turn struct is already Codable and matches the expected JSON shape.
-        turns
+    /// Prepare turns for serialization as plain dictionaries (mirrors turnsToJsonData in renderer.mjs).
+    /// Strips internal-only fields (id, toolUseId) and only includes is_error when true.
+    /// When redact is true, applies secret redaction to all string content including tool_call input.
+    static func turnsToJsonData(_ turns: [Turn], redact: Bool = false) -> [[String: Any]] {
+        let redactStr: (String) -> String = redact ? SecretRedactor.redactSecrets : { $0 }
+
+        return turns.map { turn in
+            var dict: [String: Any] = [
+                "index": turn.index,
+                "user_text": redactStr(turn.userText),
+            ]
+            if let ts = turn.timestamp {
+                dict["timestamp"] = ts
+            }
+            if let events = turn.systemEvents {
+                dict["system_events"] = events.map { redactStr($0) }
+            }
+
+            dict["blocks"] = turn.blocks.map { block -> [String: Any] in
+                var bDict: [String: Any] = [
+                    "kind": block.kind.rawValue,
+                    "text": redactStr(block.text),
+                ]
+                if let ts = block.timestamp {
+                    bDict["timestamp"] = ts
+                }
+                if let tc = block.toolCall {
+                    var tcDict: [String: Any] = [
+                        "name": tc.name,
+                    ]
+                    // Redact input values recursively
+                    if redact {
+                        var redactedInput: [String: Any] = [:]
+                        for (key, val) in tc.input {
+                            redactedInput[key] = SecretRedactor.redactObject(val.value)
+                        }
+                        tcDict["input"] = redactedInput
+                    } else {
+                        tcDict["input"] = tc.input.mapValues { $0.value }
+                    }
+                    if let result = tc.result {
+                        tcDict["result"] = redactStr(result)
+                    }
+                    if let rts = tc.resultTimestamp {
+                        tcDict["result_timestamp"] = rts
+                    }
+                    if tc.isError {
+                        tcDict["is_error"] = true
+                    }
+                    bDict["tool_call"] = tcDict
+                }
+                return bDict
+            }
+
+            return dict
+        }
     }
 
     // MARK: Private
