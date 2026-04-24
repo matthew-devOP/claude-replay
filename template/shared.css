@@ -3,24 +3,24 @@
    Injected server-side into dashboard + editor
    ═══════════════════════════════════════════ */
 
-/* Default theme (tokyo-night) — overridden by theme switcher */
+/* Default theme (claude-dark) — overridden by theme switcher */
 :root {
-  --bg: #1a1b26;
-  --bg-surface: #24253a;
-  --bg-hover: #2f3147;
-  --text: #c0caf5;
-  --text-dim: #565f89;
-  --text-bright: #e0e6ff;
-  --accent: #bb9af7;
-  --accent-dim: #7957a8;
-  --green: #9ece6a;
-  --blue: #7aa2f7;
-  --orange: #ff9e64;
-  --red: #f7768e;
-  --cyan: #7dcfff;
-  --border: #3b3d57;
-  --tool-bg: #1e1f33;
-  --thinking-bg: #1c1d2e;
+  --bg: #1f1b18;
+  --bg-surface: #2a2420;
+  --bg-hover: #362e28;
+  --text: #e8ddd1;
+  --text-dim: #988878;
+  --text-bright: #faf4eb;
+  --accent: #d97757;
+  --accent-dim: #a85a3f;
+  --green: #8dbb6e;
+  --blue: #7aafd4;
+  --orange: #e08c65;
+  --red: #e77666;
+  --cyan: #7dc8c8;
+  --border: #3a322c;
+  --tool-bg: #241e1b;
+  --thinking-bg: #1e1917;
 }
 
 /* Reset */
@@ -64,6 +64,19 @@ body {
   flex-shrink: 0;
 }
 .app-logo svg { flex-shrink: 0; }
+.app-logo img.mascot {
+  flex-shrink: 0;
+  height: 26px;
+  width: auto;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+.welcome-mascot {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
 .app-version {
   font-size: 10px;
   color: var(--text-dim);

@@ -3,7 +3,7 @@
  */
 
 import { createServer } from "node:http";
-import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync } from "node:fs";
 import { resolve, join, dirname, basename } from "node:path";
 import { homedir } from "node:os";
 import { execFile } from "node:child_process";
@@ -36,6 +36,80 @@ const PKG = JSON.parse(readFileSync(new URL("../package.json", import.meta.url),
 
 const sessions = new Map();
 let sessionCounter = 0;
+
+// ---------------------------------------------------------------------------
+// Claude account selection
+// Multiple Claude configs live under ~/.claude, ~/.claude-work, etc.
+// (typically driven by CLAUDE_CONFIG_DIR). We auto-detect any dir matching
+// ~/.claude* that contains a "projects" subdir, and let the UI switch between
+// them. Selection persists to a small JSON file in CLAUDE_REPLAY_DATA.
+// ---------------------------------------------------------------------------
+
+const SETTINGS_DIR = process.env.CLAUDE_REPLAY_DATA || join(homedir(), ".claude-replay");
+const ACCOUNT_SETTINGS_PATH = join(SETTINGS_DIR, "account.json");
+const DEFAULT_ACCOUNT_DIR = ".claude";
+
+function readAccountSetting() {
+  try {
+    const raw = readFileSync(ACCOUNT_SETTINGS_PATH, "utf-8");
+    const v = JSON.parse(raw);
+    if (v && typeof v.dirName === "string") return v.dirName;
+  } catch { /* first run */ }
+  return DEFAULT_ACCOUNT_DIR;
+}
+
+function writeAccountSetting(dirName) {
+  try {
+    mkdirSync(SETTINGS_DIR, { recursive: true });
+    writeFileSync(ACCOUNT_SETTINGS_PATH, JSON.stringify({ dirName }), "utf-8");
+  } catch { /* best-effort */ }
+}
+
+let currentClaudeDir = readAccountSetting();
+
+/** Best-effort pretty label from a dir name like ".claude-work" → "work". */
+function accountLabel(dirName) {
+  if (dirName === ".claude") return "main";
+  const m = dirName.match(/^\.claude[-_](.+)$/);
+  return m ? m[1] : dirName.replace(/^\./, "");
+}
+
+/** List Claude account directories present in $HOME: ~/.claude, ~/.claude-*. */
+function listAccountDirs() {
+  const home = homedir();
+  const found = new Set();
+  // Always consider the default, even if projects dir is empty/missing
+  found.add(DEFAULT_ACCOUNT_DIR);
+  try {
+    for (const name of readdirSync(home)) {
+      if (!/^\.claude([-_].+)?$/.test(name)) continue;
+      try {
+        if (!statSync(join(home, name)).isDirectory()) continue;
+      } catch { continue; }
+      // Require a "projects" subdir to count it as an account
+      if (existsSync(join(home, name, "projects"))) found.add(name);
+      else if (name === DEFAULT_ACCOUNT_DIR) found.add(name);
+    }
+  } catch { /* ignore */ }
+  return [...found].sort((a, b) => a === DEFAULT_ACCOUNT_DIR ? -1 : b === DEFAULT_ACCOUNT_DIR ? 1 : a.localeCompare(b));
+}
+
+function getAvailableAccounts() {
+  const dirs = listAccountDirs();
+  // If the persisted selection no longer exists, fall back to default
+  if (!dirs.includes(currentClaudeDir)) currentClaudeDir = DEFAULT_ACCOUNT_DIR;
+  return dirs.map((d) => ({
+    dirName: d,
+    label: accountLabel(d),
+    path: join(homedir(), d),
+    active: d === currentClaudeDir,
+  }));
+}
+
+/** Absolute path to ~/<currentClaudeDir>/projects. */
+function claudeProjectsDir() {
+  return join(homedir(), currentClaudeDir, "projects");
+}
 
 // ---------------------------------------------------------------------------
 // HTTP helpers
@@ -135,12 +209,12 @@ function summarizeTurns(turns) {
   }));
 }
 
-/** Resolve a theme name, falling back to tokyo-night. */
+/** Resolve a theme name, falling back to claude-dark. */
 function getThemeSafe(name) {
   try {
     return getTheme(name);
   } catch {
-    return getTheme("tokyo-night");
+    return getTheme("claude-dark");
   }
 }
 
@@ -193,7 +267,7 @@ function buildRenderOpts(options, session, overrides = {}) {
     speed: parseFloat(options.speed) || 1.0,
     showThinking: options.showThinking !== false,
     showToolCalls: options.showToolCalls !== false,
-    theme: getThemeSafe(options.theme || "tokyo-night"),
+    theme: getThemeSafe(options.theme || "claude-dark"),
     redactSecrets: options.redactSecrets !== false,
     redactRules: options.redactRules || [],
     userLabel: options.userLabel || "User",
@@ -256,13 +330,13 @@ function discoverSessions() {
   const home = homedir();
   const groups = [];
 
-  // Claude Code: ~/.claude/projects/<project>/*.jsonl
-  const claudeBase = join(home, ".claude", "projects");
+  // Claude Code: ~/<account>/projects/<project>/*.jsonl
+  const claudeBase = claudeProjectsDir();
   try {
     const projects = readdirSync(claudeBase).filter((d) => {
       try { return statSync(join(claudeBase, d)).isDirectory(); } catch { return false; }
     });
-    const claudeGroup = { name: "Claude Code", projects: [] };
+    const claudeGroup = { name: `Claude Code (${accountLabel(currentClaudeDir)})`, projects: [] };
     for (const proj of projects.sort()) {
       const projPath = join(claudeBase, proj);
       const files = readdirSync(projPath).filter((f) => f.endsWith(".jsonl")).sort().reverse();
@@ -496,7 +570,7 @@ function discoverProjects() {
   const projects = [];
 
   // Claude Code projects
-  const claudeBase = join(home, ".claude", "projects");
+  const claudeBase = claudeProjectsDir();
   try {
     const dirs = readdirSync(claudeBase).filter((d) => {
       try { return statSync(join(claudeBase, d)).isDirectory(); } catch { return false; }
@@ -537,7 +611,7 @@ function getProjectDetails(source, dirName) {
   const home = homedir();
 
   if (source === "claude") {
-    const projPath = join(home, ".claude", "projects", dirName);
+    const projPath = join(claudeProjectsDir(), dirName);
     if (!existsSync(projPath)) throw new Error("Project not found");
 
     const realPath = claudeDirToProjectPath(dirName);
@@ -848,7 +922,29 @@ async function handleApi(req, res, pathname) {
 
   // GET /api/sessions — list discovered sessions + home directory
   if (pathname === "/api/sessions" && req.method === "GET") {
-    return json(res, { groups: discoverSessions(), homedir: homedir(), version: PKG.version });
+    return json(res, {
+      groups: discoverSessions(),
+      homedir: homedir(),
+      version: PKG.version,
+      account: { dirName: currentClaudeDir, label: accountLabel(currentClaudeDir) },
+    });
+  }
+
+  // GET /api/accounts — list available Claude accounts (~/.claude*) + current
+  if (pathname === "/api/accounts" && req.method === "GET") {
+    return json(res, { accounts: getAvailableAccounts() });
+  }
+
+  // POST /api/accounts — switch active Claude account
+  if (pathname === "/api/accounts" && req.method === "POST") {
+    const body = await readBody(req);
+    const target = body && typeof body.dirName === "string" ? body.dirName : null;
+    if (!target) return error(res, "Missing 'dirName' field");
+    const available = listAccountDirs();
+    if (!available.includes(target)) return error(res, `Unknown account: ${target}`, 404);
+    currentClaudeDir = target;
+    writeAccountSetting(target);
+    return json(res, { accounts: getAvailableAccounts() });
   }
 
   // GET /api/themes — list available themes
@@ -1078,8 +1174,7 @@ async function handleApi(req, res, pathname) {
     const { dirName, query, projectName } = body;
     if (!dirName || !query || query.length < 2) return json(res, { results: [] });
     try {
-      const home = homedir();
-      const projPath = join(home, ".claude", "projects", dirName);
+      const projPath = join(claudeProjectsDir(), dirName);
       if (!existsSync(projPath)) return json(res, { results: [] });
       const pName = projectName || basename(claudeDirToProjectPath(dirName));
 
@@ -1173,7 +1268,7 @@ async function handleApi(req, res, pathname) {
       assertUnderHome(filePath);
       const format = detectFormat(filePath);
       const turns = parseTranscript(filePath);
-      const themeName = body.theme || "tokyo-night";
+      const themeName = body.theme || "claude-dark";
       const html = render(turns, {
         speed: 1.0,
         showThinking: true,
@@ -1339,10 +1434,42 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
 
   const themesJson = JSON.stringify({ version: PKG.version, themes: getAllThemes() });
 
+  const accountSwitcherJs = `
+(function(){
+  var verEl = document.getElementById('appVersion');
+  if (verEl) verEl.textContent = 'v' + ${JSON.stringify(PKG.version)};
+  var dd = document.getElementById('accountDropdown');
+  if (!dd) return;
+  var btn = document.getElementById('accountDropdownBtn');
+  var menu = document.getElementById('accountDropdownMenu');
+  var label = document.getElementById('accountNameLabel');
+  btn.addEventListener('click', function(e){ e.stopPropagation(); dd.classList.toggle('open'); });
+  document.addEventListener('click', function(){ dd.classList.remove('open'); });
+  fetch('/api/accounts').then(function(r){ return r.json(); }).then(function(data){
+    menu.innerHTML = '';
+    (data.accounts || []).forEach(function(a){
+      var item = document.createElement('button');
+      item.className = 'theme-dropdown-item' + (a.active ? ' active' : '');
+      item.title = a.path;
+      item.textContent = a.label;
+      item.addEventListener('click', function(e){
+        e.stopPropagation();
+        if (a.active) { dd.classList.remove('open'); return; }
+        fetch('/api/accounts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ dirName: a.dirName }) })
+          .then(function(){ location.reload(); });
+      });
+      menu.appendChild(item);
+      if (a.active && label) label.textContent = a.label;
+    });
+  }).catch(function(){});
+})();
+`;
+
   function injectShared(html) {
     return html
       .replace("/*SHARED_CSS*/", sharedCss)
-      .replaceAll("/*THEMES_JSON*/", themesJson);
+      .replaceAll("/*THEMES_JSON*/", themesJson)
+      .replaceAll("/*ACCOUNT_SWITCHER_JS*/", accountSwitcherJs);
   }
 
   const rawEditorHtml = readFileSync(EDITOR_HTML_PATH, "utf-8");
@@ -1350,6 +1477,11 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
   const dashboardHtmlPath = new URL("../template/dashboard.html", import.meta.url);
   let dashboardHtml = "";
   try { dashboardHtml = injectShared(readFileSync(dashboardHtmlPath, "utf-8")); } catch { /* file may not exist yet */ }
+
+  // Pre-load static mascot image (served at /assets/mascot.png)
+  const MASCOT_PATH = new URL("../template/mascot.png", import.meta.url);
+  let mascotPng = null;
+  try { mascotPng = readFileSync(MASCOT_PATH); } catch { /* optional */ }
 
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
@@ -1398,6 +1530,20 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
           res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Content-Length": Buffer.byteLength(lazygitHtml) });
           return res.end(lazygitHtml);
         }
+      }
+
+      // Serve mascot image
+      if (pathname === "/assets/mascot.png" && req.method === "GET") {
+        if (!mascotPng) {
+          res.writeHead(404, { "Content-Type": "text/plain" });
+          return res.end("mascot not found");
+        }
+        res.writeHead(200, {
+          "Content-Type": "image/png",
+          "Content-Length": mascotPng.length,
+          "Cache-Control": "public, max-age=86400",
+        });
+        return res.end(mascotPng);
       }
 
       // Serve xterm.js assets from node_modules

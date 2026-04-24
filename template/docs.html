@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%23bb9af7' stroke-width='2'/><polygon points='12,8 12,24 24,16' fill='%23bb9af7'/></svg>">
+<link rel="icon" type="image/png" href="/assets/mascot.png">
 <title>Documentation — claude-replay</title>
 <style>/*SHARED_CSS*/</style>
 <style>
@@ -296,7 +296,7 @@ body { overflow: hidden; }
 <div class="app">
   <header class="app-header">
     <a href="/" class="app-logo">
-      <svg width="22" height="22" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"/><polygon points="12,8 12,24 24,16" fill="currentColor" style="color:var(--accent)"/></svg>
+      <img src="/assets/mascot.png" alt="" class="mascot" aria-hidden="true">
       claude-replay
       <span class="app-version" id="appVersion"></span>
     </a>
@@ -306,6 +306,14 @@ body { overflow: hidden; }
       <a href="/docs" class="active">Docs</a>
     </nav>
     <div class="app-header-right">
+      <div class="theme-dropdown" id="accountDropdown" title="Switch Claude account">
+        <button class="theme-dropdown-btn" id="accountDropdownBtn">
+          <span>&#128100;</span>
+          <span id="accountNameLabel">account</span>
+          <span class="theme-dropdown-arrow">&#9660;</span>
+        </button>
+        <div class="theme-dropdown-menu" id="accountDropdownMenu"></div>
+      </div>
       <div class="theme-dropdown" id="themeDropdown">
         <button class="theme-dropdown-btn" id="themeDropdownBtn">
           <span class="theme-dot-mini" id="themeDotPreview"></span>
@@ -316,6 +324,7 @@ body { overflow: hidden; }
       </div>
     </div>
   </header>
+  <script>/*ACCOUNT_SWITCHER_JS*/</script>
 
   <div class="docs-body">
     <!-- Table of Contents -->

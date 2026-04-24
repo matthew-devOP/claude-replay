@@ -6,6 +6,7 @@ services:
     volumes:
       # Session data (required)
       - ${HOME}/.claude:${HOME}/.claude:ro
+      - ${HOME}/.claude-work:${HOME}/.claude-work:ro
       - ${HOME}/.cursor:${HOME}/.cursor:ro
       - ${HOME}/.codex:${HOME}/.codex:ro
       # Project dirs (rw needed for lazygit to commit/push)
@@ -14,6 +15,7 @@ services:
       - ./src:/app/src:ro
       - ./template:/app/template:ro
       - ./bin:/app/bin:ro
+      - ./package.json:/app/package.json:ro
     environment:
       - HOME=${HOME}
       - CLAUDE_REPLAY_DATA=/app/data
