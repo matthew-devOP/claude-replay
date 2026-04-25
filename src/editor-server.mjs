@@ -10,6 +10,7 @@ import { execFile } from "node:child_process";
 import { parseTranscript, filterTurns, detectFormat, applyPacedTiming } from "./parser.mjs";
 import { render } from "./renderer.mjs";
 import { getTheme, listThemes, getAllThemes } from "./themes.mjs";
+import { SPINNER_VERBS } from "./spinnerVerbs.mjs";
 // SQLite cache — graceful fallback when better-sqlite3 isn't installed
 let dbModule = null;
 try { dbModule = await import("./db.mjs"); } catch { /* SQLite not available */ }
@@ -1434,10 +1435,25 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
 
   const themesJson = JSON.stringify({ version: PKG.version, themes: getAllThemes() });
 
+  const spinnerVerbsJson = JSON.stringify(SPINNER_VERBS);
   const accountSwitcherJs = `
 (function(){
   var verEl = document.getElementById('appVersion');
   if (verEl) verEl.textContent = 'v' + ${JSON.stringify(PKG.version)};
+
+  // Spinner verb cycler with CSS shimmer (inspired by Claude Code bridge glimmer)
+  var sv = document.getElementById('spinnerVerbText');
+  if (sv) {
+    var verbs = ${spinnerVerbsJson};
+    var idx = Math.floor(Math.random() * verbs.length);
+    function tickVerb() {
+      sv.textContent = verbs[idx % verbs.length];
+      idx++;
+    }
+    tickVerb();
+    setInterval(tickVerb, 2400);
+  }
+
   var dd = document.getElementById('accountDropdown');
   if (!dd) return;
   var btn = document.getElementById('accountDropdownBtn');
