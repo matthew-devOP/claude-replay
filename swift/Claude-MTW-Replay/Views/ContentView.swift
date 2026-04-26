@@ -18,6 +18,11 @@ struct ContentView: View {
                 case .git: GitView()
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    SpinnerVerbView()
+                }
+            }
         }
         .sheet(isPresented: $state.showExportSheet) { ExportSheet() }
         .sheet(isPresented: $state.showSearchSheet) { GlobalSearchView() }

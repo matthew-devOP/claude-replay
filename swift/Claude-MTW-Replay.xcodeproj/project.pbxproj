@@ -66,6 +66,8 @@
 		84AC0B8FCE3691082358AB84 /* SessionResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FE58D169B93203F04E8556 /* SessionResolver.swift */; };
 		8B56F247EF9B7BDFFB3840FF /* Turn.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E0E264FAA6A5AA8CA4F839 /* Turn.swift */; };
 		910D176A3FC37AA399BD7FB2 /* UserMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF9388F22EDA2D79BD5E0EE4 /* UserMessageView.swift */; };
+		9199BDE0A85405E2C0B87CAB /* SpinnerVerbView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E1A4CA907C1E9A4EE26840 /* SpinnerVerbView.swift */; };
+		96954EDADAE456C44E007C17 /* SpinnerVerbs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4E1919F2197ED040F01A15F /* SpinnerVerbs.swift */; };
 		9B4E3A5B8AA455D6B15C3FD7 /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A36A9DB2E87F63D943E779A0 /* FileWatcher.swift */; };
 		9B6CBEF523F5C011538433CC /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3AA2E85D8915B56BBC79EF0 /* EditorView.swift */; };
 		9EC956F253D8CCFB0CD63398 /* GitGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EBD642B3C22EED9903DAB5A /* GitGraphView.swift */; };
@@ -190,6 +192,7 @@
 		B0F5792C5005E540F622F8C7 /* Claude-MTW-Replay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Claude-MTW-Replay.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B18A5E4D1A8988ED053F8E88 /* GitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitView.swift; sourceTree = "<group>"; };
 		B2701E340FA4B389DD8B5553 /* ReplayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayView.swift; sourceTree = "<group>"; };
+		B5E1A4CA907C1E9A4EE26840 /* SpinnerVerbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpinnerVerbView.swift; sourceTree = "<group>"; };
 		B6695E03876E454C189C340A /* mascot.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = mascot.png; sourceTree = "<group>"; };
 		B9E0E264FAA6A5AA8CA4F839 /* Turn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Turn.swift; sourceTree = "<group>"; };
 		BDA824BA0C401F231AF2551F /* SessionDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDiscovery.swift; sourceTree = "<group>"; };
@@ -208,6 +211,7 @@
 		D86FEDAA1606AAE985DFB5BB /* ThinkingBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkingBlockView.swift; sourceTree = "<group>"; };
 		DE94D6395745F4522CF30929 /* Data+Compression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Data+Compression.swift"; sourceTree = "<group>"; };
 		DF14A33EE4622894B2D0DA62 /* ThemeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeService.swift; sourceTree = "<group>"; };
+		E4E1919F2197ED040F01A15F /* SpinnerVerbs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpinnerVerbs.swift; sourceTree = "<group>"; };
 		E70CD3E5D564826A9EA860E1 /* EditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorViewModel.swift; sourceTree = "<group>"; };
 		EE8B1B70F8E457E6E95DA5AF /* ReplayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayViewModel.swift; sourceTree = "<group>"; };
 		F1F4495902D5261DF5042D9B /* SecretPattern.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretPattern.swift; sourceTree = "<group>"; };
@@ -347,6 +351,7 @@
 				F1F4495902D5261DF5042D9B /* SecretPattern.swift */,
 				4A194A1EFD5EBC4ED30C27D0 /* SessionMeta.swift */,
 				A71444B583BFB95B87223E59 /* SessionStats.swift */,
+				E4E1919F2197ED040F01A15F /* SpinnerVerbs.swift */,
 				F5FC06199D9BBAD956EF705F /* Theme.swift */,
 				04FB3C8DDAA20C6A46451FE8 /* TranscriptFormat.swift */,
 				B9E0E264FAA6A5AA8CA4F839 /* Turn.swift */,
@@ -447,6 +452,7 @@
 				CE3C03A3211511707ABDAC09 /* KeyboardShortcutsView.swift */,
 				7B4B6515084FEAA1284F61DF /* MarkdownTextView.swift */,
 				6C8795A8FF4C0E535ADD41DB /* SettingsView.swift */,
+				B5E1A4CA907C1E9A4EE26840 /* SpinnerVerbView.swift */,
 				F68C7CB5783E9890A7724297 /* TagChipView.swift */,
 				CD331BCD3DA55D61226EDD21 /* ThemePickerView.swift */,
 				CF5AFE4A5F0AA1F52AF0EAB2 /* ToastView.swift */,
@@ -668,6 +674,8 @@
 				62B02E0BA2799418BF38D63F /* SessionTableView.swift in Sources */,
 				FB80C1D0430D1058B638600C /* SettingsView.swift in Sources */,
 				C6F7742A44FB5A353BF440D0 /* SidebarView.swift in Sources */,
+				9199BDE0A85405E2C0B87CAB /* SpinnerVerbView.swift in Sources */,
+				96954EDADAE456C44E007C17 /* SpinnerVerbs.swift in Sources */,
 				C08A5541B07BD810E0F5AD49 /* StatsComputer.swift in Sources */,
 				7B3AE52491B4E82B9CC771CB /* StatsOverviewCards.swift in Sources */,
 				42DF9CAF877A6BA5A24119E1 /* StatsView.swift in Sources */,
