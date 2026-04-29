@@ -580,12 +580,14 @@ function discoverProjects() {
       const projPath = join(claudeBase, dir);
       const files = readdirSync(projPath).filter((f) => f.endsWith(".jsonl"));
       if (files.length === 0) continue;
-      // Find latest activity
+      // Earliest + latest session mtime
       let lastActivity = null;
+      let firstActivity = null;
       for (const f of files) {
         try {
           const mtime = statSync(join(projPath, f)).mtime;
           if (!lastActivity || mtime > lastActivity) lastActivity = mtime;
+          if (!firstActivity || mtime < firstActivity) firstActivity = mtime;
         } catch { /* ignore */ }
       }
       const realPath = claudeDirToProjectPath(dir);
@@ -598,6 +600,7 @@ function discoverProjects() {
         claudeProjectPath: projPath,
         sessionCount: files.length,
         lastActivity: lastActivity ? lastActivity.toISOString() : null,
+        firstActivity: firstActivity ? firstActivity.toISOString() : null,
       });
     }
   } catch { /* directory doesn't exist */ }

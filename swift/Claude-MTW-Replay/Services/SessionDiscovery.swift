@@ -22,6 +22,7 @@ struct ProjectEntry: Identifiable, Codable {
     let claudeProjectPath: String?
     let sessionCount: Int
     let lastActivity: Date?
+    let firstActivity: Date?    // earliest session mtime — proxy for "creation date"
 }
 
 /// A group of sessions from one tool (used by `discoverSessions`).
@@ -247,9 +248,11 @@ enum SessionDiscovery {
             guard !files.isEmpty else { continue }
 
             var lastActivity: Date?
+            var firstActivity: Date?
             for file in files {
                 if let mtime = fm.modificationDate(of: projURL.appendingPathComponent(file)) {
                     if lastActivity == nil || mtime > lastActivity! { lastActivity = mtime }
+                    if firstActivity == nil || mtime < firstActivity! { firstActivity = mtime }
                 }
             }
 
@@ -263,7 +266,8 @@ enum SessionDiscovery {
                 path: realPath,
                 claudeProjectPath: projURL.path,
                 sessionCount: files.count,
-                lastActivity: lastActivity
+                lastActivity: lastActivity,
+                firstActivity: firstActivity
             ))
         }
 
@@ -277,6 +281,7 @@ enum SessionDiscovery {
             guard !sessionDirs.isEmpty else { continue }
 
             var lastActivity: Date?
+            var firstActivity: Date?
             var sessionCount = 0
             for id in sessionDirs {
                 let idDir = transcriptsDir.appendingPathComponent(id)
@@ -289,6 +294,7 @@ enum SessionDiscovery {
                 sessionCount += 1
                 if let mtime = fm.modificationDate(of: filePath) {
                     if lastActivity == nil || mtime > lastActivity! { lastActivity = mtime }
+                    if firstActivity == nil || mtime < firstActivity! { firstActivity = mtime }
                 }
             }
             guard sessionCount > 0 else { continue }
@@ -303,7 +309,8 @@ enum SessionDiscovery {
                 path: realPath,
                 claudeProjectPath: nil,
                 sessionCount: sessionCount,
-                lastActivity: lastActivity
+                lastActivity: lastActivity,
+                firstActivity: firstActivity
             ))
         }
 
@@ -319,9 +326,11 @@ enum SessionDiscovery {
                     guard !files.isEmpty else { continue }
 
                     var lastActivity: Date?
+                    var firstActivity: Date?
                     for file in files {
                         if let mtime = fm.modificationDate(of: dayURL.appendingPathComponent(file)) {
                             if lastActivity == nil || mtime > lastActivity! { lastActivity = mtime }
+                            if firstActivity == nil || mtime < firstActivity! { firstActivity = mtime }
                         }
                     }
 
@@ -333,7 +342,8 @@ enum SessionDiscovery {
                         path: dayURL.path,
                         claudeProjectPath: nil,
                         sessionCount: files.count,
-                        lastActivity: lastActivity
+                        lastActivity: lastActivity,
+                        firstActivity: firstActivity
                     ))
                 }
             }

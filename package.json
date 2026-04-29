@@ -1,6 +1,6 @@
 {
   "name": "claude-replay",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "Community tool to convert Claude Code session transcripts into self-contained, embeddable HTML replays",
   "type": "module",
   "bin": {

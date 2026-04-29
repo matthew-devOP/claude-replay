@@ -31,6 +31,103 @@
   color: var(--text-dim);
   font-weight: 700;
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar-count {
+  background: var(--bg-hover);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0;
+  font-weight: 600;
+}
+.sidebar-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.sidebar-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.sidebar-search-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 26px 6px 26px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+.sidebar-search-input::placeholder { color: var(--text-dim); }
+.sidebar-search-input:focus { outline: none; border-color: var(--accent); }
+.sidebar-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+.sidebar-search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: none;
+}
+.sidebar-search-clear:hover { color: var(--text); background: var(--bg-hover); }
+.sidebar-search-wrap.has-value .sidebar-search-clear { display: block; }
+.sidebar-sort-select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
+                    linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 24px;
+}
+.sidebar-sort-select:focus { outline: none; border-color: var(--accent); }
+.sidebar-sort-select:hover { color: var(--text); }
+.project-path {
+  font-size: 10px;
+  color: var(--text-dim);
+  word-break: break-all;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+.project-card .project-name mark,
+.project-card .project-path mark {
+  background: var(--accent);
+  color: var(--bg);
+  padding: 0 1px;
+  border-radius: 2px;
 }
 .project-card {
   padding: 10px 12px;
@@ -1144,7 +1241,28 @@ mark.search-highlight.active {
       <div id="pinnedList"></div>
     </div>
     <div class="sidebar-section">
-      <div class="sidebar-title">Projects</div>
+      <div class="sidebar-title">
+        Projects
+        <span class="sidebar-count" id="projectCount"></span>
+      </div>
+      <div class="sidebar-filters">
+        <div class="sidebar-search-wrap">
+          <span class="sidebar-search-icon">&#128269;</span>
+          <input type="text" class="sidebar-search-input" id="projectSearch"
+                 placeholder="Filter by name or path…" autocomplete="off" spellcheck="false">
+          <button class="sidebar-search-clear" id="projectSearchClear" title="Clear filter" aria-label="Clear filter">&times;</button>
+        </div>
+        <select class="sidebar-sort-select" id="projectSort" title="Sort projects" aria-label="Sort projects">
+          <option value="lastActivity-desc">Last activity ↓</option>
+          <option value="lastActivity-asc">Last activity ↑</option>
+          <option value="firstActivity-desc">Created ↓</option>
+          <option value="firstActivity-asc">Created ↑</option>
+          <option value="sessionCount-desc">Sessions ↓</option>
+          <option value="sessionCount-asc">Sessions ↑</option>
+          <option value="name-asc">Name A→Z</option>
+          <option value="name-desc">Name Z→A</option>
+        </select>
+      </div>
       <div id="project-list"><div class="loading"><div class="spinner"></div> Loading...</div></div>
     </div>
   </div>
@@ -1365,53 +1483,141 @@ mark.search-highlight.active {
     footerRight.innerHTML = `<a href="/docs" style="color:var(--text-dim);text-decoration:none;">Docs</a><span class="footer-sep" style="margin:0 8px;">\u00B7</span>claude-replay v${THEME_DATA.version}`;
   }
 
-  // ─── Project list ───
+  // ─── Project list (search + sort) ───
+
+  let projectSearchTerm = (localStorage.getItem("claude-replay-proj-search") || "");
+  let projectSortKey = (localStorage.getItem("claude-replay-proj-sort") || "lastActivity-desc");
 
   async function loadProjects() {
     projects = await api("/api/projects");
     document.getElementById("appVersion").textContent = "v" + THEME_DATA.version;
+    initProjectFilters();
     renderProjectList();
     updateFooter();
   }
 
+  function initProjectFilters() {
+    if (initProjectFilters._wired) return;
+    initProjectFilters._wired = true;
+    const searchInput = document.getElementById("projectSearch");
+    const searchClear = document.getElementById("projectSearchClear");
+    const sortSelect = document.getElementById("projectSort");
+    const searchWrap = searchInput.closest(".sidebar-search-wrap");
+    searchInput.value = projectSearchTerm;
+    sortSelect.value = projectSortKey;
+    searchWrap.classList.toggle("has-value", !!projectSearchTerm);
+    searchInput.addEventListener("input", () => {
+      projectSearchTerm = searchInput.value;
+      localStorage.setItem("claude-replay-proj-search", projectSearchTerm);
+      searchWrap.classList.toggle("has-value", !!projectSearchTerm);
+      renderProjectList();
+    });
+    searchClear.addEventListener("click", () => {
+      searchInput.value = "";
+      projectSearchTerm = "";
+      localStorage.setItem("claude-replay-proj-search", "");
+      searchWrap.classList.remove("has-value");
+      renderProjectList();
+      searchInput.focus();
+    });
+    sortSelect.addEventListener("change", () => {
+      projectSortKey = sortSelect.value;
+      localStorage.setItem("claude-replay-proj-sort", projectSortKey);
+      renderProjectList();
+    });
+    // Click delegation: attach once, key by dirName so reorder is safe.
+    projectListEl.addEventListener("click", (e) => {
+      const card = e.target.closest(".project-card");
+      if (!card) return;
+      const project = projects.find(p => p.dirName === card.dataset.dirname);
+      if (!project) return;
+      selectProject(project);
+      for (const c of projectListEl.querySelectorAll(".project-card")) c.classList.remove("active");
+      card.classList.add("active");
+    });
+  }
+
+  function getFilteredSortedProjects() {
+    const q = projectSearchTerm.trim().toLowerCase();
+    let list = projects;
+    if (q) {
+      list = list.filter(p =>
+        (p.name || "").toLowerCase().includes(q) ||
+        (p.path || "").toLowerCase().includes(q)
+      );
+    }
+    const [key, dir] = projectSortKey.split("-");
+    const mul = dir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      let av, bv;
+      if (key === "name") { av = (a.name || "").toLowerCase(); bv = (b.name || "").toLowerCase(); }
+      else if (key === "sessionCount") { av = a.sessionCount || 0; bv = b.sessionCount || 0; }
+      else { av = a[key] || ""; bv = b[key] || ""; }
+      if (av < bv) return -1 * mul;
+      if (av > bv) return  1 * mul;
+      return 0;
+    });
+  }
+
+  function highlightMatch(text, term) {
+    const safe = escapeHtml(text);
+    if (!term) return safe;
+    const lower = (text || "").toLowerCase();
+    const idx = lower.indexOf(term);
+    if (idx < 0) return safe;
+    const end = idx + term.length;
+    return escapeHtml(text.slice(0, idx)) + "<mark>" + escapeHtml(text.slice(idx, end)) + "</mark>" + escapeHtml(text.slice(end));
+  }
+
+  function cssEscape(s) {
+    if (window.CSS && CSS.escape) return CSS.escape(s);
+    return String(s).replace(/[^a-zA-Z0-9_-]/g, c => "\\" + c);
+  }
+
   function renderProjectList() {
+    const filtered = getFilteredSortedProjects();
+    const countEl = document.getElementById("projectCount");
+    if (countEl) {
+      countEl.textContent = projectSearchTerm
+        ? filtered.length + "/" + projects.length
+        : String(projects.length);
+    }
     if (projects.length === 0) {
       projectListEl.innerHTML = '<div class="md-empty">No projects found.</div>';
       return;
     }
-    projectListEl.innerHTML = projects.map((p, i) => `
-      <div class="project-card" data-idx="${i}">
-        <div class="project-name">${escapeHtml(p.name)}</div>
+    if (filtered.length === 0) {
+      projectListEl.innerHTML = '<div class="md-empty">No matches for "' + escapeHtml(projectSearchTerm) + '"</div>';
+      return;
+    }
+    const term = projectSearchTerm.trim().toLowerCase();
+    const showPath = !!term;
+    projectListEl.innerHTML = filtered.map(p => `
+      <div class="project-card" data-dirname="${escapeHtml(p.dirName)}">
+        <div class="project-name">${highlightMatch(p.name || "", term)}</div>
+        ${showPath ? `<div class="project-path">${highlightMatch(p.path || "", term)}</div>` : ""}
         <div class="project-meta">
           <span>${p.sessionCount} session${p.sessionCount !== 1 ? "s" : ""}</span>
           <span>${formatDate(p.lastActivity)}</span>
         </div>
-        <div class="project-git-info" id="gitInfo${i}"></div>
+        <div class="project-git-info" data-gitinfo="${escapeHtml(p.dirName)}"></div>
       </div>
     `).join("");
 
-    projectListEl.addEventListener("click", (e) => {
-      const card = e.target.closest(".project-card");
-      if (!card) return;
-      const idx = parseInt(card.dataset.idx);
-      selectProject(projects[idx]);
-      for (const c of projectListEl.querySelectorAll(".project-card")) c.classList.remove("active");
-      card.classList.add("active");
-    });
-
-    // Load git info async for each project
-    projects.forEach(async (p, i) => {
-      const el = document.getElementById("gitInfo" + i);
+    // Load git info async for visible cards (cached on the project object)
+    filtered.forEach(async (p) => {
+      const el = projectListEl.querySelector('[data-gitinfo="' + cssEscape(p.dirName) + '"]');
       if (!el) return;
-      try {
-        const git = await api("/api/git-info", { path: p.path });
-        p._git = git;
-        if (git && git.isRepo) {
-          el.innerHTML = `<span class="git-badge">\u2387 ${escapeHtml(git.branch)}</span>` +
-            (git.localBranchCount > 1 ? `<span class="git-branches">${git.localBranchCount} branches</span>` : "") +
-            (git.status && !git.status.clean ? `<span class="git-dirty">\u25CF</span>` : "");
-        }
-      } catch { /* ignore */ }
+      let git = p._git;
+      if (git === undefined) {
+        try { git = await api("/api/git-info", { path: p.path }); p._git = git; }
+        catch { p._git = null; return; }
+      }
+      if (git && git.isRepo) {
+        el.innerHTML = `<span class="git-badge">\u2387 ${escapeHtml(git.branch)}</span>` +
+          (git.localBranchCount > 1 ? `<span class="git-branches">${git.localBranchCount} branches</span>` : "") +
+          (git.status && !git.status.clean ? `<span class="git-dirty">\u25CF</span>` : "");
+      }
     });
   }
 

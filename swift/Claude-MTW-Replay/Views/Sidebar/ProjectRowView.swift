@@ -3,6 +3,9 @@ import SwiftUI
 struct ProjectRowView: View {
     @Environment(AppState.self) private var appState
     let project: ProjectEntry
+    /// When non-empty, the project path is rendered under the name as match
+    /// context (mirrors the web sidebar's search behaviour).
+    var searchText: String = ""
 
     var body: some View {
         HStack {
@@ -10,6 +13,13 @@ struct ProjectRowView: View {
                 .foregroundStyle(appState.theme.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(project.name).font(.headline).lineLimit(1)
+                if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(project.path)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
                 if let date = project.lastActivity {
                     Text(date.shortRelativeString()).font(.caption).foregroundStyle(.secondary)
                 }

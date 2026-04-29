@@ -23,14 +23,14 @@ struct SidebarView: View {
                 if !projects.isEmpty {
                     Section(sourceLabel(source)) {
                         ForEach(projects, id: \.dirName) { project in
-                            ProjectRowView(project: project)
+                            ProjectRowView(project: project, searchText: vm.searchText)
                                 .tag(project.dirName)
                         }
                     }
                 }
             }
         }
-        .searchable(text: $vm.searchText, prompt: "Filter projects")
+        .searchable(text: $vm.searchText, prompt: "Filter by name or path…")
         .navigationTitle("Projects")
         .toolbar {
             ToolbarItem(placement: .navigation) {
@@ -42,6 +42,24 @@ struct SidebarView: View {
             }
             ToolbarItem(placement: .automatic) {
                 AccountSwitcherMenu()
+            }
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    ForEach(ProjectSortMode.allCases) { mode in
+                        Button {
+                            vm.sortMode = mode
+                        } label: {
+                            if mode == vm.sortMode {
+                                Label(mode.label, systemImage: "checkmark")
+                            } else {
+                                Text(mode.label)
+                            }
+                        }
+                    }
+                } label: {
+                    Label(vm.sortMode.label, systemImage: "arrow.up.arrow.down")
+                }
+                .help("Sort projects")
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
