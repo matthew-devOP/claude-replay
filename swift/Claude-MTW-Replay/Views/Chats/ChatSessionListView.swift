@@ -57,8 +57,11 @@ struct ChatSessionListView: View {
             get: { resumingPath.map(SessionPath.init) },
             set: { resumingPath = $0?.value }
         )) { wrapped in
-            ChatView(sessionPath: wrapped.value)
-                .frame(minWidth: 900, minHeight: 700)
+            ChatView(
+                sessionPath: wrapped.value,
+                projectPath: appState.selectedProject?.path ?? FileManager.default.homeDirectoryForCurrentUser.path
+            )
+            .frame(minWidth: 900, minHeight: 700)
         }
     }
 
