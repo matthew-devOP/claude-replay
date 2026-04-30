@@ -8,20 +8,43 @@ struct ContentView: View {
         NavigationSplitView {
             SidebarView()
         } detail: {
-            Group {
-                switch appState.currentTab {
-                case .dashboard: DashboardView()
-                case .chats: ChatsView()
-                case .replay: ReplayView()
-                case .transcript: TranscriptView()
-                case .editor: EditorView()
-                case .stats: StatsView()
-                case .git: GitView()
+            VStack(spacing: 0) {
+                // Visible tab strip — mirrors the web header nav so users
+                // can discover Replay/Transcript/Editor/Stats/Git/Chats
+                // without learning Cmd+1..7.
+                MainTabBarView()
+                Group {
+                    switch appState.currentTab {
+                    case .dashboard: DashboardView()
+                    case .chats: ChatsView()
+                    case .replay: ReplayView()
+                    case .transcript: TranscriptView()
+                    case .editor: EditorView()
+                    case .stats: StatsView()
+                    case .git: GitView()
+                    }
                 }
             }
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     SpinnerVerbView()
+                }
+                ToolbarItemGroup(placement: .primaryAction) {
+                    ThemeQuickToggle()
+                    ThemeToolbarMenu()
+                    Button {
+                        state.showSearchSheet = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .help("Search all sessions (⌘F)")
+                    .keyboardShortcut("f", modifiers: .command)
+                    Button {
+                        state.showKeyboardShortcuts = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                    }
+                    .help("Keyboard shortcuts (?)")
                 }
             }
         }

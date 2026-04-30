@@ -10,6 +10,14 @@ struct SessionEntry: Identifiable, Codable {
     let path: String
     let date: Date?
     let size: UInt64
+    /// Truncated first user message — populated lazily by SessionMetaService.
+    var preview: String? = nil
+    /// First few user messages (verbatim) — used by the hover preview popover.
+    var userPreviews: [String]? = nil
+    /// Total turn count parsed from the JSONL.
+    var turnCount: Int? = nil
+    /// `last - first` timestamp from the parsed turns, in seconds.
+    var durationSeconds: TimeInterval? = nil
 }
 
 /// A project containing one or more sessions.
