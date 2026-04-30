@@ -11,6 +11,7 @@ struct ContentView: View {
             Group {
                 switch appState.currentTab {
                 case .dashboard: DashboardView()
+                case .chats: ChatsView()
                 case .replay: ReplayView()
                 case .transcript: TranscriptView()
                 case .editor: EditorView()

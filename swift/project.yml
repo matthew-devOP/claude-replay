@@ -23,9 +23,30 @@ targets:
         excludes:
           - Tests/**
           - "**/.DS_Store"
+          # Sidecar is copied wholesale by the postBuildScripts below;
+          # excluded here so xcodegen doesn't fan its node_modules out
+          # as individual files (zod's package has duplicate basenames
+          # that would clash if flattened into a single Resources dir).
+          - Sidecar/**
     resources:
       - path: Claude-MTW-Replay/Resources
         buildPhase: resources
+    postBuildScripts:
+      - name: Copy sidecar bundle
+        # Built by `swift/sidecar/build.sh`. We copy as a real directory
+        # tree into Contents/Resources/Sidecar so the runtime path is
+        # `Bundle.main.resourceURL!.appendingPathComponent("Sidecar")`.
+        script: |
+          set -eu
+          SRC="${SRCROOT}/Claude-MTW-Replay/Sidecar"
+          DEST="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Sidecar"
+          if [ ! -d "$SRC" ]; then
+            echo "warning: $SRC missing — run swift/sidecar/build.sh first"
+            exit 0
+          fi
+          mkdir -p "$(dirname "$DEST")"
+          rm -rf "$DEST"
+          cp -R "$SRC" "$DEST"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.claude-replay.Claude-MTW-Replay

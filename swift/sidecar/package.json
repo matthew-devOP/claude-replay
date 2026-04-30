@@ -1,0 +1,14 @@
+{
+  "name": "claude-mtw-replay-sidecar",
+  "version": "0.8.0",
+  "private": true,
+  "description": "Node sidecar that bridges the Swift Chats UI to @anthropic-ai/claude-agent-sdk over stdio.",
+  "type": "module",
+  "main": "sidecar.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.5"
+  }
+}

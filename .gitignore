@@ -5,3 +5,7 @@ template/player.min.html
 test-results/
 swift/build/
 swift/**/xcuserdata/
+# Sidecar bundle — sidecar.js + package.json + node_modules are deployed
+# to Claude-MTW-Replay/Sidecar/ by swift/sidecar/build.sh; the deployed
+# copy is generated, the source-of-truth lives in swift/sidecar/.
+swift/Claude-MTW-Replay/Sidecar/

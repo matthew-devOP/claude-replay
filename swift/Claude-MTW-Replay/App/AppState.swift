@@ -1,12 +1,18 @@
 import SwiftUI
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case dashboard, replay, transcript, editor, stats, git
+    case dashboard, chats, replay, transcript, editor, stats, git
     var id: String { rawValue }
-    var label: String { rawValue.capitalized }
+    var label: String {
+        switch self {
+        case .chats: return "Chats"
+        default: return rawValue.capitalized
+        }
+    }
     var icon: String {
         switch self {
         case .dashboard: return "square.grid.2x2"
+        case .chats: return "bubble.left.and.exclamationmark.bubble.right"
         case .replay: return "play.circle"
         case .transcript: return "doc.text"
         case .editor: return "pencil.and.outline"
