@@ -7,6 +7,7 @@ services:
       # Session data (required)
       - ${HOME}/.claude:${HOME}/.claude:ro
       - ${HOME}/.claude-work:${HOME}/.claude-work:ro
+      - ${HOME}/.claude-outlook:${HOME}/.claude-outlook:ro
       - ${HOME}/.cursor:${HOME}/.cursor:ro
       - ${HOME}/.codex:${HOME}/.codex:ro
       # Project dirs (rw needed for lazygit to commit/push)

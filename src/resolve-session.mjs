@@ -2,9 +2,35 @@
  * Resolve a session ID to a full file path by scanning known session directories.
  */
 
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
+
+/**
+ * List all Claude account dirs present under $HOME matching ~/.claude([-_]...)?
+ * Mirrors the logic in editor-server.mjs so CLI resolution stays consistent
+ * with what the web UI shows.
+ */
+function listClaudeAccountDirs(homeDir) {
+  const found = new Set([".claude"]);
+  try {
+    for (const name of readdirSync(homeDir)) {
+      if (!/^\.claude([-_].+)?$/.test(name)) continue;
+      try { if (!statSync(join(homeDir, name)).isDirectory()) continue; } catch { continue; }
+      found.add(name);
+    }
+  } catch { /* ignore */ }
+  return [...found].sort((a, b) =>
+    a === ".claude" ? -1 : b === ".claude" ? 1 : a.localeCompare(b)
+  );
+}
+
+/** Best-effort human label: ".claude" → "main", ".claude-work" → "work". */
+function claudeAccountLabel(dirName) {
+  if (dirName === ".claude") return "main";
+  const m = dirName.match(/^\.claude[-_](.+)$/);
+  return m ? m[1] : dirName.replace(/^\./, "");
+}
 
 /**
  * Find session files matching the given ID.
@@ -17,21 +43,27 @@ export function resolveSessionId(sessionId, { home } = {}) {
   const target = sessionId.endsWith(".jsonl") ? sessionId : sessionId + ".jsonl";
   const matches = [];
 
-  // Claude Code: ~/.claude/projects/<project>/<id>.jsonl
-  const claudeBase = join(homeDir, ".claude", "projects");
-  try {
-    for (const proj of readdirSync(claudeBase)) {
-      const projPath = join(claudeBase, proj);
-      try { if (!statSync(projPath).isDirectory()) continue; } catch { continue; }
-      const filePath = join(projPath, target);
-      try {
-        statSync(filePath);
-        const parts = proj.replace(/^-+/, "").split("-");
-        const displayName = parts.length > 1 ? parts.slice(-2).join("-") : parts[0];
-        matches.push({ path: filePath, project: displayName, group: "Claude Code" });
-      } catch { /* not found */ }
-    }
-  } catch { /* directory doesn't exist */ }
+  // Claude Code: ~/<account>/projects/<project>/<id>.jsonl
+  // Scans all ~/.claude-* account dirs, not just the default ~/.claude.
+  for (const accountDir of listClaudeAccountDirs(homeDir)) {
+    const claudeBase = join(homeDir, accountDir, "projects");
+    if (!existsSync(claudeBase)) continue;
+    const label = claudeAccountLabel(accountDir);
+    const group = label === "main" ? "Claude Code" : `Claude Code (${label})`;
+    try {
+      for (const proj of readdirSync(claudeBase)) {
+        const projPath = join(claudeBase, proj);
+        try { if (!statSync(projPath).isDirectory()) continue; } catch { continue; }
+        const filePath = join(projPath, target);
+        try {
+          statSync(filePath);
+          const parts = proj.replace(/^-+/, "").split("-");
+          const displayName = parts.length > 1 ? parts.slice(-2).join("-") : parts[0];
+          matches.push({ path: filePath, project: displayName, group });
+        } catch { /* not found in this project */ }
+      }
+    } catch { /* directory not readable */ }
+  }
 
   // Cursor: ~/.cursor/projects/<project>/agent-transcripts/<id>/transcript.jsonl
   //    or: ~/.cursor/projects/<project>/agent-transcripts/<id>/<id>.jsonl
