@@ -25,6 +25,11 @@ actor ClaudeAgent {
         var allowedTools: String?        // comma-separated, or nil for SDK default
         var includePartialMessages: Bool // verbose toggle
         var skeleton: Bool               // step 4 path: bypass SDK, just echo
+        /// Extra environment variables to layer over the inherited PATH/etc.
+        /// Used to forward `CLAUDE_CONFIG_DIR` so the sidecar resolves the
+        /// right account dir (`~/.claude`, `~/.claude-yahoo`, …) when
+        /// multi-account is in play.
+        var env: [String: String] = [:]
     }
 
     enum AgentError: LocalizedError {
@@ -69,6 +74,8 @@ actor ClaudeAgent {
             // case the SDK probes for one. Harmless when unused.
             env["CLAUDE_CODE_BINARY"] = claude.path
         }
+        // Caller-supplied env wins (e.g. `CLAUDE_CONFIG_DIR` for multi-account).
+        for (k, v) in options.env { env[k] = v }
         proc.environment = env
 
         let stdin = Pipe()

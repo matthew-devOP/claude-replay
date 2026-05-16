@@ -28,6 +28,10 @@ final class ChatViewModel {
     /// Project + session metadata for the header.
     let sessionPath: String
     let projectPath: String
+    /// Account dir (e.g. `.claude`, `.claude-yahoo`). Forwarded to the
+    /// sidecar via `CLAUDE_CONFIG_DIR` so multi-account routing keeps
+    /// working. When nil we let the sidecar fall back to its default.
+    let accountDir: String?
 
     /// Existing turns from the JSONL plus any new ones from the live agent.
     var turns: [Turn] = []
@@ -37,6 +41,16 @@ final class ChatViewModel {
     private(set) var lastTurnCostUsd: Double = 0
     /// Cumulative cost across this app session (resets when chat closes).
     private(set) var cumulativeCostUsd: Double = 0
+
+    /// G12 — token counters from `result` events. `last*` reflect the most
+    /// recent turn; `cumulative*` accumulate across the chat session.
+    private(set) var lastInputTokens: Int = 0
+    private(set) var lastOutputTokens: Int = 0
+    private(set) var cumulativeInputTokens: Int = 0
+    private(set) var cumulativeOutputTokens: Int = 0
+    private(set) var cumulativeCacheReadTokens: Int = 0
+    private(set) var cumulativeCacheCreationTokens: Int = 0
+
     private(set) var status: Status = .idle
 
     /// Permission mode chosen by the user. Changing this respawns the agent.
@@ -53,12 +67,19 @@ final class ChatViewModel {
 
     private let agent = ClaudeAgent()
     private var streamTask: Task<Void, Never>?
+    /// G1 — debounce token for persisting transcripts. Each `turns` write
+    /// schedules a 1s-deferred save; the previous task is cancelled, so
+    /// rapid streaming deltas collapse into a single write.
+    private var persistTask: Task<Void, Never>?
 
     // MARK: - Init
 
-    init(sessionPath: String, projectPath: String) {
+    init(sessionPath: String, projectPath: String, accountDir: String? = nil) {
         self.sessionPath = sessionPath
         self.projectPath = projectPath
+        // Fall back to inferring from the session path so callers that
+        // don't pass an explicit account dir still get the right config.
+        self.accountDir = accountDir ?? Self.accountDir(fromSessionPath: sessionPath)
     }
 
     // Lifecycle cleanup is handled by `cancel()` from `ChatView.onDisappear`.
@@ -80,13 +101,22 @@ final class ChatViewModel {
         turns = existing
 
         do {
+            var env: [String: String] = [:]
+            if let dir = accountDir, !dir.isEmpty {
+                // Expand `.claude` / `.claude-yahoo` / … into an absolute
+                // path under $HOME for the sidecar's CLAUDE_CONFIG_DIR.
+                let expanded = (NSHomeDirectory() as NSString)
+                    .appendingPathComponent(dir)
+                env["CLAUDE_CONFIG_DIR"] = expanded
+            }
             let opts = ClaudeAgent.StartOptions(
                 sessionPath: sessionPath,
                 workingDirectory: URL(fileURLWithPath: projectPath),
                 permissionMode: permissionMode,
                 allowedTools: allowedTools,
                 includePartialMessages: verbose,
-                skeleton: false
+                skeleton: false,
+                env: env
             )
             let stream = try await agent.start(options: opts)
             status = .ready
@@ -107,6 +137,7 @@ final class ChatViewModel {
             appendUserTurn(text: text, optimistic: true)
             inputDraft = ""
             status = .sending
+            persistTranscript()
         } catch {
             status = .error(error.localizedDescription)
         }
@@ -201,10 +232,19 @@ final class ChatViewModel {
             // the verbose panel in step 10.
             break
 
-        case .result(_, _, let cost, _):
+        case .result(_, _, let cost, _, let usage):
             lastTurnCostUsd = cost
             cumulativeCostUsd += cost
+            if let usage = usage {
+                lastInputTokens = usage.inputTokens
+                lastOutputTokens = usage.outputTokens
+                cumulativeInputTokens += usage.inputTokens
+                cumulativeOutputTokens += usage.outputTokens
+                cumulativeCacheReadTokens += usage.cacheReadInputTokens ?? 0
+                cumulativeCacheCreationTokens += usage.cacheCreationInputTokens ?? 0
+            }
             status = .ready
+            persistTranscript()
 
         case .other:
             break
@@ -289,5 +329,54 @@ final class ChatViewModel {
         var out: [String: AnyCodable] = [:]
         for (k, v) in raw { out[k] = AnyCodable(v) }
         return out
+    }
+
+    // MARK: - G1 — Local transcript persistence
+
+    /// Debounced (1s) write of the current `turns` to SwiftData so the
+    /// chat shows up in "Active Chats" even after the app restarts. We
+    /// intentionally tolerate a small lag because the on-disk JSONL is
+    /// always the source of truth — this entity is a UX index, not a
+    /// durability guarantee.
+    private func persistTranscript() {
+        persistTask?.cancel()
+        let snapshot = turns
+        let sPath = sessionPath
+        let pPath = projectPath
+        let acct = Self.accountDir(fromSessionPath: sPath)
+        let cost = cumulativeCostUsd
+        guard !snapshot.isEmpty else { return }
+        persistTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            if Task.isCancelled { return }
+            do {
+                let data = try JSONEncoder().encode(snapshot)
+                await MainActor.run {
+                    DataStore.shared.upsertChatTranscript(
+                        sessionPath: sPath,
+                        projectPath: pPath,
+                        accountDir: acct,
+                        turnsJSON: data,
+                        costUsd: cost,
+                        model: nil,
+                        displayName: nil
+                    )
+                }
+                _ = self  // silence unused-capture warning when self isn't touched
+            } catch {
+                print("[ChatVM] persist failed:", error)
+            }
+        }
+    }
+
+    /// Extract the `.claude*` account dir from a session path of shape
+    /// `~/.claude<-suffix>/projects/<dir>/<sid>.jsonl`. Falls back to
+    /// `".claude"` when the path doesn't match.
+    private static func accountDir(fromSessionPath path: String) -> String {
+        let comps = (path as NSString).pathComponents
+        if let idx = comps.firstIndex(where: { $0.hasPrefix(".claude") }) {
+            return comps[idx]
+        }
+        return ".claude"
     }
 }

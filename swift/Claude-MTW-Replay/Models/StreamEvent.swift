@@ -52,11 +52,27 @@ enum AgentMessage: Equatable, Sendable {
     case streamDelta(raw: String)
 
     /// `{type:"result", subtype, duration_ms, num_turns, total_cost_usd, ...}`.
-    case result(success: Bool, durationMs: Int, costUsd: Double, numTurns: Int)
+    case result(success: Bool, durationMs: Int, costUsd: Double, numTurns: Int, usage: TokenUsage?)
 
     /// Anything else — `compact_boundary`, `status`, `hook_response`, etc.
     /// We keep raw JSON so the UI can choose to display them as system events.
     case other(type: String, raw: String)
+}
+
+/// Token usage reported in a `result` event. Mirrors the Anthropic API
+/// `usage` object — input/output tokens plus optional cache counters.
+struct TokenUsage: Codable, Equatable, Sendable {
+    let inputTokens: Int
+    let outputTokens: Int
+    let cacheCreationInputTokens: Int?
+    let cacheReadInputTokens: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case inputTokens = "input_tokens"
+        case outputTokens = "output_tokens"
+        case cacheCreationInputTokens = "cache_creation_input_tokens"
+        case cacheReadInputTokens = "cache_read_input_tokens"
+    }
 }
 
 /// One block inside `assistantMessage.blocks` — a slim version of the
@@ -142,7 +158,8 @@ extension AgentMessage {
                 success: !isError && (object["subtype"] as? String) == "success",
                 durationMs: object["duration_ms"] as? Int ?? 0,
                 costUsd: object["total_cost_usd"] as? Double ?? 0,
-                numTurns: object["num_turns"] as? Int ?? 0
+                numTurns: object["num_turns"] as? Int ?? 0,
+                usage: decodeUsage(object["usage"])
             )
 
         default:
@@ -224,6 +241,26 @@ extension AgentMessage {
         default:
             return ""
         }
+    }
+
+    /// Best-effort decode of the `usage` field on a result event. Returns
+    /// nil when the payload is missing or doesn't carry input/output counts.
+    private static func decodeUsage(_ value: Any?) -> TokenUsage? {
+        guard let dict = value as? [String: Any] else { return nil }
+        let input = dict["input_tokens"] as? Int ?? 0
+        let output = dict["output_tokens"] as? Int ?? 0
+        // If both are zero and no cache numbers are present, treat as absent.
+        let cacheCreate = dict["cache_creation_input_tokens"] as? Int
+        let cacheRead = dict["cache_read_input_tokens"] as? Int
+        if input == 0 && output == 0 && cacheCreate == nil && cacheRead == nil {
+            return nil
+        }
+        return TokenUsage(
+            inputTokens: input,
+            outputTokens: output,
+            cacheCreationInputTokens: cacheCreate,
+            cacheReadInputTokens: cacheRead
+        )
     }
 
     private static func rawJson(_ value: Any) -> String {

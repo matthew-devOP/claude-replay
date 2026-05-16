@@ -92,6 +92,7 @@
 		96954EDADAE456C44E007C17 /* SpinnerVerbs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4E1919F2197ED040F01A15F /* SpinnerVerbs.swift */; };
 		9B4E3A5B8AA455D6B15C3FD7 /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A36A9DB2E87F63D943E779A0 /* FileWatcher.swift */; };
 		9B6CBEF523F5C011538433CC /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3AA2E85D8915B56BBC79EF0 /* EditorView.swift */; };
+		9BB2203DAD83656BCFB6CD41 /* ChatActiveListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D146695BE4F9A6D7271A9231 /* ChatActiveListView.swift */; };
 		9D311860F0255EB31128614C /* ActivityHeatmapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1898F7E6B6199BF4EA5D8087 /* ActivityHeatmapView.swift */; };
 		9EC956F253D8CCFB0CD63398 /* GitGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EBD642B3C22EED9903DAB5A /* GitGraphView.swift */; };
 		A38B8080C339BA0521DF798C /* BookmarksEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D734FA4EAA261FAB8A645F9D /* BookmarksEditorView.swift */; };
@@ -99,8 +100,10 @@
 		A67C49984A4DFD5241D0DFB3 /* ClaudeAgentSkeletonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97A5F812F1AD478FAE631A8B /* ClaudeAgentSkeletonTests.swift */; };
 		A902FE27BD70DFFB06676CBC /* KeyboardShortcutsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE3C03A3211511707ABDAC09 /* KeyboardShortcutsView.swift */; };
 		A99AD020444F7A14176F5BC4 /* ExportProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99FCBB5EA97CEF57F7A0828D /* ExportProgressView.swift */; };
+		AD51DC69DA56D8742698E1D6 /* ChatTranscriptEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 873953D0C3D9372198FEA979 /* ChatTranscriptEntity.swift */; };
 		AEDF935625FA71E827E7049A /* SecretPattern.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F4495902D5261DF5042D9B /* SecretPattern.swift */; };
 		AFA9D5E903ED99A4C7F42123 /* TagsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8266B0348715BEE5E98169F /* TagsViewModel.swift */; };
+		AFD063EFB24C3A132591EABB /* ChatTabContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8076019AC85596850C81BBB /* ChatTabContainerView.swift */; };
 		B21FB30ED7AB7791BE6BE77C /* SessionStatsEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90EDB9A70DD855D8190551DC /* SessionStatsEntity.swift */; };
 		B40454E0D5A2C9AE416C57B0 /* ToolBreakdownChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F90868FA9E087E9EDF4E5A /* ToolBreakdownChart.swift */; };
 		B8567D6BDD53405D00AF748F /* TurnEditorPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31A370418EF2AE359F6FD85A /* TurnEditorPanel.swift */; };
@@ -214,6 +217,7 @@
 		80F954108BA6B8BE18DFA306 /* ReplayTurnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayTurnView.swift; sourceTree = "<group>"; };
 		83781BF5B1B57100496B62CC /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		8660B46406B32AB9173B3152 /* ReplayControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayControlsView.swift; sourceTree = "<group>"; };
+		873953D0C3D9372198FEA979 /* ChatTranscriptEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatTranscriptEntity.swift; sourceTree = "<group>"; };
 		8754EB2E6DEDD5947D83F313 /* BashCommandsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BashCommandsListView.swift; sourceTree = "<group>"; };
 		8BD0B249FCB337BAC3EB6682 /* SessionRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRowView.swift; sourceTree = "<group>"; };
 		8C8190DE0E572F94E981E504 /* ChatSessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionListView.swift; sourceTree = "<group>"; };
@@ -239,6 +243,7 @@
 		A4BF7CE2EE251B51E6CCCF75 /* ExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSheet.swift; sourceTree = "<group>"; };
 		A5C8D2B5BDDB8F58358AF173 /* CodeBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeBlockView.swift; sourceTree = "<group>"; };
 		A71444B583BFB95B87223E59 /* SessionStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStats.swift; sourceTree = "<group>"; };
+		A8076019AC85596850C81BBB /* ChatTabContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatTabContainerView.swift; sourceTree = "<group>"; };
 		AA7A0D7FECB2A1E204466F8A /* HTMLRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLRenderer.swift; sourceTree = "<group>"; };
 		AB0687EF62607C80606F288E /* StreamEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamEvent.swift; sourceTree = "<group>"; };
 		ABCEC13B340E66A0FEFD241C /* FavoritesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesViewModel.swift; sourceTree = "<group>"; };
@@ -263,6 +268,7 @@
 		CE3C03A3211511707ABDAC09 /* KeyboardShortcutsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsView.swift; sourceTree = "<group>"; };
 		CF5AFE4A5F0AA1F52AF0EAB2 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		CFFF0C29A794E3C68613C927 /* SessionResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionResolverTests.swift; sourceTree = "<group>"; };
+		D146695BE4F9A6D7271A9231 /* ChatActiveListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatActiveListView.swift; sourceTree = "<group>"; };
 		D49B440A9E80429144580128 /* GitViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitViewModel.swift; sourceTree = "<group>"; };
 		D6D8111B08585BCF7957C5BA /* TranscriptFilterBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFilterBar.swift; sourceTree = "<group>"; };
 		D734FA4EAA261FAB8A645F9D /* BookmarksEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksEditorView.swift; sourceTree = "<group>"; };
@@ -306,9 +312,11 @@
 		10AFE1C610C8C55F80CA06E2 /* Chats */ = {
 			isa = PBXGroup;
 			children = (
+				D146695BE4F9A6D7271A9231 /* ChatActiveListView.swift */,
 				9D019223551B24AD5D6AA436 /* ChatInputBarView.swift */,
 				8C8190DE0E572F94E981E504 /* ChatSessionListView.swift */,
 				2566407E7242DBDC47A505D8 /* ChatsView.swift */,
+				A8076019AC85596850C81BBB /* ChatTabContainerView.swift */,
 				BD938D30DCD41089A8386154 /* ChatView.swift */,
 				1A2BFEA8722B2E02187F6926 /* ModeToggleView.swift */,
 			);
@@ -592,6 +600,7 @@
 		F8608121A9F48CF6BEBC9EF7 /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
+				873953D0C3D9372198FEA979 /* ChatTranscriptEntity.swift */,
 				650515D0DA10ED1809FBD4C8 /* DataStore.swift */,
 				333CED3492BE3011F0DA22EF /* FavoriteEntity.swift */,
 				323DB8E7FBB144ED93D10B56 /* SessionMetaEntity.swift */,
@@ -751,8 +760,11 @@
 				397AE315A227587D8C5C602F /* BookmarkBarView.swift in Sources */,
 				A38B8080C339BA0521DF798C /* BookmarksEditorView.swift in Sources */,
 				60E3491D68CC2121AF596104 /* ChainedReplaySheet.swift in Sources */,
+				9BB2203DAD83656BCFB6CD41 /* ChatActiveListView.swift in Sources */,
 				ED832FC98D627508C969C83C /* ChatInputBarView.swift in Sources */,
 				7DD899A37FC4F1119E5CECDF /* ChatSessionListView.swift in Sources */,
+				AFD063EFB24C3A132591EABB /* ChatTabContainerView.swift in Sources */,
+				AD51DC69DA56D8742698E1D6 /* ChatTranscriptEntity.swift in Sources */,
 				2935F672A8229230590B7938 /* ChatView.swift in Sources */,
 				0895D6447929CACFAC9D6489 /* ChatViewModel.swift in Sources */,
 				02F387489573648AF887CD11 /* ChatsView.swift in Sources */,

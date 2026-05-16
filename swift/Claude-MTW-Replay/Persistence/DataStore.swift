@@ -14,6 +14,7 @@ final class DataStore {
             SessionStatsEntity.self,
             FavoriteEntity.self,
             TagEntity.self,
+            ChatTranscriptEntity.self,
         ])
 
         let configuration = ModelConfiguration(
@@ -138,5 +139,75 @@ final class DataStore {
     func getAllTaggedSessions() -> [TagEntity] {
         let descriptor = FetchDescriptor<TagEntity>()
         return (try? context.fetch(descriptor)) ?? []
+    }
+
+    // MARK: - Chat Transcripts (G1)
+
+    /// Insert-or-update the cached transcript for a chat session. Caller
+    /// is responsible for encoding `turns` to JSON; we accept raw `Data`
+    /// so the entity stays Codable-agnostic.
+    func upsertChatTranscript(
+        sessionPath: String,
+        projectPath: String,
+        accountDir: String,
+        turnsJSON: Data,
+        costUsd: Double,
+        model: String?,
+        displayName: String?
+    ) {
+        let descriptor = FetchDescriptor<ChatTranscriptEntity>(
+            predicate: #Predicate { $0.sessionPath == sessionPath }
+        )
+        if let existing = try? context.fetch(descriptor).first {
+            existing.projectPath = projectPath
+            existing.accountDir = accountDir
+            existing.turnsJSON = turnsJSON
+            existing.lastUpdated = .now
+            existing.costUsd = costUsd
+            if let model { existing.model = model }
+            if let displayName { existing.displayName = displayName }
+        } else {
+            let entity = ChatTranscriptEntity(
+                sessionPath: sessionPath,
+                projectPath: projectPath,
+                accountDir: accountDir,
+                turnsJSON: turnsJSON,
+                lastUpdated: .now,
+                costUsd: costUsd,
+                model: model,
+                displayName: displayName
+            )
+            context.insert(entity)
+        }
+        try? context.save()
+    }
+
+    func getChatTranscript(sessionPath: String) -> ChatTranscriptEntity? {
+        let descriptor = FetchDescriptor<ChatTranscriptEntity>(
+            predicate: #Predicate { $0.sessionPath == sessionPath }
+        )
+        return try? context.fetch(descriptor).first
+    }
+
+    /// Recent transcripts within the last `days` days, newest first, capped
+    /// by `limit`. Used by `ChatActiveListView` to surface ongoing chats.
+    func getRecentChatTranscripts(within days: Int = 7, limit: Int = 20) -> [ChatTranscriptEntity] {
+        let cutoff = Date(timeIntervalSinceNow: -Double(days) * 86_400)
+        var descriptor = FetchDescriptor<ChatTranscriptEntity>(
+            predicate: #Predicate { $0.lastUpdated > cutoff },
+            sortBy: [SortDescriptor(\.lastUpdated, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func deleteChatTranscript(sessionPath: String) {
+        let descriptor = FetchDescriptor<ChatTranscriptEntity>(
+            predicate: #Predicate { $0.sessionPath == sessionPath }
+        )
+        if let existing = try? context.fetch(descriptor).first {
+            context.delete(existing)
+            try? context.save()
+        }
     }
 }

@@ -53,6 +53,10 @@ final class AppState {
     var selectedProjectSource: String = "claude"
     var selectedProject: ProjectEntry?
     var selectedSessionPath: String?
+    /// Path of a session that should be opened in the live Chats tab.
+    /// Set by `resumeChatLive(path:)` from the Replay view's "Continue (live)"
+    /// button; consumed and cleared by `ChatsView` after spawning a `ChatView`.
+    var resumingChatPath: String? = nil
     /// Ephemeral imported HTML session; non-nil after `File → Import HTML…`.
     /// `ReplayView` observes this in addition to `selectedSessionPath`.
     var importedSession: ImportedSession?
@@ -101,6 +105,14 @@ final class AppState {
 
     func switchTab(_ tab: AppTab) {
         currentTab = tab
+    }
+
+    /// Hop from Replay into the live Chats tab, resuming the given session
+    /// via the SDK. `ChatsView` watches `resumingChatPath` and opens a
+    /// `ChatView` against that JSONL.
+    func resumeChatLive(path: String) {
+        resumingChatPath = path
+        currentTab = .chats
     }
 
     func setClaudeAccount(_ dirName: String) {

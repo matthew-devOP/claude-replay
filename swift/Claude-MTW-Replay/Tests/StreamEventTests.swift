@@ -72,13 +72,26 @@ final class StreamEventTests: XCTestCase {
 
     func testDecodesResult() {
         let line = #"{"type":"agent_event","event":{"type":"result","subtype":"success","is_error":false,"duration_ms":1234,"total_cost_usd":0.05,"num_turns":3}}"#
-        guard case .agentMessage(.result(let success, let dur, let cost, let turns)) = StreamEvent.decode(line: line) else {
+        guard case .agentMessage(.result(let success, let dur, let cost, let turns, let usage)) = StreamEvent.decode(line: line) else {
             return XCTFail("expected result")
         }
         XCTAssertTrue(success)
         XCTAssertEqual(dur, 1234)
         XCTAssertEqual(cost, 0.05, accuracy: 0.001)
         XCTAssertEqual(turns, 3)
+        XCTAssertNil(usage)
+    }
+
+    func testDecodesResultWithUsage() {
+        let line = #"{"type":"agent_event","event":{"type":"result","subtype":"success","is_error":false,"duration_ms":1234,"total_cost_usd":0.05,"num_turns":3,"usage":{"input_tokens":100,"output_tokens":42,"cache_creation_input_tokens":7,"cache_read_input_tokens":11}}}"#
+        guard case .agentMessage(.result(_, _, _, _, let usage)) = StreamEvent.decode(line: line),
+              let u = usage else {
+            return XCTFail("expected result with usage")
+        }
+        XCTAssertEqual(u.inputTokens, 100)
+        XCTAssertEqual(u.outputTokens, 42)
+        XCTAssertEqual(u.cacheCreationInputTokens, 7)
+        XCTAssertEqual(u.cacheReadInputTokens, 11)
     }
 
     func testUnknownTypeFallsThrough() {

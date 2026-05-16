@@ -19,24 +19,15 @@ struct ChatsView: View {
     @State private var secondaryProjectPath: String? = nil
 
     var body: some View {
-        Group {
-            if appState.selectedProject != nil {
-                if splitMode {
-                    splitView
-                } else {
-                    ChatSessionListView(
-                        splitMode: $splitMode,
-                        primarySessionPath: $primarySessionPath,
-                        primaryProjectPath: $primaryProjectPath
-                    )
-                }
-            } else {
-                EmptyStateView(
-                    icon: "bubble.left.and.exclamationmark.bubble.right",
-                    title: "Pick a project to chat",
-                    subtitle: "Choose a project from the sidebar to see its sessions, then hit Resume on the one you want to continue."
-                )
-            }
+        VStack(spacing: 0) {
+            ChatActiveListView()
+            Divider()
+            // G16 — multi-tab live chat. The container owns its own
+            // session picker / empty-state, so we drop straight in here.
+            // The split-view path remains accessible via the picker
+            // surfaced inside each tab (ChatSessionListView still drives
+            // `splitMode` per-tab when needed).
+            ChatTabContainerView()
         }
     }
 

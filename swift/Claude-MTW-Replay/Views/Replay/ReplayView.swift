@@ -97,6 +97,15 @@ struct ReplayView: View {
             }
             Spacer()
             Button {
+                if let path = appState.selectedSessionPath {
+                    appState.resumeChatLive(path: path)
+                }
+            } label: {
+                Label("Continue (live)", systemImage: "play.circle.fill")
+            }
+            .help("Resume this session live in the Chats tab")
+            .disabled(appState.selectedSessionPath == nil)
+            Button {
                 pendingBookmarkLabel = "Bookmark \(vm.bookmarks.count + 1)"
                 showBookmarkPrompt = true
             } label: {
