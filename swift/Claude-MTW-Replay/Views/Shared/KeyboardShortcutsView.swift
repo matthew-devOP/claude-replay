@@ -1,7 +1,8 @@
 import SwiftUI
 struct KeyboardShortcutsView: View {
     @Environment(\.dismiss) private var dismiss
-    let shortcuts: [(String, String)] = [
+
+    private let playbackShortcuts: [(String, String)] = [
         ("Space / K", "Play / Pause"),
         ("→ / L", "Step forward"),
         ("← / H", "Step back"),
@@ -9,11 +10,24 @@ struct KeyboardShortcutsView: View {
         ("⇧←", "Previous turn"),
         ("T", "Toggle thinking blocks"),
         ("Escape", "Stop playback"),
-        ("⌘1-6", "Switch tabs"),
+    ]
+
+    private let globalShortcuts: [(String, String)] = [
         ("⌘F", "Search"),
         ("⌘E", "Export"),
         ("?", "This help"),
     ]
+
+    private var tabShortcuts: [(String, String)] {
+        AppTab.allCases.enumerated().map { idx, tab in
+            ("⌘\(idx + 1)", "Switch to \(tab.label)")
+        }
+    }
+
+    private var shortcuts: [(String, String)] {
+        playbackShortcuts + tabShortcuts + globalShortcuts
+    }
+
     var body: some View {
         VStack(spacing: 16) {
             Text("Keyboard Shortcuts").font(.title2).bold()

@@ -23,6 +23,7 @@
 		259C2B32661C9CA48C06B2AF /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF5AFE4A5F0AA1F52AF0EAB2 /* ToastView.swift */; };
 		27B4B5322C151EF2DD2DF6E8 /* Color+Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DA513A19BB4FA0049682DD4 /* Color+Theme.swift */; };
 		27B540C824413BBBD95AD6B2 /* TagsSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE7053614A30B8A49277C4E2 /* TagsSectionView.swift */; };
+		27F06703D747F12947981911 /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0AB47AE7838551263D553D /* StatusItemController.swift */; };
 		28409E0EA8F152CF9EC65EA3 /* SessionCompareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EC26C67347FFDCFDF22C73E /* SessionCompareView.swift */; };
 		289998EC08BA22FF045FA270 /* AccountSwitcherMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FE85FCE3CF42D387C36627 /* AccountSwitcherMenu.swift */; };
 		28C917936861417871942898 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E80AADE011D974BD3E0A4DC /* ContentView.swift */; };
@@ -90,6 +91,7 @@
 		A902FE27BD70DFFB06676CBC /* KeyboardShortcutsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE3C03A3211511707ABDAC09 /* KeyboardShortcutsView.swift */; };
 		A99AD020444F7A14176F5BC4 /* ExportProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99FCBB5EA97CEF57F7A0828D /* ExportProgressView.swift */; };
 		AEDF935625FA71E827E7049A /* SecretPattern.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F4495902D5261DF5042D9B /* SecretPattern.swift */; };
+		AFA9D5E903ED99A4C7F42123 /* TagsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8266B0348715BEE5E98169F /* TagsViewModel.swift */; };
 		B21FB30ED7AB7791BE6BE77C /* SessionStatsEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90EDB9A70DD855D8190551DC /* SessionStatsEntity.swift */; };
 		B40454E0D5A2C9AE416C57B0 /* ToolBreakdownChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F90868FA9E087E9EDF4E5A /* ToolBreakdownChart.swift */; };
 		B8567D6BDD53405D00AF748F /* TurnEditorPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31A370418EF2AE359F6FD85A /* TurnEditorPanel.swift */; };
@@ -227,6 +229,7 @@
 		B5E1A4CA907C1E9A4EE26840 /* SpinnerVerbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpinnerVerbView.swift; sourceTree = "<group>"; };
 		B6695E03876E454C189C340A /* mascot.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = mascot.png; sourceTree = "<group>"; };
 		B9E0E264FAA6A5AA8CA4F839 /* Turn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Turn.swift; sourceTree = "<group>"; };
+		BB0AB47AE7838551263D553D /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
 		BD938D30DCD41089A8386154 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		BDA824BA0C401F231AF2551F /* SessionDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDiscovery.swift; sourceTree = "<group>"; };
 		BE9E48E02DAA84AF22CE8A09 /* TranscriptParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptParser.swift; sourceTree = "<group>"; };
@@ -246,6 +249,7 @@
 		DF14A33EE4622894B2D0DA62 /* ThemeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeService.swift; sourceTree = "<group>"; };
 		E4E1919F2197ED040F01A15F /* SpinnerVerbs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpinnerVerbs.swift; sourceTree = "<group>"; };
 		E70CD3E5D564826A9EA860E1 /* EditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorViewModel.swift; sourceTree = "<group>"; };
+		E8266B0348715BEE5E98169F /* TagsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagsViewModel.swift; sourceTree = "<group>"; };
 		EE8B1B70F8E457E6E95DA5AF /* ReplayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplayViewModel.swift; sourceTree = "<group>"; };
 		F1F4495902D5261DF5042D9B /* SecretPattern.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretPattern.swift; sourceTree = "<group>"; };
 		F27CEEFD1DC8A4EC85435CB9 /* GitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitService.swift; sourceTree = "<group>"; };
@@ -261,6 +265,7 @@
 		08F031296467686CC2301695 /* MenuBar */ = {
 			isa = PBXGroup;
 			children = (
+				BB0AB47AE7838551263D553D /* StatusItemController.swift */,
 			);
 			path = MenuBar;
 			sourceTree = "<group>";
@@ -338,6 +343,7 @@
 				EE8B1B70F8E457E6E95DA5AF /* ReplayViewModel.swift */,
 				732C1943EA0524C308C1CC3F /* SessionListViewModel.swift */,
 				072A95DCE0058FAD3BEC4E10 /* StatsViewModel.swift */,
+				E8266B0348715BEE5E98169F /* TagsViewModel.swift */,
 				A099995170A5FE597B144C0A /* TranscriptViewModel.swift */,
 			);
 			path = ViewModels;
@@ -777,11 +783,13 @@
 				7B3AE52491B4E82B9CC771CB /* StatsOverviewCards.swift in Sources */,
 				42DF9CAF877A6BA5A24119E1 /* StatsView.swift in Sources */,
 				F2242C382EEF0A9A9B87990F /* StatsViewModel.swift in Sources */,
+				27F06703D747F12947981911 /* StatusItemController.swift in Sources */,
 				868C65654288F2B4122A618C /* StreamEvent.swift in Sources */,
 				29D104D4C71BA4FF37B7F618 /* String+Redaction.swift in Sources */,
 				719059718175509AF4984F9D /* TagChipView.swift in Sources */,
 				E7351641A673FC439F45F976 /* TagEntity.swift in Sources */,
 				27B540C824413BBBD95AD6B2 /* TagsSectionView.swift in Sources */,
+				AFA9D5E903ED99A4C7F42123 /* TagsViewModel.swift in Sources */,
 				73ED3D8D9FD60949B6897ECF /* Theme.swift in Sources */,
 				EFC7D4D9DFA2A25FBBD66C16 /* ThemePickerView.swift in Sources */,
 				3F98C0019E3B916E1253DFBC /* ThemeService.swift in Sources */,

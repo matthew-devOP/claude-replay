@@ -39,15 +39,66 @@ final class ProjectListViewModel {
 
     private static let sortKey = "projectSortMode"
 
+    // MARK: - FileWatcher state (P0.6)
+    /// Live watchers for the session root directories.  Reloaded
+    /// whenever `claudeAccountDir` changes.
+    @ObservationIgnored private var watchers: [FileWatcher] = []
+    /// Account dir the current watchers are scoped to (so we can detect
+    /// when the user switches accounts and restart).
+    @ObservationIgnored private var watchedAccountDir: String?
+    /// Pending debounced reload task — cancelled on each new fs event.
+    @ObservationIgnored private var debounceTask: Task<Void, Never>?
+
     init() {
         let raw = UserDefaults.standard.string(forKey: Self.sortKey) ?? ProjectSortMode.lastActivityDesc.rawValue
         self.sortMode = ProjectSortMode(rawValue: raw) ?? .lastActivityDesc
+    }
+
+    deinit {
+        debounceTask?.cancel()
+        watchers.forEach { $0.stop() }
+        watchers.removeAll()
     }
 
     func loadProjects(claudeAccountDir: String = ".claude") async {
         isLoading = true
         defer { isLoading = false }
         projects = SessionDiscovery.discoverProjects(claudeAccountDir: claudeAccountDir)
+        // Auto-start (or restart) watchers after the first load, so the
+        // sidebar refreshes on its own when new sessions land on disk.
+        if watchers.isEmpty || watchedAccountDir != claudeAccountDir {
+            startWatching(claudeAccountDir: claudeAccountDir)
+        }
+    }
+
+    /// Begin watching the session root directories.  Re-entrant — stops
+    /// previous watchers first.
+    func startWatching(claudeAccountDir: String) {
+        stopWatching()
+        watchedAccountDir = claudeAccountDir
+        watchers = FileWatcher.watchSessionDirectories { [weak self] _, _ in
+            self?.scheduleReload(claudeAccountDir: claudeAccountDir)
+        }
+    }
+
+    /// Cancel pending reloads and tear down all live watchers.
+    func stopWatching() {
+        debounceTask?.cancel()
+        debounceTask = nil
+        watchers.forEach { $0.stop() }
+        watchers.removeAll()
+        watchedAccountDir = nil
+    }
+
+    /// Coalesce bursts of filesystem events into a single reload 500ms
+    /// after the last notification.  Safe to call from any queue.
+    private func scheduleReload(claudeAccountDir: String) {
+        debounceTask?.cancel()
+        debounceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            if Task.isCancelled { return }
+            await self?.loadProjects(claudeAccountDir: claudeAccountDir)
+        }
     }
 
     /// Search matches both display name AND filesystem path (case-insensitive).

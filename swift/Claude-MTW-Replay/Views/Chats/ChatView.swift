@@ -58,12 +58,14 @@ struct ChatView: View {
             }
             Spacer()
             statusChip
-            if vm.cumulativeCostUsd > 0 {
-                Text(String(format: "$%.4f", vm.cumulativeCostUsd))
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .help("Cumulative cost this chat session")
-            }
+            Text(String(format: "$%.4f", vm.cumulativeCostUsd))
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+                .help("Cumulative cost this chat session")
+            Text(String(format: "Δ $%.4f", vm.lastTurnCostUsd))
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+                .help("Cost of the last assistant turn")
             Button("Close") { dismiss() }
                 .keyboardShortcut(.cancelAction)
         }

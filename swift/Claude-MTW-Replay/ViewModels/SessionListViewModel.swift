@@ -25,6 +25,21 @@ final class SessionListViewModel {
     /// scrolling through the table doesn't fan out duplicate parses.
     private var enriching: Set<String> = []
 
+    // MARK: - FileWatcher state (P0.6)
+    /// Live watcher for the currently selected project directory.
+    @ObservationIgnored private var watchers: [FileWatcher] = []
+    /// Coordinates (source/dirName/account) for the active watcher so we
+    /// know when to tear down and rebuild after a selection change.
+    @ObservationIgnored private var watchedKey: String?
+    /// Pending debounced reload — cancelled on each new fs event.
+    @ObservationIgnored private var debounceTask: Task<Void, Never>?
+
+    deinit {
+        debounceTask?.cancel()
+        watchers.forEach { $0.stop() }
+        watchers.removeAll()
+    }
+
     func loadSessions(projectDirName: String, source: String = "claude", claudeAccountDir: String = ".claude") async {
         isLoading = true
         defer { isLoading = false }
@@ -34,6 +49,65 @@ final class SessionListViewModel {
             sessions = details.sessions
         } else {
             sessions = []
+        }
+        // Refresh watchers when the active project changes so disk-side
+        // edits (new sessions, JSONL extensions) flow back into the table.
+        let key = "\(source)|\(claudeAccountDir)|\(projectDirName)"
+        if watchedKey != key {
+            startWatching(projectDirName: projectDirName, source: source, claudeAccountDir: claudeAccountDir)
+        }
+    }
+
+    /// Begin watching the JSONL directory backing the current project.
+    /// Re-entrant — tears down any previous watcher first.  Only
+    /// `source == "claude"` is currently supported (matches
+    /// `SessionDiscovery.getProjectDetails`).
+    func startWatching(projectDirName: String, source: String = "claude", claudeAccountDir: String = ".claude") {
+        stopWatching()
+        watchedKey = "\(source)|\(claudeAccountDir)|\(projectDirName)"
+        guard source == "claude" else { return }
+
+        let fm = FileManager.default
+        let projURL = fm.homeDirectoryURL
+            .appendingPathComponent(claudeAccountDir)
+            .appendingPathComponent("projects")
+            .appendingPathComponent(projectDirName)
+        guard fm.isDirectory(at: projURL.path) else { return }
+
+        let watcher = FileWatcher(url: projURL) { [weak self] _, _ in
+            // FileWatcher fires on its private DispatchQueue; hop onto
+            // the main actor to mutate VM state safely.
+            Task { @MainActor [weak self] in
+                self?.scheduleReload(projectDirName: projectDirName,
+                                     source: source,
+                                     claudeAccountDir: claudeAccountDir)
+            }
+        }
+        watcher.start()
+        watchers = [watcher]
+    }
+
+    /// Tear down any live watcher and drop pending reloads.
+    func stopWatching() {
+        debounceTask?.cancel()
+        debounceTask = nil
+        watchers.forEach { $0.stop() }
+        watchers.removeAll()
+        watchedKey = nil
+    }
+
+    /// Debounce filesystem bursts; reload the session list 500ms after
+    /// the last event.  Safe to call from FileWatcher's worker queue.
+    private func scheduleReload(projectDirName: String,
+                                source: String,
+                                claudeAccountDir: String) {
+        debounceTask?.cancel()
+        debounceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            if Task.isCancelled { return }
+            await self?.loadSessions(projectDirName: projectDirName,
+                                     source: source,
+                                     claudeAccountDir: claudeAccountDir)
         }
     }
 
