@@ -166,6 +166,22 @@ actor ClaudeAgent {
         try stdin.fileHandleForWriting.write(contentsOf: data)
     }
 
+    /// G8 — resolve a pending `canUseTool` prompt by writing
+    /// `{"type":"permission_response","request_id":...,"decision":"allow|deny"}`
+    /// to the sidecar's stdin. Best-effort: silently no-ops if the
+    /// sidecar already exited (which can happen if the user denies a
+    /// turn that crashes the SDK before our response lands).
+    func sendPermissionResponse(requestId: String, decision: PermissionAction) async {
+        guard let stdin = stdinPipe, isRunning else { return }
+        let payload: [String: String] = [
+            "type": "permission_response",
+            "request_id": requestId,
+            "decision": decision.rawValue,
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        try? stdin.fileHandleForWriting.write(contentsOf: data + Data([0x0a]))
+    }
+
     /// Send `{"type":"stop"}`, give the process 1 s to exit, then terminate.
     func stop() async {
         guard let proc = process else { return }

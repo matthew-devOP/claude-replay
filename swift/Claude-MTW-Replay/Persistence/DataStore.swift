@@ -15,6 +15,7 @@ final class DataStore {
             FavoriteEntity.self,
             TagEntity.self,
             ChatTranscriptEntity.self,
+            PermissionDecisionEntity.self,
         ])
 
         let configuration = ModelConfiguration(
@@ -231,6 +232,59 @@ final class DataStore {
         try? context.save()
     }
 
+    // MARK: - Chat Branching (G2)
+
+    /// G2 — fork a session at the N-th user turn. Truncates the JSONL on
+    /// disk via `SessionForker` (so resuming the new file picks up at the
+    /// cut point) and registers a SwiftData row that points back at the
+    /// source. Returns the new session path so callers can immediately
+    /// navigate to it. The branch row starts with empty `turnsJSON` —
+    /// it'll be filled in normally by `upsertChatTranscript` once the
+    /// user sends their first message in the branched chat.
+    @discardableResult
+    func forkSession(
+        sourceSessionPath: String,
+        atTurnIndex turnIndex: Int,
+        label: String? = nil
+    ) throws -> String {
+        let newURL = try SessionForker.fork(
+            sourcePath: sourceSessionPath,
+            atTurnIndex: turnIndex,
+            label: label
+        )
+        let parent = getChatTranscript(sessionPath: sourceSessionPath)
+
+        let entity = ChatTranscriptEntity(
+            sessionPath: newURL.path,
+            projectPath: parent?.projectPath ?? "",
+            accountDir: parent?.accountDir ?? ".claude",
+            turnsJSON: Data("[]".utf8),  // empty; filled by first send()
+            lastUpdated: .now,
+            costUsd: 0,
+            model: parent?.model,
+            displayName: label
+        )
+        entity.parentSessionId = sourceSessionPath
+        // Trace back to the *root* original session so sibling branches
+        // share one ancestor even when the user forks a fork.
+        entity.branchOfSessionId = parent?.branchOfSessionId ?? sourceSessionPath
+        entity.branchLabel = label
+        context.insert(entity)
+        try? context.save()
+        return newURL.path
+    }
+
+    /// G2 — list all direct child branches forked from `sessionPath`.
+    /// Returns rows newest-first so the most recent experiment surfaces
+    /// at the top of `ChatBranchListView`.
+    func getBranches(sessionPath: String) -> [ChatTranscriptEntity] {
+        let descriptor = FetchDescriptor<ChatTranscriptEntity>(
+            predicate: #Predicate { $0.parentSessionId == sessionPath },
+            sortBy: [SortDescriptor(\.lastUpdated, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
     func deleteChatTranscript(sessionPath: String) {
         let descriptor = FetchDescriptor<ChatTranscriptEntity>(
             predicate: #Predicate { $0.sessionPath == sessionPath }
@@ -239,5 +293,60 @@ final class DataStore {
             context.delete(existing)
             try? context.save()
         }
+    }
+
+    // MARK: - Permission Decisions (G8)
+
+    /// G8 — lookup a previously-remembered allow/deny for this
+    /// (session, tool, signature) tuple. Returns `nil` when the user
+    /// hasn't picked "always" for an identical prompt yet, in which
+    /// case the UI must surface the modal to ask interactively.
+    func shouldAutoApprove(
+        sessionPath: String,
+        toolName: String,
+        signature: String
+    ) -> PermissionAction? {
+        let descriptor = FetchDescriptor<PermissionDecisionEntity>(
+            predicate: #Predicate {
+                $0.sessionPath == sessionPath &&
+                $0.toolName == toolName &&
+                $0.signature == signature
+            }
+        )
+        guard let entity = try? context.fetch(descriptor).first else { return nil }
+        return PermissionAction(rawValue: entity.action)
+    }
+
+    /// G8 — store an "always allow / always deny" pick so future
+    /// identical prompts auto-resolve. Idempotent: an existing row for
+    /// the same (sessionPath, toolName, signature) tuple is overwritten
+    /// in-place rather than duplicated so the user can change their
+    /// mind without leaving stale ghost decisions behind.
+    func recordDecision(
+        sessionPath: String,
+        toolName: String,
+        signature: String,
+        action: PermissionAction
+    ) {
+        let descriptor = FetchDescriptor<PermissionDecisionEntity>(
+            predicate: #Predicate {
+                $0.sessionPath == sessionPath &&
+                $0.toolName == toolName &&
+                $0.signature == signature
+            }
+        )
+        if let existing = try? context.fetch(descriptor).first {
+            existing.action = action.rawValue
+            existing.createdAt = .now
+        } else {
+            let entity = PermissionDecisionEntity(
+                sessionPath: sessionPath,
+                toolName: toolName,
+                signature: signature,
+                action: action.rawValue
+            )
+            context.insert(entity)
+        }
+        try? context.save()
     }
 }

@@ -85,6 +85,13 @@ final class ChatViewModel {
     /// once the sidecar protocol supports them).
     var pendingAttachments: [ChatAttachment] = []
 
+    /// G8 — pending permission prompt surfaced via `.sheet(item:)` in
+    /// `ChatView`. Non-nil only while a `canUseTool` modal is awaiting
+    /// the user's pick. Auto-approved prompts (cached "always allow")
+    /// resolve without ever touching this field, so the UI stays quiet
+    /// for routine repeat-tool-use traffic.
+    var pendingPermission: PermissionRequest? = nil
+
     // MARK: - Private
 
     private let agent = ClaudeAgent()
@@ -276,6 +283,63 @@ final class ChatViewModel {
         await restart()
     }
 
+    /// G2 — fork the current chat at the N-th user turn. Duplicates the
+    /// JSONL on disk, registers a branch row in SwiftData, and returns
+    /// the new session path so the caller (typically `ChatView`'s context
+    /// menu) can navigate to it via `AppState.selectSession`.
+    func forkFromTurn(_ turnIndex: Int) async throws -> String {
+        let path = sessionPath
+        let label = "Branch \(Date().formatted(.dateTime.month().day().hour().minute()))"
+        return try DataStore.shared.forkSession(
+            sourceSessionPath: path,
+            atTurnIndex: turnIndex,
+            label: label
+        )
+    }
+
+    /// G13 — re-run the most recent user turn. Walks back to the last turn
+    /// that has a `userText`, captures it, drops that turn (and anything
+    /// after it) from the visible transcript, then respawns the agent and
+    /// re-sends the message so Claude produces a fresh answer.
+    ///
+    /// We respawn instead of just calling `agent.send(...)` because the
+    /// SDK's running session has already seen the original answer; a
+    /// clean restart gives the model the same input context without the
+    /// stale reply biasing it.
+    func regenerateLastTurn() async throws {
+        guard !turns.isEmpty else { return }
+        guard let lastUserIndex = turns.lastIndex(where: { !$0.userText.isEmpty }) else { return }
+        let userText = turns[lastUserIndex].userText
+        guard !userText.isEmpty else { return }
+
+        // Drop the last user turn (and anything after it — there shouldn't
+        // be anything, but be defensive) so the UI doesn't show the stale
+        // answer while the new one streams in.
+        turns = Array(turns.prefix(lastUserIndex))
+
+        // Tear down the live agent and start it fresh so the JSONL resume
+        // gives Claude the same upstream context, minus the answer we just
+        // removed. `restart()` flips status back to `.idle` then `.starting`
+        // → `.ready` once the sidecar's `systemInit` lands.
+        await restart()
+
+        // Wait until the new agent is ready before resending. `restart()`
+        // returns after `start()` finishes its initial `await agent.start`,
+        // but the SDK still needs its first event to flip us to `.ready`.
+        // Poll with a short ceiling so we don't hang if the sidecar errors.
+        let readyDeadline = Date().addingTimeInterval(5)
+        while status != .ready && Date() < readyDeadline {
+            if case .error = status { return }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        guard status == .ready else { return }
+
+        try await agent.send(userText)
+        appendUserTurn(text: userText, optimistic: true)
+        status = .sending
+        persistTranscript()
+    }
+
     // MARK: - Event folding
 
     /// Drains the sidecar event stream into `turns`.
@@ -305,9 +369,60 @@ final class ChatViewModel {
             // Sidecar-internal frames handled by ClaudeAgent's watchdog.
             // The UI doesn't need to react.
             break
+        case .permissionRequest(let reqId, let toolName, _, let summary, let signature):
+            let req = PermissionRequest(
+                toolName: toolName,
+                toolInputSummary: summary,
+                signature: signature,
+                requestId: reqId
+            )
+            handlePermissionRequest(req)
         case .unknown:
             break
         }
+    }
+
+    // MARK: - G8 — Permission management
+
+    /// G8 — entry point for sidecar `permission_request` events. First
+    /// checks the persistent decision cache; on a hit, fires the
+    /// remembered allow/deny back to the sidecar without bothering the
+    /// user. On a miss, parks the request in `pendingPermission` so
+    /// `ChatView`'s `.sheet(item:)` materialises the modal.
+    func handlePermissionRequest(_ req: PermissionRequest) {
+        if let cached = DataStore.shared.shouldAutoApprove(
+            sessionPath: sessionPath,
+            toolName: req.toolName,
+            signature: req.signature
+        ) {
+            Task {
+                await agent.sendPermissionResponse(requestId: req.requestId, decision: cached)
+            }
+            return
+        }
+        pendingPermission = req
+    }
+
+    /// G8 — resolve the currently-pending modal with the user's pick.
+    /// Persists the choice when `remember == .always` so future
+    /// identical prompts (same session + tool + canonical input
+    /// signature) skip the modal entirely. Always clears
+    /// `pendingPermission` so the sheet dismisses cleanly.
+    func respondPermission(allow: Bool, remember: PermissionRemember) {
+        guard let req = pendingPermission else { return }
+        let action: PermissionAction = allow ? .allow : .deny
+        if remember == .always {
+            DataStore.shared.recordDecision(
+                sessionPath: sessionPath,
+                toolName: req.toolName,
+                signature: req.signature,
+                action: action
+            )
+        }
+        Task {
+            await agent.sendPermissionResponse(requestId: req.requestId, decision: action)
+        }
+        pendingPermission = nil
     }
 
     private func apply(_ msg: AgentMessage) {

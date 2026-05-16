@@ -152,6 +152,60 @@ async function runAgent() {
   // requested resume id so the first yielded user message carries it.
   let sessionId = args.resume;
 
+  // ── G8 — Permission prompt bridge ──────────────────────────────────
+  // The SDK's `canUseTool` callback (provided below) blocks the agent
+  // mid-tool-call and asks us whether the tool may run. We surface that
+  // to the Swift host as a `permission_request` event and park the
+  // pending promise in `pendingPermissions` keyed by request id. When
+  // Swift writes back `{type:"permission_response",...}` we resolve
+  // the promise with the SDK-shaped result.
+  const pendingPermissions = new Map();   // requestId -> { resolve }
+
+  // Stable signature over (toolName + canonicalised input). Canonical
+  // JSON sorts object keys so cosmetic re-orderings don't bust the
+  // cache key on the Swift side.
+  function permissionSignature(toolName, input) {
+    function canonical(v) {
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        const out = {};
+        for (const k of Object.keys(v).sort()) out[k] = canonical(v[k]);
+        return out;
+      }
+      if (Array.isArray(v)) return v.map(canonical);
+      return v;
+    }
+    const blob = JSON.stringify({ t: toolName, i: canonical(input ?? {}) });
+    // Cheap, deterministic FNV-1a 32-bit hash. Plenty for de-duping
+    // identical tool calls within a session; we don't need crypto here.
+    let h = 0x811c9dc5;
+    for (let i = 0; i < blob.length; i++) {
+      h ^= blob.charCodeAt(i);
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return h.toString(16).padStart(8, "0");
+  }
+
+  function summariseTool(toolName, input) {
+    const json = (() => { try { return JSON.stringify(input); } catch { return String(input); } })();
+    const trimmed = json.length > 200 ? json.slice(0, 200) + "…" : json;
+    return `${toolName}: ${trimmed}`;
+  }
+
+  function waitForPermissionResponse(requestId) {
+    return new Promise((resolve) => {
+      pendingPermissions.set(requestId, { resolve });
+      // 60s safety net: if Swift never answers, deny the tool so the
+      // SDK doesn't hang forever. The Swift watchdog will usually have
+      // torn us down before this fires, but defence-in-depth.
+      setTimeout(() => {
+        if (pendingPermissions.has(requestId)) {
+          pendingPermissions.delete(requestId);
+          resolve({ behavior: "deny", message: "permission prompt timed out (60s)" });
+        }
+      }, 60_000).unref();
+    });
+  }
+
   // ── Stdin pump → user message generator ────────────────────────────
   const stdinLines = createInterface({ input: stdin, crlfDelay: Infinity });
   const pendingMessages = [];
@@ -170,6 +224,17 @@ async function runAgent() {
       if (cmd?.type === "send" && typeof cmd.text === "string") {
         pendingMessages.push(cmd.text);
         resolveNext?.();
+      } else if (cmd?.type === "permission_response" && typeof cmd.request_id === "string") {
+        // G8 — resolve the matching canUseTool promise.
+        const pending = pendingPermissions.get(cmd.request_id);
+        if (pending) {
+          pendingPermissions.delete(cmd.request_id);
+          if (cmd.decision === "allow") {
+            pending.resolve({ behavior: "allow", updatedInput: cmd.updated_input ?? {} });
+          } else {
+            pending.resolve({ behavior: "deny", message: cmd.message || "User denied tool use" });
+          }
+        }
       } else {
         emit({ type: "error", message: "unknown command type: " + (cmd?.type ?? "<missing>") });
       }
@@ -232,6 +297,31 @@ async function runAgent() {
     // SDK requires explicit opt-in for bypass — match that here so the
     // Swift toggle "just works" when picked.
     options.allowDangerouslySkipPermissions = true;
+  }
+
+  // G8 — interactive permission bridge. The SDK calls this whenever a
+  // tool is about to run under a permission mode that requires user
+  // confirmation (i.e. anything other than `bypassPermissions` /
+  // `acceptEdits`). We emit a `permission_request` event, park a
+  // promise, and resolve it from the stdin pump when Swift writes back.
+  //
+  // Skipping registration when bypass is on saves the SDK a callback
+  // dispatch per tool call — bypass means "auto-allow", so there's
+  // nothing for us to do anyway.
+  if (options.permissionMode !== "bypassPermissions") {
+    options.canUseTool = async (toolName, toolInput /*, opts */) => {
+      const requestId = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+      const signature = permissionSignature(toolName, toolInput);
+      emit({
+        type: "permission_request",
+        request_id: requestId,
+        tool_name: toolName,
+        input: toolInput ?? {},
+        summary: summariseTool(toolName, toolInput),
+        signature,
+      });
+      return await waitForPermissionResponse(requestId);
+    };
   }
 
   // ── Run the query and forward events ───────────────────────────────

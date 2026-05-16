@@ -24,6 +24,25 @@ final class ChatTranscriptEntity {
     /// created by Sprint 4-A before this field existed.
     var enabledToolsJSON: Data? = nil
 
+    // MARK: - G2 — Conversation forking / branching
+    //
+    // All three fields are optional + default `nil` so existing rows
+    // upgrade in-place without a SwiftData migration. They describe the
+    // ancestry of a branch row:
+    //
+    //  * `parentSessionId` — the immediate parent we forked from (the
+    //    session the user was viewing when they hit "Branch from here").
+    //  * `branchOfSessionId` — the *root* session for the whole branch
+    //    tree, so we can group sibling branches under a single original
+    //    conversation even after multiple fork-of-a-fork hops.
+    //  * `branchLabel` — short human label shown in the branch list
+    //    (e.g. "Branch May 16 14:32"). `displayName` is reserved for the
+    //    chat's own title; we keep the label separate so renaming the
+    //    chat doesn't wipe the branch tag.
+    var parentSessionId: String? = nil
+    var branchOfSessionId: String? = nil
+    var branchLabel: String? = nil
+
     init(
         sessionPath: String,
         projectPath: String,

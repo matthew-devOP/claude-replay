@@ -5,7 +5,7 @@
 # user's per-version preservation request).
 #
 # Pipeline:
-#   1. read version from package.json
+#   1. read version from swift/project.yml (MARKETING_VERSION)
 #   2. build Node sidecar (swift/sidecar/build.sh) → Claude-MTW-Replay/Sidecar/
 #   3. xcodegen generate
 #   4. xcodebuild Release (universal arm64+x86_64)
@@ -19,7 +19,13 @@ SWIFT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_DIR="$(cd "$SWIFT_DIR/.." && pwd)"
 DIST_DIR="$SWIFT_DIR/dist"
 
-VERSION="$(node -p "require('$REPO_DIR/package.json').version")"
+# Single source of truth: MARKETING_VERSION in swift/project.yml.
+# Matches lines like:  MARKETING_VERSION: "1.0.0"
+VERSION="$(grep -E '^[[:space:]]*MARKETING_VERSION:' "$SWIFT_DIR/project.yml" | head -1 | awk -F'"' '{print $2}')"
+if [ -z "$VERSION" ]; then
+  echo "[dmg] ERROR: MARKETING_VERSION not found in $SWIFT_DIR/project.yml" >&2
+  exit 1
+fi
 DMG_NAME="Claude-MTW-Replay-$VERSION.dmg"
 DMG_PATH="$DIST_DIR/$DMG_NAME"
 

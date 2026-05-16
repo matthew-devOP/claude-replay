@@ -10,6 +10,8 @@ struct SettingsView: View {
     @AppStorage("autoRedactSecrets") private var autoRedact = true
     @AppStorage("toolGroupThreshold") private var toolGroupThreshold: Int = 5
     @AppStorage("defaultOGImageURL") private var defaultOGImageURL: String = ""
+    @AppStorage("telemetryOptIn") private var telemetryOptIn: Bool = false
+    @AppStorage("telemetryAnonymousId") private var anonymousId: String = ""
 
     @State private var nodePath: String? = SettingsView.resolve { try SidecarLocator.nodeBinary() }
     @State private var claudePath: String? = SettingsView.resolve { try SidecarLocator.claudeBinary() }
@@ -83,6 +85,21 @@ struct SettingsView: View {
                     Spacer()
                 }
             }
+            Section("Privacy & Diagnostics") {
+                Toggle("Send anonymous usage statistics", isOn: telemetryBinding)
+                    .help("Tracks tab switches, export clicks, and chat starts to help us improve the app. No content or identifying data is sent.")
+                LabeledContent("Anonymous ID") {
+                    Text(anonymousIdLabel).font(.caption).foregroundStyle(.secondary)
+                }
+                LabeledContent("Crash reporting") {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                        Text("MetricKit active (system-managed)")
+                    }
+                }
+                Text("View privacy policy at https://es617.github.io/claude-mtw-replay/privacy")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Sidecar") {
                 LabeledContent("Node binary") {
                     HStack(spacing: 8) {
@@ -149,6 +166,15 @@ struct SettingsView: View {
 
     private static func resolve(_ block: () throws -> URL) -> String? {
         (try? block())?.path
+    }
+
+    // MARK: - Privacy & Diagnostics helpers
+
+    private var telemetryBinding: Binding<Bool> {
+        Binding(get: { telemetryOptIn }, set: { telemetryOptIn = $0 })
+    }
+    private var anonymousIdLabel: String {
+        anonymousId.isEmpty ? "(not yet generated)" : "\(anonymousId.prefix(8))…"
     }
 
     // MARK: - Custom theme actions

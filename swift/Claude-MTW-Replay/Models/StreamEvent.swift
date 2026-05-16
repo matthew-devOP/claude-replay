@@ -30,6 +30,21 @@ enum StreamEvent: Equatable, Sendable {
     case error(message: String)
     /// Sidecar process is shutting down; `code` mirrors the process exit code.
     case exit(code: Int)
+    /// G8 — interactive permission prompt from the sidecar's `canUseTool`
+    /// callback. The Swift side must surface a modal and call
+    /// `ClaudeAgent.sendPermissionResponse(...)` with the user's pick so
+    /// the SDK's pending promise resolves and the tool either runs or is
+    /// denied. `input` is a flattened string→string view of the original
+    /// tool input (deep-nested values are JSON-stringified) for display
+    /// purposes; the signature carries the canonical hash used for
+    /// auto-approval matching.
+    case permissionRequest(
+        requestId: String,
+        toolName: String,
+        input: [String: String],
+        summary: String,
+        signature: String
+    )
     /// Catch-all so unknown events never abort the read loop.
     case unknown(raw: String)
 }
@@ -153,6 +168,30 @@ extension StreamEvent {
             return .error(message: object["message"] as? String ?? "")
         case "exit":
             return .exit(code: object["code"] as? Int ?? 0)
+        case "permission_request":
+            let requestId = object["request_id"] as? String ?? ""
+            let toolName = object["tool_name"] as? String ?? ""
+            let summary = object["summary"] as? String ?? ""
+            let signature = object["signature"] as? String ?? ""
+            var flat: [String: String] = [:]
+            if let dict = object["input"] as? [String: Any] {
+                for (k, v) in dict {
+                    if let s = v as? String { flat[k] = s }
+                    else if let data = try? JSONSerialization.data(withJSONObject: v),
+                            let s = String(data: data, encoding: .utf8) {
+                        flat[k] = s
+                    } else {
+                        flat[k] = String(describing: v)
+                    }
+                }
+            }
+            return .permissionRequest(
+                requestId: requestId,
+                toolName: toolName,
+                input: flat,
+                summary: summary,
+                signature: signature
+            )
         default:
             return .unknown(raw: trimmed)
         }

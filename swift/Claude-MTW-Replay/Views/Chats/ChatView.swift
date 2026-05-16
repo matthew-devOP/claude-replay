@@ -22,6 +22,10 @@ struct ChatView: View {
     @State private var exportVM = ExportViewModel()
     /// G5 — controls the system-prompt sheet presentation.
     @State private var showPromptSheet: Bool = false
+    /// G13 — tracks which turn the cursor is hovering so the
+    /// "Regenerate" button only materialises on the last assistant turn
+    /// when the user actually points at it.
+    @State private var hoveredTurnId: UUID?
 
     init(sessionPath: String, projectPath: String) {
         _vm = State(wrappedValue: ChatViewModel(sessionPath: sessionPath, projectPath: projectPath))
@@ -42,6 +46,17 @@ struct ChatView: View {
         }
         .sheet(isPresented: $showPromptSheet) {
             SystemPromptSheet(vm: vm)
+        }
+        // G8 — interactive permission prompt. `PermissionRequest` is
+        // Identifiable, so `.sheet(item:)` re-fires when a new request
+        // lands and dismisses automatically once the user picks.
+        .sheet(item: Binding(
+            get: { vm.pendingPermission },
+            set: { vm.pendingPermission = $0 }
+        )) { request in
+            PermissionAlertView(request: request) { allow, remember in
+                vm.respondPermission(allow: allow, remember: remember)
+            }
         }
     }
 
@@ -168,6 +183,26 @@ struct ChatView: View {
                         TranscriptTurnView(turn: turn)
                             .id(turn.id)
                             .padding(.horizontal, 20)
+                            .overlay(alignment: .bottomTrailing) {
+                                regenerateButton(for: turn)
+                            }
+                            .onHover { hovering in
+                                hoveredTurnId = hovering ? turn.id : (hoveredTurnId == turn.id ? nil : hoveredTurnId)
+                            }
+                            // G2 — "Branch from here" context menu. Only
+                            // surfaces on turns that actually contain a
+                            // user prompt; assistant-only placeholders
+                            // (Claude speaking first, regen pending, …)
+                            // can't be a meaningful fork anchor.
+                            .contextMenu {
+                                if !turn.userText.isEmpty {
+                                    Button {
+                                        Task { await branchFrom(turnIndex: turn.index) }
+                                    } label: {
+                                        Label("Branch from here", systemImage: "arrow.triangle.branch")
+                                    }
+                                }
+                            }
                     }
                     if vm.status == .sending {
                         HStack(spacing: 6) {
@@ -205,6 +240,42 @@ struct ChatView: View {
         }
     }
 
+    // MARK: - G13 — Regenerate
+
+    /// True for the last turn that has any assistant content. We treat
+    /// "last assistant turn" as "last turn whose `blocks` is non-empty"
+    /// because the `Turn` model fuses the user prompt and the assistant
+    /// reply onto a single row (see `Models/Turn.swift`).
+    private func isLastAssistantTurn(_ turn: Turn) -> Bool {
+        guard let lastWithBlocks = vm.turns.last(where: { !$0.blocks.isEmpty }) else {
+            return false
+        }
+        return lastWithBlocks.id == turn.id
+    }
+
+    /// Floating "Regenerate" hover affordance. Only renders for the most
+    /// recent assistant turn and only while the agent isn't currently
+    /// streaming a reply (firing it mid-stream would race the wire).
+    @ViewBuilder
+    private func regenerateButton(for turn: Turn) -> some View {
+        if isLastAssistantTurn(turn), vm.status != .sending, vm.status != .starting {
+            Button {
+                Task { try? await vm.regenerateLastTurn() }
+            } label: {
+                Label("Regenerate", systemImage: "arrow.clockwise")
+                    .labelStyle(.iconOnly)
+                    .padding(6)
+                    .background(.regularMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Regenerate this response")
+            .padding(.trailing, 24)
+            .padding(.bottom, 4)
+            .opacity(hoveredTurnId == turn.id ? 1 : 0)
+            .animation(.easeInOut(duration: 0.15), value: hoveredTurnId)
+        }
+    }
+
     // MARK: - Export
 
     /// Spawn an export of the current chat in the chosen format. Reuses
@@ -219,6 +290,23 @@ struct ChatView: View {
         options.title = sessionName
         Task {
             await exportVM.export(turns: vm.turns, options: options)
+        }
+    }
+
+    // MARK: - G2 — Branching
+
+    /// Fork the current chat at `turnIndex` and navigate to the new
+    /// session. The DataStore call duplicates the JSONL, registers a
+    /// branch row in SwiftData, and hands us back the path. We then
+    /// route through `AppState.selectSession` which jumps the UI to the
+    /// Replay tab focused on the branch — from there the user can hit
+    /// "Continue (live)" to resume the conversation in Chats.
+    private func branchFrom(turnIndex: Int) async {
+        do {
+            let newPath = try await vm.forkFromTurn(turnIndex)
+            appState.selectSession(newPath)
+        } catch {
+            print("[ChatView] fork failed:", error)
         }
     }
 }

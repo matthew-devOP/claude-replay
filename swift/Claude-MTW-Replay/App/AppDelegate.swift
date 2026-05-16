@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
             statusItemController.install()
+            CrashReporter.shared.start()
+            Telemetry.shared.record(.appLaunched)
         }
     }
 
