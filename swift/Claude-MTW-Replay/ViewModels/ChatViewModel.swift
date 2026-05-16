@@ -57,11 +57,33 @@ final class ChatViewModel {
     var permissionMode: String = "default"
     /// Verbose toggle — passes `--partial-messages` to the sidecar.
     var verbose: Bool = false
-    /// Tool allow-list (comma-separated). `nil` = SDK default.
-    var allowedTools: String? = nil
+    /// G6 — explicit per-session tool allow-list. Defaults to the picker's
+    /// curated set; the user can toggle individual tools via
+    /// `ChatToolPickerView`. The value is mirrored into
+    /// `StartOptions.allowedTools` on every respawn.
+    var enabledTools: Set<String> = Set(ChatToolPickerView.defaultTools)
+
+    /// G4 — picked model id (e.g. "claude-opus-4-7"). `nil` = SDK default.
+    var selectedModel: String? = nil
+    /// G5 — user-supplied system-prompt override appended to the SDK
+    /// default. `nil`/empty = SDK default only.
+    var systemPromptOverride: String? = nil
+    /// G5 — whether to inject CLAUDE.md context. Reserved for the sidecar
+    /// once it grows context-injection support; today it's a UI hint that
+    /// rides along with `respawnWithNewOptions()`.
+    var includeClaudeMd: Bool = true
+    /// G5 — whether to inject MEMORY.md context. Same status as above.
+    var includeMemoryMd: Bool = true
 
     /// User-typed message in the input bar.
     var inputDraft: String = ""
+
+    /// G9/G10 — files staged via drag-drop on the input bar. Capped
+    /// at 5 to keep the outbound prompt manageable; text/code is
+    /// inlined as fenced blocks in `send()`, images are referenced by
+    /// path for now (a future sprint will switch to image_url blocks
+    /// once the sidecar protocol supports them).
+    var pendingAttachments: [ChatAttachment] = []
 
     // MARK: - Private
 
@@ -109,15 +131,20 @@ final class ChatViewModel {
                     .appendingPathComponent(dir)
                 env["CLAUDE_CONFIG_DIR"] = expanded
             }
-            let opts = ClaudeAgent.StartOptions(
+            var opts = ClaudeAgent.StartOptions(
                 sessionPath: sessionPath,
                 workingDirectory: URL(fileURLWithPath: projectPath),
                 permissionMode: permissionMode,
-                allowedTools: allowedTools,
+                allowedTools: Array(enabledTools).sorted(),
                 includePartialMessages: verbose,
                 skeleton: false,
                 env: env
             )
+            // G4/G5 — forward user-picked model and system-prompt override.
+            opts.model = selectedModel
+            opts.customSystemPrompt = systemPromptOverride
+            // G6 — record the chosen tool set so it survives app restarts.
+            persistEnabledTools()
             let stream = try await agent.start(options: opts)
             status = .ready
             streamTask = Task { [weak self] in await self?.consume(stream) }
@@ -127,20 +154,87 @@ final class ChatViewModel {
     }
 
     /// Send the current `inputDraft` to the agent (clears the field on success).
+    ///
+    /// G9/G10 — if any `pendingAttachments` are staged, their contents are
+    /// folded into the outbound prompt: text/code is inlined as fenced
+    /// blocks (capped at 64 KB each) and images/PDFs/other are referenced
+    /// by absolute path. The pending list is cleared on a successful send.
     func send() async {
-        let text = inputDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, status == .ready || status == .sending else { return }
+        let typed = inputDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let attachmentBlock = renderAttachmentsBlock()
+        let composed: String
+        if attachmentBlock.isEmpty {
+            composed = typed
+        } else if typed.isEmpty {
+            composed = attachmentBlock
+        } else {
+            composed = typed + "\n\n" + attachmentBlock
+        }
+        guard !composed.isEmpty, status == .ready || status == .sending else { return }
         do {
-            try await agent.send(text)
+            try await agent.send(composed)
             // Optimistically append a user turn so the UI feels instant; the
             // SDK will echo it back as `userMessage` and we'll reconcile.
-            appendUserTurn(text: text, optimistic: true)
+            appendUserTurn(text: composed, optimistic: true)
             inputDraft = ""
+            pendingAttachments.removeAll()
             status = .sending
             persistTranscript()
         } catch {
             status = .error(error.localizedDescription)
         }
+    }
+
+    // MARK: - G9/G10 — attachments
+
+    /// Append `a` to the pending list, up to a soft cap of 5 entries.
+    /// Drops past-cap items silently — the chip bar gives the user
+    /// enough visual feedback that the drop didn't take.
+    func addAttachment(_ a: ChatAttachment) {
+        guard pendingAttachments.count < 5 else { return }
+        pendingAttachments.append(a)
+    }
+
+    /// Remove the chip with the matching id. Stable across re-renders
+    /// because `ChatAttachment.id` is a UUID baked in at construction.
+    func removeAttachment(_ a: ChatAttachment) {
+        pendingAttachments.removeAll { $0.id == a.id }
+    }
+
+    /// Build the fenced/inlined representation of all pending
+    /// attachments. Empty string when nothing is staged.
+    private func renderAttachmentsBlock() -> String {
+        guard !pendingAttachments.isEmpty else { return "" }
+        let maxBytes = 64 * 1024
+        var parts: [String] = []
+        for att in pendingAttachments {
+            switch att.kind {
+            case .code(let lang):
+                var body = (try? String(contentsOf: att.url, encoding: .utf8)) ?? ""
+                if body.count > maxBytes {
+                    body = String(body.prefix(maxBytes)) + "\n…(truncated)"
+                }
+                let fence = lang ?? ""
+                parts.append("@\(att.url.path):\n```\(fence)\n\(body)\n```")
+            case .text:
+                var body = (try? String(contentsOf: att.url, encoding: .utf8)) ?? ""
+                if body.count > maxBytes {
+                    body = String(body.prefix(maxBytes)) + "\n…(truncated)"
+                }
+                parts.append("@\(att.url.path):\n```\n\(body)\n```")
+            case .image:
+                // TODO: switch to an image_url block once the sidecar
+                // protocol gains binary-attachment support. For now we
+                // hand Claude the path so it can use `Read`/`Bash` to
+                // inspect the file itself.
+                parts.append("[image attachment: \(att.url.path)]")
+            case .pdf:
+                parts.append("[pdf attachment: \(att.url.path)]")
+            case .other:
+                parts.append("[file attachment: \(att.url.path)]")
+            }
+        }
+        return parts.joined(separator: "\n\n")
     }
 
     /// Cancel the in-flight turn (Esc).
@@ -173,6 +267,15 @@ final class ChatViewModel {
         await start()
     }
 
+    /// G4/G5 — public hook used by the model picker and system-prompt
+    /// sheet. Same restart contract as `changeMode` / `setVerbose` but
+    /// driven by `selectedModel` / `systemPromptOverride` already being
+    /// mutated by the caller. Keeps `sessionPath` / `projectPath` /
+    /// `accountDir` (they're stored properties).
+    func respawnWithNewOptions() async {
+        await restart()
+    }
+
     // MARK: - Event folding
 
     /// Drains the sidecar event stream into `turns`.
@@ -198,6 +301,10 @@ final class ChatViewModel {
             status = .error(m)
         case .exit:
             status = .idle
+        case .hello, .heartbeat, .log:
+            // Sidecar-internal frames handled by ClaudeAgent's watchdog.
+            // The UI doesn't need to react.
+            break
         case .unknown:
             break
         }
@@ -367,6 +474,17 @@ final class ChatViewModel {
                 print("[ChatVM] persist failed:", error)
             }
         }
+    }
+
+    /// G6 — write the current `enabledTools` set to SwiftData so the
+    /// next time this session opens we restore the user's choice. Cheap
+    /// enough to call from `start()` directly — it's a tiny JSON blob and
+    /// SwiftData's main-actor context dedupes on `sessionPath`.
+    private func persistEnabledTools() {
+        let sPath = sessionPath
+        let snapshot = Array(enabledTools).sorted()
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        DataStore.shared.setEnabledTools(sessionPath: sPath, toolsJSON: data)
     }
 
     /// Extract the `.claude*` account dir from a session path of shape

@@ -201,6 +201,36 @@ final class DataStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    /// G6 — write/overwrite the enabled-tools list for a session. We
+    /// upsert a stub entity if no transcript row exists yet so the user's
+    /// pick survives even when they close the chat before sending a
+    /// turn (which is when `upsertChatTranscript` normally creates the
+    /// row). Caller passes pre-encoded JSON to keep the layer Codable-
+    /// agnostic, mirroring how `turnsJSON` is handled above.
+    func setEnabledTools(sessionPath: String, toolsJSON: Data) {
+        let descriptor = FetchDescriptor<ChatTranscriptEntity>(
+            predicate: #Predicate { $0.sessionPath == sessionPath }
+        )
+        if let existing = try? context.fetch(descriptor).first {
+            existing.enabledToolsJSON = toolsJSON
+            existing.lastUpdated = .now
+        } else {
+            // No transcript yet — drop a minimal placeholder so the
+            // setting still persists. `upsertChatTranscript` later fills
+            // in the real fields.
+            let entity = ChatTranscriptEntity(
+                sessionPath: sessionPath,
+                projectPath: "",
+                accountDir: "",
+                turnsJSON: Data("[]".utf8),
+                lastUpdated: .now,
+                enabledToolsJSON: toolsJSON
+            )
+            context.insert(entity)
+        }
+        try? context.save()
+    }
+
     func deleteChatTranscript(sessionPath: String) {
         let descriptor = FetchDescriptor<ChatTranscriptEntity>(
             predicate: #Predicate { $0.sessionPath == sessionPath }

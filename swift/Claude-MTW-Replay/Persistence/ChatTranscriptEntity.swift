@@ -18,6 +18,11 @@ final class ChatTranscriptEntity {
     var costUsd: Double
     var model: String?
     var displayName: String?
+    /// G6 — JSON-encoded `[String]` of tools the user enabled for this
+    /// session. `nil` means "never customised; use the picker default".
+    /// Optional + default `nil` to stay schema-compatible with rows
+    /// created by Sprint 4-A before this field existed.
+    var enabledToolsJSON: Data? = nil
 
     init(
         sessionPath: String,
@@ -27,7 +32,8 @@ final class ChatTranscriptEntity {
         lastUpdated: Date = .now,
         costUsd: Double = 0,
         model: String? = nil,
-        displayName: String? = nil
+        displayName: String? = nil,
+        enabledToolsJSON: Data? = nil
     ) {
         self.sessionPath = sessionPath
         self.projectPath = projectPath
@@ -37,5 +43,6 @@ final class ChatTranscriptEntity {
         self.costUsd = costUsd
         self.model = model
         self.displayName = displayName
+        self.enabledToolsJSON = enabledToolsJSON
     }
 }

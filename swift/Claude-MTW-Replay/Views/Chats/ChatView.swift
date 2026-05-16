@@ -20,6 +20,8 @@ struct ChatView: View {
     @State private var vm: ChatViewModel
     @State private var lastTurnId: UUID?
     @State private var exportVM = ExportViewModel()
+    /// G5 — controls the system-prompt sheet presentation.
+    @State private var showPromptSheet: Bool = false
 
     init(sessionPath: String, projectPath: String) {
         _vm = State(wrappedValue: ChatViewModel(sessionPath: sessionPath, projectPath: projectPath))
@@ -37,6 +39,9 @@ struct ChatView: View {
         .task { await vm.start() }
         .onDisappear {
             Task { await vm.cancel() }
+        }
+        .sheet(isPresented: $showPromptSheet) {
+            SystemPromptSheet(vm: vm)
         }
     }
 
@@ -58,6 +63,18 @@ struct ChatView: View {
                     .lineLimit(1)
             }
             Spacer()
+            // G4 — model picker (respawns sidecar on change).
+            ChatModelPickerView(selected: $vm.selectedModel) {
+                Task { await vm.respawnWithNewOptions() }
+            }
+            // G5 — system-prompt override sheet trigger.
+            Button {
+                showPromptSheet = true
+            } label: {
+                Label("System Prompt", systemImage: "text.bubble")
+            }
+            .buttonStyle(.borderless)
+            .help("Edit the per-conversation system prompt override")
             statusChip
             Text(String(format: "$%.4f", vm.cumulativeCostUsd))
                 .font(.caption.monospaced())
@@ -68,6 +85,11 @@ struct ChatView: View {
                 .foregroundStyle(.secondary)
                 .help("Cost of the last assistant turn")
             tokenChips
+            // G6 — per-session tool allow-list picker. Toggling any item
+            // respawns the agent so the new --allowed-tools list applies.
+            ChatToolPickerView(enabled: $vm.enabledTools) {
+                Task { await vm.respawnWithNewOptions() }
+            }
             Menu {
                 Button("Export as HTML…") { exportChat(format: .html) }
                 Button("Export as Markdown…") { exportChat(format: .markdown) }

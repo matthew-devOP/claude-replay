@@ -17,13 +17,73 @@ struct ChatInputBarView: View {
     @FocusState private var inputFocused: Bool
     @State private var shellPrompt: String = ""
     @State private var showingShellSheet = false
+    /// G9 — true while the user is dragging a file over the input
+    /// container. Drives the accent-coloured drop overlay.
+    @State private var isDropTargeted: Bool = false
+    /// G10 — non-nil when the preview sheet is open for an attachment.
+    @State private var previewing: ChatAttachment? = nil
+    /// G7 — discovered slash commands (project + user level), refreshed
+    /// on appear. Cheap enough that we don't bother watching for changes.
+    @State private var slashCommands: [SlashCommand] = []
+    /// G7 — non-nil when the draft starts with `/` and has no whitespace;
+    /// drives the dropdown picker overlay above the input row.
+    @State private var slashFilter: String? = nil
 
     var body: some View {
         VStack(spacing: 8) {
+            attachmentBar
             controlsRow
             inputRow
         }
         .padding(12)
+        .onAppear {
+            slashCommands = SlashCommandService.discover(
+                projectPath: vm.projectPath,
+                claudeAccountDir: appState.claudeAccountDir
+            )
+        }
+        .onChange(of: vm.inputDraft) { _, newValue in
+            // Activate the slash picker only while the draft is a single
+            // token starting with `/` — once the user types a space (i.e.
+            // begins writing arguments) we get out of the way.
+            if newValue.hasPrefix("/") && !newValue.contains(" ") && !newValue.contains("\n") {
+                slashFilter = String(newValue.dropFirst())
+            } else {
+                slashFilter = nil
+            }
+        }
+        .overlay {
+            if isDropTargeted {
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.accentColor, lineWidth: 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.accentColor.opacity(0.1))
+                    )
+                    .overlay(
+                        Text("Drop file(s) to attach")
+                            .foregroundStyle(.white)
+                            .bold()
+                    )
+                    .allowsHitTesting(false)
+            }
+        }
+        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+            // Cap to 5 dropped items to match the VM's max-attachment policy.
+            for provider in providers.prefix(5) {
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    if let url {
+                        Task { @MainActor in
+                            vm.addAttachment(ChatAttachment.from(url: url))
+                        }
+                    }
+                }
+            }
+            return true
+        }
+        .sheet(item: $previewing) { att in
+            ChatAttachmentPreviewSheet(attachment: att)
+        }
         .sheet(isPresented: $showingShellSheet) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Run shell command")
@@ -54,6 +114,31 @@ struct ChatInputBarView: View {
         guard !cmd.isEmpty else { return }
         showingShellSheet = false
         runShellAndInline(cmd)
+    }
+
+    // MARK: - Attachment bar (G9/G10)
+
+    /// Horizontal strip of `ChatAttachmentChip`s shown above the
+    /// controls row when the user has staged any files. Hidden when
+    /// the pending list is empty so the input bar keeps its compact
+    /// resting height.
+    @ViewBuilder
+    private var attachmentBar: some View {
+        if !vm.pendingAttachments.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(vm.pendingAttachments) { att in
+                        ChatAttachmentChip(attachment: att) {
+                            vm.removeAttachment(att)
+                        } onTap: {
+                            previewing = att
+                        }
+                    }
+                }
+                .padding(.horizontal, 2)
+            }
+            .frame(height: 36)
+        }
     }
 
     // MARK: - Controls row (mode + prefix + verbose)
@@ -187,6 +272,22 @@ struct ChatInputBarView: View {
 
             sendOrStopButton
         }
+        .overlay(alignment: .topLeading) {
+            if slashFilter != nil {
+                SlashCommandPickerView(
+                    commands: slashCommands,
+                    filter: slashFilter ?? ""
+                ) { cmd in
+                    // Replace the draft with the expanded command body.
+                    // `$ARGUMENTS` is currently empty — future work could
+                    // pipe trailing tokens from `/cmd foo bar` through.
+                    vm.inputDraft = cmd.expanded(args: "")
+                    slashFilter = nil
+                    inputFocused = true
+                }
+                .offset(y: -200) // float above the input row
+            }
+        }
     }
 
     @ViewBuilder
@@ -211,14 +312,19 @@ struct ChatInputBarView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .tint(appState.theme.accent)
-            .disabled(vm.inputDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(
+                vm.inputDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && vm.pendingAttachments.isEmpty
+            )
             .keyboardShortcut(.return, modifiers: .command)
             .help("Send (Cmd+Return)")
         }
     }
 
     private func trySubmit() {
-        guard !vm.inputDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let hasText = !vm.inputDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasAttachments = !vm.pendingAttachments.isEmpty
+        guard hasText || hasAttachments else { return }
         Task { await vm.send() }
     }
 }

@@ -22,7 +22,11 @@ actor ClaudeAgent {
         var sessionPath: String          // ~/.claude/projects/<dir>/<sid>.jsonl
         var workingDirectory: URL        // real project path (--cwd for the SDK)
         var permissionMode: String       // "default" | "plan" | "acceptEdits" | …
-        var allowedTools: String?        // comma-separated, or nil for SDK default
+        /// G6 — explicit tool allow-list. `nil` = SDK default (everything).
+        /// An empty array sandboxes the agent to zero tools.
+        var allowedTools: [String]? = nil
+        /// G6 — tool deny-list. Wins over `allowedTools` per SDK semantics.
+        var disallowedTools: [String]? = nil
         var includePartialMessages: Bool // verbose toggle
         var skeleton: Bool               // step 4 path: bypass SDK, just echo
         /// Extra environment variables to layer over the inherited PATH/etc.
@@ -30,6 +34,11 @@ actor ClaudeAgent {
         /// right account dir (`~/.claude`, `~/.claude-yahoo`, …) when
         /// multi-account is in play.
         var env: [String: String] = [:]
+        /// G4 — SDK model id (e.g. "claude-opus-4-7"). `nil` = SDK default.
+        var model: String? = nil
+        /// G5 — appended to the SDK's default system prompt for this
+        /// session. `nil` = SDK default only.
+        var customSystemPrompt: String? = nil
     }
 
     enum AgentError: LocalizedError {
@@ -49,6 +58,25 @@ actor ClaudeAgent {
     private var stdinPipe: Pipe?
     private var continuation: AsyncThrowingStream<StreamEvent, Error>.Continuation?
     private var readerTask: Task<Void, Never>?
+
+    /// Set true once we've received a `hello` frame with a protocol version
+    /// we understand. Until then, agent_event frames are still forwarded
+    /// (we don't gate them) but the watchdog won't kill the process for
+    /// missing heartbeats — sidecar boot can take a beat under load.
+    private var protocolValidated: Bool = false
+
+    /// Last time we observed a heartbeat (or hello/ready). The watchdog
+    /// compares against `Date.now` and tears the sidecar down if it falls
+    /// behind by more than 90 s.
+    private var lastHeartbeat: Date = .now
+
+    /// Background task that polls `lastHeartbeat` and triggers `stop()`
+    /// if the sidecar appears wedged.
+    private var watchdogTask: Task<Void, Never>?
+
+    /// Expected sidecar protocol version. Bump in lock-step with
+    /// `PROTOCOL_VERSION` in `sidecar.js` if/when the wire format breaks.
+    private static let expectedProtocolVersion = "1"
 
     /// Returns `true` if the process is currently running.
     var isRunning: Bool { process?.isRunning == true }
@@ -99,6 +127,9 @@ actor ClaudeAgent {
 
         self.process = proc
         self.stdinPipe = stdin
+        self.lastHeartbeat = .now
+        self.protocolValidated = false
+        startHeartbeatWatchdog()
 
         // stdout reader — line-buffered, parses each line, yields events.
         // Detached so `start(...)` returns the stream immediately while the
@@ -152,9 +183,41 @@ actor ClaudeAgent {
         // If it survived terminate() too, cancellation will hit on the
         // detached reader and we'll still finish() the stream.
         readerTask?.cancel()
+        watchdogTask?.cancel()
+        watchdogTask = nil
         finishStream()
         process = nil
         stdinPipe = nil
+    }
+
+    /// Spawn a heartbeat watchdog. Polls every 45 s; if no heartbeat has
+    /// arrived in 90 s the sidecar is assumed wedged and torn down. The
+    /// reader task will then propagate the EOF to consumers.
+    private func startHeartbeatWatchdog() {
+        watchdogTask?.cancel()
+        watchdogTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 45_000_000_000)
+                guard let self else { return }
+                let stale = await self.heartbeatIsStale(thresholdSeconds: 90)
+                if stale {
+                    await self.handleWatchdogTimeout()
+                    break
+                }
+            }
+        }
+    }
+
+    private func heartbeatIsStale(thresholdSeconds: TimeInterval) -> Bool {
+        guard isRunning else { return false }
+        return Date.now.timeIntervalSince(lastHeartbeat) > thresholdSeconds
+    }
+
+    private func handleWatchdogTimeout() async {
+        // Surface the timeout so consumers see it before the stream finishes.
+        let msg = "sidecar heartbeat lost — killing process"
+        continuation?.yield(.error(message: msg))
+        await stop()
     }
 
     // MARK: - Private
@@ -172,16 +235,54 @@ actor ClaudeAgent {
         args += ["--resume", sid]
         args += ["--cwd", options.workingDirectory.path]
         args += ["--permission-mode", options.permissionMode]
-        if let tools = options.allowedTools, !tools.isEmpty {
-            args += ["--allowed-tools", tools]
+        // G6 — forward allow/deny lists as comma-separated argv. Empty
+        // allow-list still goes through so the sidecar sandboxes the
+        // agent (vs. `nil` which means "SDK default = everything").
+        if let tools = options.allowedTools {
+            args += ["--allowed-tools", tools.joined(separator: ",")]
+        }
+        if let tools = options.disallowedTools, !tools.isEmpty {
+            args += ["--disallowed-tools", tools.joined(separator: ",")]
         }
         if options.includePartialMessages {
             args += ["--partial-messages"]
+        }
+        if let model = options.model, !model.isEmpty {
+            args += ["--model", model]
+        }
+        if let prompt = options.customSystemPrompt, !prompt.isEmpty {
+            args += ["--custom-system-prompt", prompt]
         }
         return args
     }
 
     private func yield(_ event: StreamEvent) {
+        // Intercept sidecar-internal events for liveness/protocol bookkeeping
+        // before forwarding to consumers. We still forward each event so
+        // tests and verbose UI can observe them; we just side-effect first.
+        switch event {
+        case .hello(let proto, _, _):
+            lastHeartbeat = .now
+            if proto == Self.expectedProtocolVersion {
+                protocolValidated = true
+            } else {
+                let msg = "sidecar protocol mismatch: expected \(Self.expectedProtocolVersion), got \"\(proto)\""
+                continuation?.yield(.error(message: msg))
+                continuation?.yield(.exit(code: 1))
+                finishStream()
+                // Tear the process down; the reader task will hit EOF.
+                Task { await self.stop() }
+                return
+            }
+        case .heartbeat(let ts):
+            lastHeartbeat = ts
+        case .log:
+            // No-op for now; the event is still forwarded so the UI / tests
+            // can decide to surface it. Future: bridge to OSLog.
+            break
+        default:
+            break
+        }
         continuation?.yield(event)
         if case .exit = event {
             finishStream()

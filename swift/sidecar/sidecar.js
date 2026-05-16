@@ -30,6 +30,46 @@
 import { createInterface } from "node:readline";
 import { stdin, stdout, stderr, argv, exit } from "node:process";
 
+// ─── Protocol versioning + hello handshake ──────────────────────────────
+// Emit a `hello` frame first thing so the Swift host can validate the
+// wire-protocol version before sending any commands. Keep this BEFORE
+// any other I/O so receivers always see it as line #1.
+
+const PROTOCOL_VERSION = "1";
+const SIDECAR_VERSION = "0.8.1";
+
+function send(obj) {
+  stdout.write(JSON.stringify(obj) + "\n");
+}
+
+send({ type: "hello", protocol: PROTOCOL_VERSION, version: SIDECAR_VERSION, pid: process.pid });
+
+// ─── Structured logging ─────────────────────────────────────────────────
+// Routes all diagnostic output through the stdout JSONL channel so the
+// Swift wrapper can surface it as typed log events. Levels: debug | info
+// | warn | error.
+
+function log(level, msg, meta = null) {
+  const entry = { type: "log", level, msg };
+  if (meta) entry.meta = meta;
+  send(entry);
+}
+
+// ─── Heartbeat ──────────────────────────────────────────────────────────
+// Periodic liveness ping so the Swift watchdog can detect a zombied
+// sidecar (event loop alive but stuck). `unref()` so the timer never
+// keeps the process alive on its own.
+
+const HEARTBEAT_MS = 30_000;
+const heartbeatTimer = setInterval(() => {
+  send({ type: "heartbeat", ts: Date.now() });
+}, HEARTBEAT_MS);
+heartbeatTimer.unref();
+
+function stopHeartbeat() {
+  clearInterval(heartbeatTimer);
+}
+
 // ─── Argv ───────────────────────────────────────────────────────────────
 
 function parseArgs(rawArgs) {
@@ -42,6 +82,9 @@ function parseArgs(rawArgs) {
     else if (a === "--cwd")           args.cwd = rawArgs[++i];
     else if (a === "--permission-mode") args.permissionMode = rawArgs[++i];
     else if (a === "--allowed-tools") args.allowedTools = rawArgs[++i];
+    else if (a === "--disallowed-tools") args.disallowedTools = rawArgs[++i];
+    else if (a === "--model")         args.model = rawArgs[++i];
+    else if (a === "--custom-system-prompt") args.customSystemPrompt = rawArgs[++i];
   }
   return args;
 }
@@ -49,14 +92,19 @@ function parseArgs(rawArgs) {
 const args = parseArgs(argv.slice(2));
 
 // ─── stdout helpers ─────────────────────────────────────────────────────
+// `emit` is a thin alias over `send` (declared above so `hello` can fire
+// before parseArgs). Keeping the name so the rest of the file reads the
+// same as it did before the versioning rework.
 
 function emit(obj) {
-  stdout.write(JSON.stringify(obj) + "\n");
+  send(obj);
 }
 
 function fatal(message, code = 1) {
+  log("error", message);
   emit({ type: "error", message });
   emit({ type: "exit", code });
+  stopHeartbeat();
   exit(code);
 }
 
@@ -77,6 +125,7 @@ async function runSkeleton() {
     else emit({ type: "error", message: "unknown command type: " + (cmd?.type ?? "<missing>") });
   }
   emit({ type: "exit", code: 0 });
+  stopHeartbeat();
 }
 
 // ─── Real agent mode ────────────────────────────────────────────────────
@@ -127,7 +176,10 @@ async function runAgent() {
     }
     stdinClosed = true;
     resolveNext?.();
-  })().catch((err) => emit({ type: "error", message: "stdin pump: " + (err?.stack ?? err) }));
+  })().catch((err) => {
+    log("error", "stdin pump failed", { stack: err?.stack ?? String(err) });
+    emit({ type: "error", message: "stdin pump: " + (err?.stack ?? err) });
+  });
 
   async function* userMessages() {
     while (true) {
@@ -155,8 +207,26 @@ async function runAgent() {
     permissionMode: args.permissionMode || "default",
     includePartialMessages: !!args.partialMessages,
   };
-  if (args.allowedTools) {
+  // G6 — explicit allow/deny lists. We always set `allowedTools` when the
+  // flag was passed (even with an empty array, which sandboxes the agent
+  // to zero tools — distinct from `undefined`, which means SDK default).
+  if (typeof args.allowedTools === "string") {
     options.allowedTools = args.allowedTools.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  if (typeof args.disallowedTools === "string") {
+    options.disallowedTools = args.disallowedTools.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  // G4 — forward the explicit model id when the picker selected a
+  // non-default. The SDK falls back to its current default model when
+  // this is unset.
+  if (args.model) {
+    options.model = args.model;
+  }
+  // G5 — appended to the SDK's default system prompt (the SDK accepts
+  // either a plain string or a {type:"preset",preset:"claude_code",append}
+  // object). Sending a string is the simplest contract for our use case.
+  if (args.customSystemPrompt) {
+    options.customSystemPrompt = args.customSystemPrompt;
   }
   if (options.permissionMode === "bypassPermissions") {
     // SDK requires explicit opt-in for bypass — match that here so the
@@ -183,13 +253,17 @@ async function runAgent() {
       emit({ type: "agent_event", event });
     }
     emit({ type: "exit", code: 0 });
+    stopHeartbeat();
   } catch (err) {
     // SDK's AbortError is expected when we interrupt a turn from Swift.
     if (err?.name === "AbortError") {
       emit({ type: "exit", code: 0 });
+      stopHeartbeat();
     } else {
+      log("error", "agent loop failed", { stack: err?.stack ?? String(err) });
       emit({ type: "error", message: err?.stack ?? String(err) });
       emit({ type: "exit", code: 1 });
+      stopHeartbeat();
       exit(1);
     }
   }

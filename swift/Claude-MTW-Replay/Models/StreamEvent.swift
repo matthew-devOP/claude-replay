@@ -10,6 +10,15 @@ import Foundation
 /// `.unknown(raw:)` so the wire format can evolve without breaking the
 /// app.
 enum StreamEvent: Equatable, Sendable {
+    /// Sidecar's first frame: wire-protocol handshake. Sent before any
+    /// other event so the Swift side can validate version compatibility
+    /// before sending commands.
+    case hello(protocolVersion: String, version: String?, pid: Int?)
+    /// Periodic liveness ping. The watchdog kills the sidecar if these
+    /// stop arriving.
+    case heartbeat(timestamp: Date)
+    /// Structured diagnostic log from the sidecar. Replaces stderr writes.
+    case log(level: String, msg: String, meta: [String: String]?)
     /// Sidecar booted; payload includes the mode (`"skeleton"` | `"agent"`).
     case ready(mode: String)
     /// Skeleton-mode echo of a user message. Used for plumbing tests.
@@ -102,6 +111,35 @@ extension StreamEvent {
         }
         let type = object["type"] as? String ?? ""
         switch type {
+        case "hello":
+            let protoStr: String
+            if let s = object["protocol"] as? String {
+                protoStr = s
+            } else if let n = object["protocol"] as? Int {
+                protoStr = String(n)
+            } else {
+                protoStr = ""
+            }
+            return .hello(
+                protocolVersion: protoStr,
+                version: object["version"] as? String,
+                pid: object["pid"] as? Int
+            )
+        case "heartbeat":
+            // `ts` is JS `Date.now()` — milliseconds since 1970.
+            let ms = (object["ts"] as? Double) ?? Double(object["ts"] as? Int ?? 0)
+            let date = Date(timeIntervalSince1970: ms / 1000.0)
+            return .heartbeat(timestamp: date)
+        case "log":
+            let level = object["level"] as? String ?? "info"
+            let msg = object["msg"] as? String ?? ""
+            var meta: [String: String]? = nil
+            if let m = object["meta"] as? [String: Any] {
+                var flat: [String: String] = [:]
+                for (k, v) in m { flat[k] = String(describing: v) }
+                meta = flat
+            }
+            return .log(level: level, msg: msg, meta: meta)
         case "ready":
             return .ready(mode: object["mode"] as? String ?? "")
         case "echo":

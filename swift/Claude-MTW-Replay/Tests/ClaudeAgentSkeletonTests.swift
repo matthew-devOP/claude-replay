@@ -23,6 +23,7 @@ final class ClaudeAgentSkeletonTests: XCTestCase {
             workingDirectory: URL(fileURLWithPath: NSHomeDirectory()),
             permissionMode: "default",
             allowedTools: nil,
+            disallowedTools: nil,
             includePartialMessages: false,
             skeleton: true
         )
