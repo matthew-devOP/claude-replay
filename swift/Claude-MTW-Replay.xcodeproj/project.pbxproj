@@ -58,6 +58,7 @@
 		5B4FD587C34B5143C383BCCE /* FileManager+Sessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65CF5EFF7F71F6F2AC11DD7 /* FileManager+Sessions.swift */; };
 		5CB2F17BE9062EBF77247E95 /* Claude_MTW_ReplayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 719463A391685C9DD5CBB389 /* Claude_MTW_ReplayApp.swift */; };
 		5DC0E2698C4B4CF6E2E171A9 /* player.min.html in Resources */ = {isa = PBXBuildFile; fileRef = 3A9C2099673FBC484CAC004C /* player.min.html */; };
+		60E3491D68CC2121AF596104 /* ChainedReplaySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A463F0AB38CEFFCE3B8AE1BB /* ChainedReplaySheet.swift */; };
 		611ED56DE19C0ABFAA1D39AA /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07D5E6C592B46F8876B27495 /* Project.swift */; };
 		61B107187BBCC33BC1EE06F2 /* ClaudeAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3EF4D5C9EE2583D0A75E14 /* ClaudeAgent.swift */; };
 		62B02E0BA2799418BF38D63F /* SessionTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40B59FB67B109F8E7BC87F90 /* SessionTableView.swift */; };
@@ -86,6 +87,7 @@
 		9B6CBEF523F5C011538433CC /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3AA2E85D8915B56BBC79EF0 /* EditorView.swift */; };
 		9D311860F0255EB31128614C /* ActivityHeatmapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1898F7E6B6199BF4EA5D8087 /* ActivityHeatmapView.swift */; };
 		9EC956F253D8CCFB0CD63398 /* GitGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EBD642B3C22EED9903DAB5A /* GitGraphView.swift */; };
+		A38B8080C339BA0521DF798C /* BookmarksEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D734FA4EAA261FAB8A645F9D /* BookmarksEditorView.swift */; };
 		A57C3D19BE75EE3A28F53687 /* FilesAccessedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 807A448A33993DC6EC5B8422 /* FilesAccessedView.swift */; };
 		A67C49984A4DFD5241D0DFB3 /* ClaudeAgentSkeletonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97A5F812F1AD478FAE631A8B /* ClaudeAgentSkeletonTests.swift */; };
 		A902FE27BD70DFFB06676CBC /* KeyboardShortcutsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE3C03A3211511707ABDAC09 /* KeyboardShortcutsView.swift */; };
@@ -216,6 +218,7 @@
 		A26BC37F5BA39608B2807E83 /* SecretRedactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretRedactor.swift; sourceTree = "<group>"; };
 		A349AC7BCD5937B9D211E575 /* ProjectRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectRowView.swift; sourceTree = "<group>"; };
 		A36A9DB2E87F63D943E779A0 /* FileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileWatcher.swift; sourceTree = "<group>"; };
+		A463F0AB38CEFFCE3B8AE1BB /* ChainedReplaySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChainedReplaySheet.swift; sourceTree = "<group>"; };
 		A4BF7CE2EE251B51E6CCCF75 /* ExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSheet.swift; sourceTree = "<group>"; };
 		A5C8D2B5BDDB8F58358AF173 /* CodeBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeBlockView.swift; sourceTree = "<group>"; };
 		A71444B583BFB95B87223E59 /* SessionStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStats.swift; sourceTree = "<group>"; };
@@ -242,6 +245,7 @@
 		CF5AFE4A5F0AA1F52AF0EAB2 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		D49B440A9E80429144580128 /* GitViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitViewModel.swift; sourceTree = "<group>"; };
 		D6D8111B08585BCF7957C5BA /* TranscriptFilterBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFilterBar.swift; sourceTree = "<group>"; };
+		D734FA4EAA261FAB8A645F9D /* BookmarksEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksEditorView.swift; sourceTree = "<group>"; };
 		D8197276A363153E9C31FD3E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D81C6F1E1BA4C0AC42B3DD19 /* AgentsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentsListView.swift; sourceTree = "<group>"; };
 		D86FEDAA1606AAE985DFB5BB /* ThinkingBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkingBlockView.swift; sourceTree = "<group>"; };
@@ -354,6 +358,7 @@
 			children = (
 				4E11C9B4B77CCCB48FEBDD1B /* AssistantTextView.swift */,
 				8EB62FC14AC46AFA0C607CEF /* BookmarkBarView.swift */,
+				D734FA4EAA261FAB8A645F9D /* BookmarksEditorView.swift */,
 				8660B46406B32AB9173B3152 /* ReplayControlsView.swift */,
 				80F954108BA6B8BE18DFA306 /* ReplayTurnView.swift */,
 				B2701E340FA4B389DD8B5553 /* ReplayView.swift */,
@@ -466,6 +471,7 @@
 			isa = PBXGroup;
 			children = (
 				1898F7E6B6199BF4EA5D8087 /* ActivityHeatmapView.swift */,
+				A463F0AB38CEFFCE3B8AE1BB /* ChainedReplaySheet.swift */,
 				50D1AD42B181E75B7419525F /* DashboardView.swift */,
 				1F786651AD54AD07648E0E06 /* PlansListView.swift */,
 				13C27ECF503AF7B40B02B423 /* ProjectFilesView.swift */,
@@ -705,6 +711,8 @@
 				DEE93551A5C08398F4E1BA65 /* BashCommandsListView.swift in Sources */,
 				777400CE076CF71CDF9BAD29 /* Bookmark.swift in Sources */,
 				397AE315A227587D8C5C602F /* BookmarkBarView.swift in Sources */,
+				A38B8080C339BA0521DF798C /* BookmarksEditorView.swift in Sources */,
+				60E3491D68CC2121AF596104 /* ChainedReplaySheet.swift in Sources */,
 				ED832FC98D627508C969C83C /* ChatInputBarView.swift in Sources */,
 				7DD899A37FC4F1119E5CECDF /* ChatSessionListView.swift in Sources */,
 				2935F672A8229230590B7938 /* ChatView.swift in Sources */,

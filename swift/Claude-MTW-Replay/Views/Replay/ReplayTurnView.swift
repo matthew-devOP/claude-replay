@@ -1,6 +1,10 @@
 import SwiftUI
 struct ReplayTurnView: View {
     @Environment(AppState.self) private var appState
+    /// Minimum number of consecutive tool calls required to collapse them
+    /// into a single `CollapsedToolGroupView`. Configurable from Settings
+    /// (Display → "Tool grouping threshold"). Default `5`.
+    @AppStorage("toolGroupThreshold") private var toolGroupThreshold: Int = 5
     let turn: Turn; let turnNumber: Int; let revealedBlocks: Int; let showThinking: Bool; let showToolCalls: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -37,7 +41,7 @@ struct ReplayTurnView: View {
             if block.kind == .toolUse {
                 toolRun.append(block)
             } else {
-                if toolRun.count >= 5 {
+                if toolRun.count >= max(1, toolGroupThreshold) {
                     result.append(.toolGroup(toolRun))
                 } else {
                     for b in toolRun { result.append(.single(b)) }

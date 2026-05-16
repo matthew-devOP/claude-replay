@@ -5,7 +5,9 @@ import SwiftUI
 ///
 /// - Transcript opens the existing transcript view (no regression)
 /// - Resume hands off to ChatView for live continuation
-/// - Split-view is disabled in v0.8.0-swift (see plan, deferred to v0.8.1)
+/// - Split-view (v0.8.1-swift): pins the row's session as Pane A and flips
+///   `ChatsView` into `HSplitView` mode; Pane B then prompts for a second
+///   session to compare side-by-side.
 ///
 /// Reuses `SessionListViewModel` (already account-aware after v0.7.4) and
 /// loads on project / account changes via `.task(id:)`.
@@ -14,6 +16,10 @@ struct ChatSessionListView: View {
     @State private var vm = SessionListViewModel()
     @State private var resumingPath: String?
     @State private var transcriptPath: String?
+
+    @Binding var splitMode: Bool
+    @Binding var primarySessionPath: String?
+    @Binding var primaryProjectPath: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -98,7 +104,12 @@ struct ChatSessionListView: View {
                     ChatSessionRow(
                         session: session,
                         onTranscript: { transcriptPath = session.path },
-                        onResume: { resumingPath = session.path }
+                        onResume: { resumingPath = session.path },
+                        onSplit: {
+                            primarySessionPath = session.path
+                            primaryProjectPath = appState.selectedProject?.path
+                            splitMode = true
+                        }
                     )
                     Divider()
                 }
@@ -121,6 +132,7 @@ private struct ChatSessionRow: View {
     let session: SessionEntry
     let onTranscript: () -> Void
     let onResume: () -> Void
+    let onSplit: () -> Void
 
     var body: some View {
         HStack(spacing: 16) {
@@ -154,13 +166,12 @@ private struct ChatSessionRow: View {
                 .controlSize(.small)
                 .tint(appState.theme.accent)
 
-                Button {} label: {
+                Button(action: onSplit) {
                     Label("Split", systemImage: "rectangle.split.2x1")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .disabled(true)
-                .help("Split-view will land in v0.8.1-swift")
+                .help("Open this session in split-view Pane A; pick another for Pane B")
             }
         }
         .padding(.horizontal, 20)

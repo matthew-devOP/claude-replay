@@ -2,6 +2,9 @@ import SwiftUI
 struct ReplayView: View {
     @Environment(AppState.self) private var appState
     @State private var vm = ReplayViewModel()
+    @State private var showBookmarksEditor = false
+    @State private var showBookmarkPrompt = false
+    @State private var pendingBookmarkLabel = ""
     @FocusState private var isFocused: Bool
     var body: some View {
         mainContent
@@ -24,11 +27,45 @@ struct ReplayView: View {
                 return .ignored
             }
             .onKeyPress("t") { vm.showThinking.toggle(); return .handled }
+            .onKeyPress("b") {
+                pendingBookmarkLabel = "Bookmark \(vm.bookmarks.count + 1)"
+                showBookmarkPrompt = true
+                return .handled
+            }
             .onKeyPress(.escape) { vm.pause(); return .handled }
             .task(id: appState.selectedSessionPath) {
                 if let p = appState.selectedSessionPath {
                     await vm.loadSession(path: URL(fileURLWithPath: p))
                 }
+            }
+            .onChange(of: appState.importedSession?.id) { _, _ in
+                if let imp = appState.importedSession {
+                    vm.loadImportedSession(imp)
+                }
+            }
+            .onAppear {
+                if let imp = appState.importedSession, vm.turns.isEmpty {
+                    vm.loadImportedSession(imp)
+                }
+            }
+            .sheet(isPresented: $showBookmarksEditor) {
+                BookmarksEditorView(vm: vm)
+                    .environment(appState)
+            }
+            .sheet(isPresented: $showBookmarkPrompt) {
+                BookmarkPromptSheet(
+                    label: $pendingBookmarkLabel,
+                    turnIndex: vm.currentTurnIndex,
+                    onCancel: { showBookmarkPrompt = false },
+                    onSave: {
+                        let label = pendingBookmarkLabel.trimmingCharacters(in: .whitespaces)
+                        vm.addBookmark(
+                            turnIndex: vm.currentTurnIndex,
+                            label: label.isEmpty ? "Bookmark \(vm.bookmarks.count + 1)" : label
+                        )
+                        showBookmarkPrompt = false
+                    }
+                )
             }
     }
 
@@ -38,6 +75,7 @@ struct ReplayView: View {
             if vm.turns.isEmpty && !vm.isLoading {
                 EmptyStateView(icon: "play.circle", title: "No Session Loaded", subtitle: "Select a session to replay")
             } else {
+                bookmarksToolbar
                 turnList
                 if !vm.bookmarks.isEmpty {
                     BookmarkBarView(bookmarks: vm.bookmarks, totalTurns: vm.turns.count) { turn in
@@ -47,6 +85,35 @@ struct ReplayView: View {
                 ReplayControlsView(vm: vm)
             }
         }
+    }
+
+    @ViewBuilder
+    private var bookmarksToolbar: some View {
+        HStack(spacing: 8) {
+            if let imp = appState.importedSession {
+                Label(imp.displayName, systemImage: "doc.richtext")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                pendingBookmarkLabel = "Bookmark \(vm.bookmarks.count + 1)"
+                showBookmarkPrompt = true
+            } label: {
+                Label("Add Bookmark", systemImage: "bookmark")
+            }
+            .help("Add a bookmark at the current turn (B)")
+            .keyboardShortcut("b", modifiers: [])
+            Button {
+                showBookmarksEditor = true
+            } label: {
+                Label("Edit Bookmarks", systemImage: "bookmark.square")
+            }
+            .help("Open bookmarks editor")
+        }
+        .buttonStyle(.borderless)
+        .padding(.horizontal)
+        .padding(.top, 6)
     }
 
     @ViewBuilder
@@ -83,5 +150,34 @@ struct ReplayView: View {
         } else {
             return 0
         }
+    }
+}
+
+// MARK: - Inline bookmark label prompt
+
+private struct BookmarkPromptSheet: View {
+    @Binding var label: String
+    let turnIndex: Int
+    let onCancel: () -> Void
+    let onSave: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Add Bookmark at Turn \(turnIndex)")
+                .font(.headline)
+            TextField("Label", text: $label)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit(onSave)
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel, action: onCancel)
+                    .keyboardShortcut(.escape, modifiers: [])
+                Button("Add", action: onSave)
+                    .keyboardShortcut(.return, modifiers: [])
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 320)
     }
 }

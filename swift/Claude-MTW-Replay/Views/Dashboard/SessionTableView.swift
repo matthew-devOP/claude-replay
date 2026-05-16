@@ -16,21 +16,20 @@ struct SessionTableView: View {
     /// diff overlay. ChatsView/DashboardView wires this to a sheet.
     var onCompare: (() -> Void)? = nil
 
+    // P1.2 — Session chaining: ephemeral chained-replay sheet state.
+    @State private var chainedTurns: [Turn]? = nil
+    @State private var chainedSessionCount: Int = 0
+    @State private var isChaining: Bool = false
+
     var body: some View {
         VStack(spacing: 0) {
+            chainToolbar
             headerRow
             Divider()
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(vm.filteredSessions) { session in
-                        SessionRowView(
-                            session: session,
-                            isCompareSelected: vm.compareSelection.contains(session.path),
-                            compareMode: vm.compareMode,
-                            onTapCompare: { vm.toggleCompareSelection(session.path) },
-                            onAction: handle(_:for:)
-                        )
-                        .onAppear { vm.enrichIfNeeded(session) }
+                        rowContainer(for: session)
                         Divider()
                     }
                 }
@@ -38,7 +37,109 @@ struct SessionTableView: View {
             if vm.compareMode {
                 compareBar
             }
+            if vm.chainMode {
+                chainBar
+            }
         }
+        .sheet(isPresented: chainSheetBinding) {
+            ChainedReplaySheet(
+                turns: chainedTurns ?? [],
+                sessionCount: chainedSessionCount
+            )
+        }
+        .alert("Chaining failed", isPresented: chainErrorBinding) {
+            Button("OK", role: .cancel) { vm.chainErrorMessage = nil }
+        } message: {
+            Text(vm.chainErrorMessage ?? "")
+        }
+    }
+
+    // MARK: - Row container (adds chain checkbox when chainMode is on)
+
+    @ViewBuilder
+    private func rowContainer(for session: SessionEntry) -> some View {
+        HStack(spacing: 0) {
+            if vm.chainMode {
+                Button {
+                    vm.toggleSelection(path: session.path)
+                } label: {
+                    Image(systemName: vm.selectedPaths.contains(session.path)
+                          ? "checkmark.square.fill"
+                          : "square")
+                        .foregroundStyle(vm.selectedPaths.contains(session.path)
+                                         ? appState.theme.accent
+                                         : appState.theme.textDim)
+                        .frame(width: 32, alignment: .center)
+                }
+                .buttonStyle(.plain)
+                .help("Include this session in the chain")
+            }
+            SessionRowView(
+                session: session,
+                isCompareSelected: vm.compareSelection.contains(session.path),
+                compareMode: vm.compareMode,
+                onTapCompare: { vm.toggleCompareSelection(session.path) },
+                onAction: handle(_:for:)
+            )
+            .onAppear { vm.enrichIfNeeded(session) }
+        }
+    }
+
+    // MARK: - Chain toolbar (P1.2)
+
+    private var chainToolbar: some View {
+        HStack(spacing: 8) {
+            Button {
+                vm.chainMode.toggle()
+                if !vm.chainMode { vm.selectedPaths.removeAll() }
+            } label: {
+                Label(vm.chainMode ? "Cancel Chain" : "Chain Sessions",
+                      systemImage: "link")
+                    .labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(.bordered)
+            .help("Multi-select sessions and replay them as one chronological stream")
+
+            if vm.chainMode {
+                Button {
+                    Task { await runChain() }
+                } label: {
+                    if isChaining {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Label("Chain (\(vm.selectedPaths.count))",
+                              systemImage: "play.fill")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(vm.selectedPaths.count < 2 || isChaining)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+    }
+
+    private func runChain() async {
+        isChaining = true
+        defer { isChaining = false }
+        guard let chained = await vm.chainSelected(), !chained.isEmpty else { return }
+        chainedSessionCount = vm.selectedPaths.count
+        chainedTurns = chained
+    }
+
+    private var chainSheetBinding: Binding<Bool> {
+        Binding(
+            get: { chainedTurns != nil },
+            set: { presented in if !presented { chainedTurns = nil } }
+        )
+    }
+
+    private var chainErrorBinding: Binding<Bool> {
+        Binding(
+            get: { vm.chainErrorMessage != nil },
+            set: { presented in if !presented { vm.chainErrorMessage = nil } }
+        )
     }
 
     // MARK: - Header (sortable column titles)
@@ -100,6 +201,26 @@ struct SessionTableView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(vm.sortKey == key ? appState.theme.accent : appState.theme.textDim)
+    }
+
+    // MARK: - Chain bar
+
+    private var chainBar: some View {
+        HStack {
+            Text("\(vm.selectedPaths.count) selected for chain")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("Clear") {
+                vm.selectedPaths.removeAll()
+            }
+            .disabled(vm.selectedPaths.isEmpty)
+        }
+        .padding(12)
+        .background(appState.theme.bgSurface)
+        .overlay(alignment: .top) {
+            Rectangle().fill(appState.theme.border).frame(height: 0.5)
+        }
     }
 
     // MARK: - Compare bar

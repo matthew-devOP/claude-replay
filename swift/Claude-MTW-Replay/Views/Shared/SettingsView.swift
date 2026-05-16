@@ -8,9 +8,13 @@ struct SettingsView: View {
     @AppStorage("showThinkingByDefault") private var showThinking = true
     @AppStorage("showToolCallsByDefault") private var showTools = true
     @AppStorage("autoRedactSecrets") private var autoRedact = true
+    @AppStorage("toolGroupThreshold") private var toolGroupThreshold: Int = 5
+    @AppStorage("defaultOGImageURL") private var defaultOGImageURL: String = ""
 
     @State private var nodePath: String? = SettingsView.resolve { try SidecarLocator.nodeBinary() }
     @State private var claudePath: String? = SettingsView.resolve { try SidecarLocator.claudeBinary() }
+    @State private var customThemePaths: [String] = ThemeService.customThemePaths()
+    @State private var customThemeReloadMessage: String?
 
     var body: some View {
         Form {
@@ -28,6 +32,56 @@ struct SettingsView: View {
             }
             Section("Security") {
                 Toggle("Auto-redact secrets", isOn: $autoRedact)
+            }
+            Section("Display") {
+                Stepper(
+                    "Tool grouping threshold: \(toolGroupThreshold)",
+                    value: $toolGroupThreshold,
+                    in: 1...20
+                )
+                .help("Group N or more consecutive tool calls into a collapsible block.")
+                LabeledContent("Default OG image URL") {
+                    TextField(
+                        "https://example.com/og.png",
+                        text: $defaultOGImageURL,
+                        prompt: Text("https://es617.github.io/claude-replay/og.png")
+                    )
+                    .textFieldStyle(.roundedBorder)
+                }
+                .help("Fallback Open Graph image used for HTML exports when the export doesn't set one.")
+            }
+            Section("Custom Themes") {
+                if customThemePaths.isEmpty {
+                    Text("No custom themes imported.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(customThemePaths, id: \.self) { path in
+                        HStack(spacing: 8) {
+                            Image(systemName: "paintpalette")
+                                .foregroundStyle(.secondary)
+                            Text((path as NSString).lastPathComponent)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer()
+                            Button("Remove", role: .destructive) {
+                                removeCustomTheme(path)
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                    }
+                }
+                HStack(spacing: 8) {
+                    Button("Import…") { importCustomTheme() }
+                    Button("Reload from disk") { reloadCustomThemes() }
+                    if let msg = customThemeReloadMessage {
+                        Text(msg)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
             }
             Section("Sidecar") {
                 LabeledContent("Node binary") {
@@ -95,5 +149,32 @@ struct SettingsView: View {
 
     private static func resolve(_ block: () throws -> URL) -> String? {
         (try? block())?.path
+    }
+
+    // MARK: - Custom theme actions
+
+    private func importCustomTheme() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Import"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        ThemeService.addCustomThemePath(url.path)
+        customThemePaths = ThemeService.customThemePaths()
+        customThemeReloadMessage = "Imported \(url.lastPathComponent)"
+    }
+
+    private func removeCustomTheme(_ path: String) {
+        ThemeService.removeCustomThemePath(path)
+        customThemePaths = ThemeService.customThemePaths()
+        customThemeReloadMessage = nil
+    }
+
+    private func reloadCustomThemes() {
+        let loaded = ThemeService.reloadFromDisk()
+        customThemePaths = ThemeService.customThemePaths()
+        customThemeReloadMessage = "Reloaded \(loaded.count) theme\(loaded.count == 1 ? "" : "s")"
     }
 }

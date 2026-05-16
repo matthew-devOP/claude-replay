@@ -21,6 +21,14 @@ final class SessionListViewModel {
     var compareSelection: Set<String> = []
     var compareMode: Bool = false
 
+    // MARK: - Chain selection (P1.2 — multi-session chaining)
+    /// Session paths checked in the table for chained replay.
+    var selectedPaths: Set<String> = []
+    /// When `true`, the table renders multi-select checkboxes for chaining.
+    var chainMode: Bool = false
+    /// Last error message from `chainSelected()` — surfaced in UI.
+    var chainErrorMessage: String? = nil
+
     /// Tracks which session paths have an enrichment task in flight so
     /// scrolling through the table doesn't fan out duplicate parses.
     private var enriching: Set<String> = []
@@ -118,6 +126,42 @@ final class SessionListViewModel {
             ($0.preview ?? "").lowercased().contains(q)
         }
         return matched.sorted(by: comparator(key: sortKey, ascending: sortAscending))
+    }
+
+    // MARK: - Chain selection helpers (P1.2)
+
+    /// Toggle a session path in the chain selection set.
+    func toggleSelection(path: String) {
+        if selectedPaths.contains(path) {
+            selectedPaths.remove(path)
+        } else {
+            selectedPaths.insert(path)
+        }
+    }
+
+    /// Parse-and-chain the currently selected paths in chronological order.
+    /// Returns `nil` (and sets `chainErrorMessage`) on failure.
+    func chainSelected() async -> [Turn]? {
+        chainErrorMessage = nil
+        // Order paths by the session's known date when available, so the
+        // parser's secondary sort by first-turn timestamp has a stable
+        // starting point for sessions lacking timestamps.
+        let dateByPath: [String: Date] = Dictionary(uniqueKeysWithValues:
+            sessions.compactMap { entry in
+                entry.date.map { (entry.path, $0) }
+            }
+        )
+        let orderedPaths = selectedPaths.sorted { lhs, rhs in
+            let l = dateByPath[lhs] ?? .distantPast
+            let r = dateByPath[rhs] ?? .distantPast
+            return l < r
+        }
+        do {
+            return try await TranscriptParser.parseAndChain(filePaths: orderedPaths)
+        } catch {
+            chainErrorMessage = error.localizedDescription
+            return nil
+        }
     }
 
     func toggleCompareSelection(_ path: String) {

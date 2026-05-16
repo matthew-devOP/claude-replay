@@ -75,6 +75,16 @@ final class ExportViewModel {
         }
     }
 
+    /// Fallback Open Graph image URL when the user hasn't supplied one
+    /// per-export. Backed by `UserDefaults("defaultOGImageURL")` and
+    /// editable from Settings → Display.
+    static var defaultOGImageURL: String {
+        let stored = UserDefaults.standard.string(forKey: "defaultOGImageURL") ?? ""
+        return stored.isEmpty
+            ? "https://es617.github.io/claude-replay/og.png"
+            : stored
+    }
+
     private func renderOptions(from opts: ExportOptions) -> RenderOptions {
         let theme = Theme.named(opts.theme)
         let themeCss = ThemeService.themeToCss(
@@ -90,7 +100,7 @@ final class ExportViewModel {
             assistantLabel: opts.assistantLabel,
             title: opts.title,
             description: opts.description,
-            ogImage: opts.ogImage ?? "https://es617.github.io/claude-replay/og.png",
+            ogImage: opts.ogImage ?? ExportViewModel.defaultOGImageURL,
             compress: opts.compress,
             redactSecrets: opts.redactSecrets,
             bookmarks: opts.bookmarks

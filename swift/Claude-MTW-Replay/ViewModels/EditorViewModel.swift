@@ -33,6 +33,25 @@ final class EditorViewModel {
         else { excludedTurns.insert(index) }
     }
 
+    func includeAllTurns() {
+        excludedTurns = []
+    }
+
+    func excludeAllTurns() {
+        excludedTurns = Set(0..<workingTurns.count)
+    }
+
+    func excludeBefore(index: Int) {
+        guard index > 0 else { excludedTurns = []; return }
+        excludedTurns = Set(0..<index)
+    }
+
+    func excludeAfter(index: Int) {
+        let upper = workingTurns.count
+        guard index + 1 < upper else { excludedTurns = []; return }
+        excludedTurns = Set((index + 1)..<upper)
+    }
+
     func reset() {
         workingTurns = originalTurns
         excludedTurns = []

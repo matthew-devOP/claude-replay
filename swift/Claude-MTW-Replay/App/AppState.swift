@@ -22,6 +22,30 @@ enum AppTab: String, CaseIterable, Identifiable {
     }
 }
 
+/// Ephemeral, in-memory pseudo-session populated by importing an HTML
+/// replay (`File → Import HTML Replay…`). Not persisted anywhere.
+struct ImportedSession: Identifiable, Hashable {
+    let id: UUID
+    let turns: [Turn]
+    let bookmarks: [Bookmark]
+    let displayName: String
+    let source: String
+
+    init(
+        id: UUID = UUID(),
+        turns: [Turn],
+        bookmarks: [Bookmark],
+        displayName: String,
+        source: String
+    ) {
+        self.id = id
+        self.turns = turns
+        self.bookmarks = bookmarks
+        self.displayName = displayName
+        self.source = source
+    }
+}
+
 @Observable
 final class AppState {
     var currentTab: AppTab = .dashboard
@@ -29,6 +53,9 @@ final class AppState {
     var selectedProjectSource: String = "claude"
     var selectedProject: ProjectEntry?
     var selectedSessionPath: String?
+    /// Ephemeral imported HTML session; non-nil after `File → Import HTML…`.
+    /// `ReplayView` observes this in addition to `selectedSessionPath`.
+    var importedSession: ImportedSession?
     var selectedThemeName: String = "claude-dark"
     var claudeAccountDir: String = AccountStore.load()
 
@@ -59,6 +86,16 @@ final class AppState {
 
     func selectSession(_ path: String) {
         selectedSessionPath = path
+        importedSession = nil
+        currentTab = .replay
+    }
+
+    /// Replace the current session with an ephemeral imported one
+    /// (HTML replay). Clears `selectedSessionPath` so views don't try
+    /// to load a disk file, and switches to the Replay tab.
+    func selectImportedSession(_ session: ImportedSession) {
+        importedSession = session
+        selectedSessionPath = nil
         currentTab = .replay
     }
 

@@ -693,6 +693,84 @@ enum TranscriptParser {
         return filtered
     }
 
+    // MARK: - 10b. parseAndChain (P1.2 — session chaining)
+
+    /// Errors thrown by `parseAndChain(filePaths:)`.
+    enum ChainError: Error, LocalizedError {
+        case tooManyInputs(provided: Int, max: Int)
+        case noTurnsParsed
+
+        var errorDescription: String? {
+            switch self {
+            case .tooManyInputs(let provided, let max):
+                return "Cannot chain \(provided) sessions — limit is \(max)."
+            case .noTurnsParsed:
+                return "None of the selected sessions yielded any turns."
+            }
+        }
+    }
+
+    /// Concatenate multiple transcripts into a single chronological turn stream.
+    ///
+    /// - Parses each path with the existing dispatcher.
+    /// - Sorts each parsed session by its first turn's `timestamp` (ISO8601),
+    ///   falling back to the file's modification date when no timestamp exists.
+    /// - Re-indexes the resulting `Turn.index` sequentially starting at 1
+    ///   to match the parser's existing 1-based numbering.
+    /// - Throws `ChainError.tooManyInputs` for more than 20 inputs.
+    static func parseAndChain(filePaths: [String]) async throws -> [Turn] {
+        let maxInputs = 20
+        guard filePaths.count <= maxInputs else {
+            throw ChainError.tooManyInputs(provided: filePaths.count, max: maxInputs)
+        }
+
+        let fm = FileManager.default
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        // Parse each file off the main actor.
+        let parsed: [(turns: [Turn], sortKey: Date)] = await withTaskGroup(
+            of: (Int, [Turn], Date).self
+        ) { group in
+            for (idx, path) in filePaths.enumerated() {
+                group.addTask {
+                    let turns = TranscriptParser.parseTranscript(filePath: path)
+                    // Prefer the first parsed turn's timestamp; otherwise the file mtime.
+                    var key: Date = .distantFuture
+                    if let firstTs = turns.first?.timestamp, !firstTs.isEmpty,
+                       let dt = isoFormatter.date(from: firstTs)
+                            ?? Self.parseFlexibleDate(firstTs) {
+                        key = dt
+                    } else if let attrs = try? fm.attributesOfItem(atPath: path),
+                              let mtime = attrs[.modificationDate] as? Date {
+                        key = mtime
+                    }
+                    return (idx, turns, key)
+                }
+            }
+            var collected: [(Int, [Turn], Date)] = []
+            for await item in group { collected.append(item) }
+            // Preserve original input order as a stable tiebreaker.
+            collected.sort { $0.0 < $1.0 }
+            return collected.map { ($0.1, $0.2) }
+        }
+
+        // Sort sessions chronologically by their first-turn timestamp.
+        let sorted = parsed.sorted { $0.sortKey < $1.sortKey }
+        var chained: [Turn] = []
+        chained.reserveCapacity(sorted.reduce(0) { $0 + $1.turns.count })
+        for entry in sorted {
+            chained.append(contentsOf: entry.turns)
+        }
+        guard !chained.isEmpty else { throw ChainError.noTurnsParsed }
+
+        // Re-index globally (1-based to match parser convention).
+        for j in 0..<chained.count {
+            chained[j].index = j + 1
+        }
+        return chained
+    }
+
     // MARK: - 11. applyPacedTiming
 
     /// Replace timestamps with synthetic pacing based on content length.
