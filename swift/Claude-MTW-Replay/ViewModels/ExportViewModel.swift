@@ -1,6 +1,8 @@
 import Foundation
 import AppKit
 import UniformTypeIdentifiers
+// @preconcurrency required while WKWebView's APIs lack full Sendable annotations.
+// Re-check on each Xcode major release; remove if no longer needed.
 @preconcurrency import WebKit
 
 @Observable

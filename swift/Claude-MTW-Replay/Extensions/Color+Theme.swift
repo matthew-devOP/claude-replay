@@ -15,8 +15,19 @@ extension Color {
         self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: Double(a) / 255)
     }
 
+    /// Returns the sRGB hex string for this color, or `nil` for dynamic /
+    /// asset-catalog colors that can't be resolved to a concrete sRGB triple.
+    ///
+    /// The built-in `Theme` palette uses `Color(hex:)` literals exclusively,
+    /// so `toHex()` is expected to return non-nil for all theme colors. The
+    /// `assert` below catches accidental regressions in debug builds (e.g.
+    /// somebody swaps a hex literal for `.accentColor`) without affecting
+    /// the production-release fallback in `ExportViewModel.renderOptions`.
     func toHex() -> String? {
-        guard let c = NSColor(self).usingColorSpace(.sRGB) else { return nil }
+        guard let c = NSColor(self).usingColorSpace(.sRGB) else {
+            assert(false, "toHex() returned nil for color — built-in themes must use explicit hex literals")
+            return nil
+        }
         return String(format: "#%02x%02x%02x", Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
     }
 }

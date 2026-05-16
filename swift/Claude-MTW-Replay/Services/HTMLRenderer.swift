@@ -181,15 +181,22 @@ enum HTMLRenderer {
 
     /// Load the HTML template from the app bundle.
     private static func loadTemplate() -> String? {
-        // Try minified first, fall back to unminified
-        if let url = Bundle.main.url(forResource: "player.min", withExtension: "html"),
-           let contents = try? String(contentsOf: url, encoding: .utf8) {
-            return contents
-        }
-        if let url = Bundle.main.url(forResource: "player", withExtension: "html"),
-           let contents = try? String(contentsOf: url, encoding: .utf8) {
-            return contents
+        // Search in Bundle.main first (app runtime), then in the bundle that contains
+        // this class (test target loaded the host app via TEST_HOST, so resources can
+        // be discovered via either bundle depending on the run context).
+        let bundles: [Bundle] = [Bundle.main, Bundle(for: BundleToken.self)]
+        for bundle in bundles {
+            if let url = bundle.url(forResource: "player.min", withExtension: "html"),
+               let contents = try? String(contentsOf: url, encoding: .utf8) {
+                return contents
+            }
+            if let url = bundle.url(forResource: "player", withExtension: "html"),
+               let contents = try? String(contentsOf: url, encoding: .utf8) {
+                return contents
+            }
         }
         return nil
     }
+
+    private final class BundleToken {}
 }

@@ -84,6 +84,11 @@ targets:
     platform: macOS
     sources:
       - path: Claude-MTW-Replay/Tests
+        excludes:
+          - Fixtures/**
+    resources:
+      - path: Claude-MTW-Replay/Tests/Fixtures
+        buildPhase: resources
     dependencies:
       - target: Claude-MTW-Replay
     settings:
