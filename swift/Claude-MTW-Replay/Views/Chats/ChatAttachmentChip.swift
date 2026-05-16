@@ -20,6 +20,7 @@ struct ChatAttachmentChip: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
+            .accessibilityLabel("Remove attachment \(attachment.displayName)")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -27,6 +28,9 @@ struct ChatAttachmentChip: View {
         .clipShape(Capsule())
         .contentShape(Capsule())
         .onTapGesture(perform: onTap)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Attachment: \(attachment.displayName)")
+        .accessibilityHint("Tap to preview")
     }
 
     private var icon: String {

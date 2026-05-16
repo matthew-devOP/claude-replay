@@ -150,6 +150,15 @@ final class ChatViewModel {
             // G4/G5 — forward user-picked model and system-prompt override.
             opts.model = selectedModel
             opts.customSystemPrompt = systemPromptOverride
+            // G3 — fold in the user's enabled MCP servers as a JSON blob.
+            // We serialise here (instead of in `StartOptions`) so the
+            // options struct can stay `Sendable` under strict concurrency.
+            let mcpDict = MCPServerStore.shared.activeServers()
+            if !mcpDict.isEmpty,
+               let data = try? JSONSerialization.data(withJSONObject: mcpDict),
+               let json = String(data: data, encoding: .utf8) {
+                opts.mcpServersJSON = json
+            }
             // G6 — record the chosen tool set so it survives app restarts.
             persistEnabledTools()
             let stream = try await agent.start(options: opts)

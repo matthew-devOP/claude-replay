@@ -8,6 +8,7 @@ struct Claude_MTW_ReplayApp: App {
     @State private var appState = AppState()
     @State private var showKeyboardShortcuts = false
     @State private var importErrorMessage: String?
+    @State private var isDropTargeted = false
 
     var body: some Scene {
         WindowGroup {
@@ -17,6 +18,32 @@ struct Claude_MTW_ReplayApp: App {
                 .task { appState.favoritesVM.loadFavorites() }
                 .sheet(isPresented: $showKeyboardShortcuts) { KeyboardShortcutsView() }
                 .onKeyPress("?") { showKeyboardShortcuts = true; return .handled }
+                // P3.1 — accept dragged .jsonl session files anywhere in the window.
+                .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+                    for provider in providers {
+                        _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                            guard let url, url.pathExtension == "jsonl" else { return }
+                            Task { @MainActor in
+                                NotificationCenter.default.post(
+                                    name: .menuBarDidSelectSession,
+                                    object: nil,
+                                    userInfo: ["path": url.path]
+                                )
+                                RecentSessionsStore.shared.add(path: url.path)
+                            }
+                        }
+                    }
+                    return true
+                }
+                .overlay {
+                    if isDropTargeted {
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color.accentColor, lineWidth: 3)
+                            .background(Color.accentColor.opacity(0.08))
+                            .padding(8)
+                            .allowsHitTesting(false)
+                    }
+                }
                 // Menu-bar status item -> session selection bridge.
                 .onReceive(NotificationCenter.default.publisher(for: .menuBarDidSelectSession)) { note in
                     guard let path = note.userInfo?["path"] as? String else { return }
@@ -48,6 +75,30 @@ struct Claude_MTW_ReplayApp: App {
             CommandGroup(after: .newItem) {
                 Button("Import HTML Replay…") { importHTMLReplay() }
                     .keyboardShortcut("i", modifiers: [.command, .shift])
+            }
+            // P3.2 — Open Recent submenu sourced from `RecentSessionsStore`.
+            CommandGroup(after: .newItem) {
+                Menu("Open Recent") {
+                    let recents = RecentSessionsStore.shared.recents()
+                    if recents.isEmpty {
+                        Text("No recent sessions")
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(recents, id: \.path) { entry in
+                            Button(entry.displayName) {
+                                NotificationCenter.default.post(
+                                    name: .menuBarDidSelectSession,
+                                    object: nil,
+                                    userInfo: ["path": entry.path]
+                                )
+                            }
+                        }
+                    }
+                    Divider()
+                    Button("Clear Menu") {
+                        RecentSessionsStore.shared.clear()
+                    }
+                }
             }
             CommandMenu("Navigate") {
                 ForEach(AppTab.allCases) { tab in

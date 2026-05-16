@@ -1,5 +1,18 @@
 import SwiftUI
 
+/// Status hint that lets a caller scope the spinner to a subset of verbs
+/// matching what the app is currently doing. Falls back to the full
+/// `SpinnerVerbs.list` for `.idle` / unset callers (the toolbar default).
+enum SpinnerStatus {
+    case idle
+    case loading
+    case parsing
+    case indexing
+    case composing
+    case tooling
+    case thinking
+}
+
 /// Shimmering "✦ Verbing…" widget for the toolbar.
 ///
 /// Mirrors the web v0.7.3 header spinner: a star, a verb that cycles through
@@ -9,14 +22,34 @@ import SwiftUI
 /// The glimmer is built with a `LinearGradient` whose stops are recomputed
 /// each frame inside a `TimelineView(.animation)` — no stored state, no
 /// implicit animation needed.
+///
+/// P3.7: `status` narrows the verb pool so the widget reads as semantic.
+/// Default `.idle` keeps the original full-vocabulary behaviour.
 struct SpinnerVerbView: View {
     @Environment(AppState.self) private var appState
-    @State private var verbIndex: Int = Int.random(in: 0..<SpinnerVerbs.list.count)
+    var status: SpinnerStatus = .idle
+    @State private var verbIndex: Int = 0
 
     /// Shimmer/star pulse period — matches the web CSS keyframes.
     private static let cycleSeconds: Double = 2.4
 
+    /// Verb pool filtered by the requested status. `.idle` keeps the full
+    /// playful set; the others scope down to a small handful of
+    /// situationally-appropriate words.
+    private var verbsForStatus: [String] {
+        switch status {
+        case .loading:   return ["Resolving", "Parsing", "Indexing", "Loading"]
+        case .parsing:   return ["Parsing", "Decoding", "Reading"]
+        case .indexing:  return ["Indexing", "Hashing", "Stamping"]
+        case .composing: return ["Composing", "Drafting", "Writing", "Reasoning"]
+        case .tooling:   return ["Tooling", "Executing", "Calling", "Running"]
+        case .thinking:  return ["Thinking", "Pondering", "Considering"]
+        case .idle:      return SpinnerVerbs.list
+        }
+    }
+
     var body: some View {
+        let verbs = verbsForStatus
         TimelineView(.animation) { context in
             let elapsed = context.date.timeIntervalSinceReferenceDate
             let shimmerPhase = (elapsed / Self.cycleSeconds).truncatingRemainder(dividingBy: 1.0)
@@ -32,7 +65,7 @@ struct SpinnerVerbView: View {
                     .opacity(starOpacity)
                     .scaleEffect(starScale)
 
-                Text(SpinnerVerbs.list[verbIndex])
+                Text(verbs[min(verbIndex, max(0, verbs.count - 1))])
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(shimmerGradient(phase: shimmerPhase))
 
@@ -43,12 +76,28 @@ struct SpinnerVerbView: View {
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
-        .task {
-            // Swap verb each cycle. Cancels automatically when the view disappears.
+        .onAppear {
+            // Pick a random starting verb within the current status pool so
+            // back-to-back appearances don't always begin on the same word.
+            if !verbs.isEmpty {
+                verbIndex = Int.random(in: 0..<verbs.count)
+            }
+        }
+        .task(id: status) {
+            // Reset to a fresh random verb whenever the status changes —
+            // keeps the visible word in sync with the new vocabulary.
+            let pool = verbsForStatus
+            if !pool.isEmpty {
+                verbIndex = Int.random(in: 0..<pool.count)
+            }
+            // Swap verb each cycle. Cancels automatically when the view
+            // disappears or `status` changes (task is keyed on status).
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(Int(Self.cycleSeconds * 1000)))
                 guard !Task.isCancelled else { return }
-                verbIndex = (verbIndex + 1) % SpinnerVerbs.list.count
+                let pool = verbsForStatus
+                guard !pool.isEmpty else { continue }
+                verbIndex = (verbIndex + 1) % pool.count
             }
         }
     }

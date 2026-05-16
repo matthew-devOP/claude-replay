@@ -10,5 +10,12 @@ struct EditorView: View {
         .task(id: appState.selectedSessionPath) {
             if let p = appState.selectedSessionPath { await vm.loadSession(path: URL(fileURLWithPath: p)) }
         }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Discard Changes") { vm.discardChanges() }
+                    .help("Revert all edits and exclusions for this session")
+                    .disabled(!vm.hasEdits)
+            }
+        }
     }
 }

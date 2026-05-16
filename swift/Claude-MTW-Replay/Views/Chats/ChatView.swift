@@ -100,6 +100,7 @@ struct ChatView: View {
                 .foregroundStyle(.secondary)
                 .help("Cost of the last assistant turn")
             tokenChips
+            mcpBadge
             // G6 — per-session tool allow-list picker. Toggling any item
             // respawns the agent so the new --allowed-tools list applies.
             ChatToolPickerView(enabled: $vm.enabledTools) {
@@ -120,6 +121,26 @@ struct ChatView: View {
                 .keyboardShortcut(.cancelAction)
         }
         .padding(12)
+    }
+
+    /// G3 — small "MCP: N" pill that surfaces how many enabled MCP
+    /// servers the current chat session was spawned with. Hidden when
+    /// no servers are configured so the chrome stays quiet in the common
+    /// case. We read directly from `MCPServerStore` (rather than the VM)
+    /// because the count is a settings-side concern that doesn't change
+    /// mid-session.
+    @ViewBuilder
+    private var mcpBadge: some View {
+        let mcpCount = MCPServerStore.shared.load().filter(\.enabled).count
+        if mcpCount > 0 {
+            Text("MCP: \(mcpCount)")
+                .font(.caption)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.purple.opacity(0.15))
+                .clipShape(Capsule())
+                .help("\(mcpCount) MCP server(s) active")
+        }
     }
 
     /// G12 — cumulative token counters next to the cost chips. We only

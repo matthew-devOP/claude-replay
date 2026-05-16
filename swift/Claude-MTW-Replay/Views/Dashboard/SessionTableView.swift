@@ -41,6 +41,22 @@ struct SessionTableView: View {
                 chainBar
             }
         }
+        .focusable()
+        .onKeyPress(.upArrow) {
+            moveTableSelection(by: -1)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            moveTableSelection(by: 1)
+            return .handled
+        }
+        .onKeyPress(.return) {
+            if appState.selectedSessionPath != nil {
+                appState.switchTab(.replay)
+                return .handled
+            }
+            return .ignored
+        }
         .sheet(isPresented: chainSheetBinding) {
             ChainedReplaySheet(
                 turns: chainedTurns ?? [],
@@ -73,6 +89,9 @@ struct SessionTableView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Include this session in the chain")
+                .accessibilityLabel(vm.selectedPaths.contains(session.path)
+                                    ? "Deselect session from chain"
+                                    : "Select session for chain")
             }
             SessionRowView(
                 session: session,
@@ -163,6 +182,8 @@ struct SessionTableView: View {
             .foregroundStyle(vm.compareMode ? appState.theme.accent : appState.theme.textDim)
             .frame(width: 70)
             .help("Compare two sessions side-by-side")
+            .accessibilityLabel(vm.compareMode ? "Exit compare mode" : "Enter compare mode")
+            .accessibilityHint("Compare two sessions side-by-side")
         }
         .font(.system(size: 10, weight: .semibold))
         .foregroundStyle(appState.theme.textDim)
@@ -248,6 +269,21 @@ struct SessionTableView: View {
     }
 
     // MARK: - Action dispatch
+
+    // P3.5 — Keyboard navigation through the sessions list.
+    private func moveTableSelection(by delta: Int) {
+        let rows = vm.filteredSessions
+        guard !rows.isEmpty else { return }
+        let currentIndex: Int
+        if let cur = appState.selectedSessionPath,
+           let idx = rows.firstIndex(where: { $0.path == cur }) {
+            currentIndex = idx
+        } else {
+            currentIndex = delta > 0 ? -1 : rows.count
+        }
+        let next = max(0, min(rows.count - 1, currentIndex + delta))
+        appState.selectedSessionPath = rows[next].path
+    }
 
     private func handle(_ action: SessionRowAction, for session: SessionEntry) {
         appState.selectedSessionPath = session.path

@@ -148,6 +148,8 @@ struct ReplayView: View {
             .onChange(of: vm.currentTurnIndex) { _, idx in
                 withAnimation { proxy.scrollTo(max(0, idx - 1), anchor: .center) }
             }
+            .accessibilityLabel("Replay turns")
+            .accessibilityValue("Showing turn \(vm.currentTurnIndex) of \(vm.turns.count)")
         }
     }
 

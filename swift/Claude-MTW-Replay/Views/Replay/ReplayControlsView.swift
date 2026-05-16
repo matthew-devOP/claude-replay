@@ -13,11 +13,22 @@ struct ReplayControlsView: View {
                     let pct = location.x / geo.size.width
                     vm.seekToTurn(max(1, Int(pct * Double(vm.turns.count))))
                 }
+                .accessibilityElement()
+                .accessibilityLabel("Replay progress")
+                .accessibilityValue("Turn \(vm.currentTurnIndex) of \(vm.turns.count)")
+                .accessibilityHint("Tap to seek")
             }.frame(height: 6).padding(.horizontal)
             HStack(spacing: 16) {
                 Button { vm.prevTurn() } label: { Image(systemName: "backward.fill") }
-                Button { vm.togglePlay() } label: { Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill") }.font(.title2)
+                    .accessibilityLabel("Previous turn")
+                    .accessibilityHint("Jump to the previous turn")
+                Button { vm.togglePlay() } label: { Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill") }
+                    .font(.title2)
+                    .accessibilityLabel(vm.isPlaying ? "Pause" : "Play")
+                    .accessibilityHint("Toggle replay playback (Space)")
                 Button { vm.nextTurn() } label: { Image(systemName: "forward.fill") }
+                    .accessibilityLabel("Next turn")
+                    .accessibilityHint("Jump to the next turn")
                 Spacer()
                 Text("Turn \(vm.currentTurnIndex)/\(vm.turns.count)").font(.caption).monospacedDigit()
                 Picker("Speed", selection: $vm.speed) {

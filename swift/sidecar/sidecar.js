@@ -85,6 +85,7 @@ function parseArgs(rawArgs) {
     else if (a === "--disallowed-tools") args.disallowedTools = rawArgs[++i];
     else if (a === "--model")         args.model = rawArgs[++i];
     else if (a === "--custom-system-prompt") args.customSystemPrompt = rawArgs[++i];
+    else if (a === "--mcp-servers")   args.mcpServers = rawArgs[++i];
   }
   return args;
 }
@@ -292,6 +293,20 @@ async function runAgent() {
   // object). Sending a string is the simplest contract for our use case.
   if (args.customSystemPrompt) {
     options.customSystemPrompt = args.customSystemPrompt;
+  }
+  // G3 — user-configured MCP servers. Swift hands us the SDK-shaped dict
+  // (`Record<string, McpServerConfig>`) as a single JSON argv blob. We
+  // parse and assign verbatim; the SDK accepts stdio/SSE/HTTP variants
+  // by discriminator on the value side.
+  if (typeof args.mcpServers === "string" && args.mcpServers.length > 0) {
+    try {
+      const mcp = JSON.parse(args.mcpServers);
+      if (mcp && typeof mcp === "object" && !Array.isArray(mcp)) {
+        options.mcpServers = mcp;
+      }
+    } catch (e) {
+      log("warn", "failed to parse --mcp-servers JSON: " + e.message);
+    }
   }
   if (options.permissionMode === "bypassPermissions") {
     // SDK requires explicit opt-in for bypass — match that here so the

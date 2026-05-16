@@ -39,6 +39,14 @@ actor ClaudeAgent {
         /// G5 — appended to the SDK's default system prompt for this
         /// session. `nil` = SDK default only.
         var customSystemPrompt: String? = nil
+        /// G3 — user-configured MCP servers, pre-serialised to a JSON
+        /// string of `Record<string, McpServerConfig>` shape. We carry
+        /// the JSON rather than a `[String: Any]` so `StartOptions` can
+        /// stay `Sendable` under strict concurrency; the caller
+        /// (`ChatViewModel.start()`) encodes via `JSONSerialization`
+        /// and we forward the blob verbatim on the sidecar argv.
+        /// `nil` or empty = no MCP servers configured.
+        var mcpServersJSON: String? = nil
     }
 
     enum AgentError: LocalizedError {
@@ -268,6 +276,12 @@ actor ClaudeAgent {
         }
         if let prompt = options.customSystemPrompt, !prompt.isEmpty {
             args += ["--custom-system-prompt", prompt]
+        }
+        // G3 — forward MCP servers as a single JSON argv blob. The caller
+        // serialised the `[String: [String: Any]]` dict so we can stay
+        // `Sendable`; the sidecar reverses this in `parseArgs`.
+        if let json = options.mcpServersJSON, !json.isEmpty, json != "{}" {
+            args += ["--mcp-servers", json]
         }
         return args
     }

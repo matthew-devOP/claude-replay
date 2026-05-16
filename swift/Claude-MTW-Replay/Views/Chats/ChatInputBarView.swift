@@ -186,6 +186,20 @@ struct ChatInputBarView: View {
         .buttonStyle(.bordered)
         .controlSize(.small)
         .help(help)
+        .accessibilityLabel(accessibilityName(for: label))
+        .accessibilityHint(help)
+    }
+
+    /// Map the single-character prefix glyphs to descriptive VoiceOver
+    /// names so they aren't read as bare punctuation ("at sign", "bang",
+    /// "hash"). Falls through to the literal label otherwise.
+    private func accessibilityName(for label: String) -> String {
+        switch label {
+        case "@": return "Reference file"
+        case "!": return "Run shell command"
+        case "#": return "Add to memory"
+        default:  return label
+        }
     }
 
     // MARK: - Prefix actions
@@ -303,6 +317,8 @@ struct ChatInputBarView: View {
             .tint(.red)
             .keyboardShortcut(.escape, modifiers: [])
             .help("Cancel current turn (Esc)")
+            .accessibilityLabel("Stop current turn")
+            .accessibilityHint("Cancels the in-flight assistant response")
         } else {
             Button {
                 trySubmit()
@@ -318,6 +334,8 @@ struct ChatInputBarView: View {
             )
             .keyboardShortcut(.return, modifiers: .command)
             .help("Send (Cmd+Return)")
+            .accessibilityLabel("Send message")
+            .accessibilityHint("Submit the current draft (Command-Return)")
         }
     }
 

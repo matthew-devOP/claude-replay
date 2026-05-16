@@ -100,6 +100,9 @@ struct SettingsView: View {
                 Text("View privacy policy at https://es617.github.io/claude-mtw-replay/privacy")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("MCP Servers") {
+                MCPServersSettingsView()
+            }
             Section("Sidecar") {
                 LabeledContent("Node binary") {
                     HStack(spacing: 8) {

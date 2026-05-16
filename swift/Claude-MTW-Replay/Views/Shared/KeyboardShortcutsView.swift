@@ -15,6 +15,8 @@ struct KeyboardShortcutsView: View {
     private let globalShortcuts: [(String, String)] = [
         ("⌘F", "Search"),
         ("⌘E", "Export"),
+        ("↑/↓", "Navigate sidebar / sessions"),
+        ("Enter", "Open selected"),
         ("?", "This help"),
     ]
 
