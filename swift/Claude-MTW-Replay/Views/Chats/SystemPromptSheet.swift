@@ -10,6 +10,7 @@ import SwiftUI
 struct SystemPromptSheet: View {
     @Bindable var vm: ChatViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
 
     @State private var localPrompt: String = ""
     @State private var localIncludeClaudeMd: Bool = true
@@ -17,7 +18,18 @@ struct SystemPromptSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("System Prompt Override").font(.headline)
+            HStack {
+                Text("System Prompt Override").font(.headline)
+                Spacer()
+                Button {
+                    appState.showDoc(topicId: "chats")
+                } label: {
+                    Image(systemName: "questionmark.circle")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Open chats documentation")
+            }
             Text("Appended to the SDK's default system prompt")
                 .font(.caption)
                 .foregroundStyle(.secondary)

@@ -1,11 +1,12 @@
 import SwiftUI
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case dashboard, chats, replay, transcript, editor, stats, git
+    case dashboard, chats, replay, transcript, editor, stats, git, docs
     var id: String { rawValue }
     var label: String {
         switch self {
         case .chats: return "Chats"
+        case .docs: return "Docs"
         default: return rawValue.capitalized
         }
     }
@@ -18,6 +19,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .editor: return "pencil.and.outline"
         case .stats: return "chart.bar"
         case .git: return "arrow.triangle.branch"
+        case .docs: return "book.closed"
         }
     }
 }
@@ -123,6 +125,18 @@ final class AppState {
         selectedProject = nil
         selectedSessionPath = nil
     }
+
+    /// Switch to the Docs tab and broadcast a request to focus a specific
+    /// topic. `DocsView` observes `.docsDidRequestTopic` and updates its
+    /// `selectedTopicId` accordingly.
+    func showDoc(topicId: String) {
+        currentTab = .docs
+        NotificationCenter.default.post(name: .docsDidRequestTopic, object: topicId)
+    }
+}
+
+extension Notification.Name {
+    static let docsDidRequestTopic = Notification.Name("docsDidRequestTopic")
 }
 
 // MARK: - Multi-account (~/.claude, ~/.claude-work, ...)

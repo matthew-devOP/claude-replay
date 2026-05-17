@@ -112,7 +112,26 @@ struct Claude_MTW_ReplayApp: App {
                     .keyboardShortcut("e", modifiers: .command)
             }
             CommandGroup(replacing: .help) {
-                Button("Keyboard Shortcuts") { showKeyboardShortcuts = true }
+                Button("User Guide") {
+                    NotificationCenter.default.post(name: .docsDidRequestTopic, object: "getting-started")
+                }
+                .keyboardShortcut("?", modifiers: [.command])
+
+                Button("Keyboard Shortcuts (Reference)") {
+                    NotificationCenter.default.post(name: .docsDidRequestTopic, object: "keyboard-shortcuts")
+                }
+
+                Button("FAQ") {
+                    NotificationCenter.default.post(name: .docsDidRequestTopic, object: "faq")
+                }
+
+                Button("Troubleshooting") {
+                    NotificationCenter.default.post(name: .docsDidRequestTopic, object: "troubleshooting")
+                }
+
+                Divider()
+
+                Button("Keyboard Shortcuts Cheatsheet…") { showKeyboardShortcuts = true }
                     .keyboardShortcut("/", modifiers: .command)
             }
         }

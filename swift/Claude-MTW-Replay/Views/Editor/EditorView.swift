@@ -16,6 +16,14 @@ struct EditorView: View {
                     .help("Revert all edits and exclusions for this session")
                     .disabled(!vm.hasEdits)
             }
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    appState.showDoc(topicId: "editor")
+                } label: {
+                    Image(systemName: "questionmark.circle")
+                }
+                .help("Editor documentation")
+            }
         }
     }
 }

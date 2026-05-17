@@ -117,6 +117,14 @@ struct ChatView: View {
             .fixedSize()
             .disabled(vm.turns.isEmpty)
             .help("Export this chat to a file")
+            Button {
+                appState.showDoc(topicId: "chats")
+            } label: {
+                Image(systemName: "questionmark.circle")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Chat documentation")
             Button("Close") { dismiss() }
                 .keyboardShortcut(.cancelAction)
         }

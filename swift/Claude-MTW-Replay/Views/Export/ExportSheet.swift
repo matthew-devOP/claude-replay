@@ -13,7 +13,18 @@ struct ExportSheet: View {
     var body: some View {
         ZStack {
             VStack(spacing: 16) {
-                Text("Export Session").font(.title2).bold()
+                HStack {
+                    Text("Export Session").font(.title2).bold()
+                    Spacer()
+                    Button {
+                        appState.showDoc(topicId: "export")
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("Open export documentation")
+                }
                 Form {
                     Picker("Format", selection: $vm.format) {
                         ForEach(ExportViewModel.ExportFormat.allCases, id: \.self) {

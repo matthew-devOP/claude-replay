@@ -22,6 +22,7 @@ struct ContentView: View {
                     case .editor: EditorView()
                     case .stats: StatsView()
                     case .git: GitView()
+                    case .docs: DocsView()
                     }
                 }
             }
