@@ -3,7 +3,7 @@ struct TurnEditorPanel: View {
     @Bindable var vm: EditorViewModel
     var body: some View {
         if let idx = vm.selectedTurnIndex, idx < vm.workingTurns.count {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: DesignTokens.space12) {
                 Text("Turn \(idx + 1)").font(.headline)
                 Text("User message:").font(.caption).bold()
                 TextEditor(text: Binding(get: { vm.workingTurns[idx].userText }, set: { vm.editTurnText(index: idx, newText: $0) }))

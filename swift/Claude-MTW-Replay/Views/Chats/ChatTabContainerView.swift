@@ -90,7 +90,7 @@ struct ChatTabContainerView: View {
 
     private var tabStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
+            HStack(spacing: DesignTokens.space4) {
                 ForEach(tabs) { tab in
                     chip(for: tab)
                 }
@@ -99,21 +99,21 @@ struct ChatTabContainerView: View {
                 } label: {
                     Image(systemName: "plus")
                         .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, DesignTokens.space6)
+                        .padding(.vertical, DesignTokens.space4)
                 }
                 .buttonStyle(.plain)
                 .help("Open a new chat tab")
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, DesignTokens.space8)
+            .padding(.vertical, DesignTokens.space4)
         }
         .background(appState.theme.bg.opacity(0.4))
     }
 
     @ViewBuilder
     private func chip(for tab: ChatTab) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DesignTokens.space6) {
             Image(systemName: tab.sessionPath == nil
                   ? "plus.bubble"
                   : "bubble.left.and.exclamationmark.bubble.right")
@@ -135,10 +135,10 @@ struct ChatTabContainerView: View {
                 .help("Close this tab")
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, DesignTokens.space8)
+        .padding(.vertical, DesignTokens.space4)
         .background(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: DesignTokens.cornerSmall)
                 .fill(activeId == tab.id
                       ? appState.theme.accent.opacity(0.18)
                       : Color.clear)

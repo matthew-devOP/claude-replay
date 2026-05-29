@@ -17,9 +17,9 @@ struct ProjectHeaderView: View {
     @State private var resolvedPath: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.space8) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DesignTokens.space4) {
                     Text(resolvedPath.isEmpty ? project.name : resolvedPath)
                         .font(.title)
                         .bold()
@@ -27,7 +27,7 @@ struct ProjectHeaderView: View {
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
-                    HStack(spacing: 12) {
+                    HStack(spacing: DesignTokens.space12) {
                         Label("\(project.sessionCount) session\(project.sessionCount == 1 ? "" : "s")",
                               systemImage: "doc.text")
                         if let lastActivity = project.lastActivity {
@@ -46,7 +46,7 @@ struct ProjectHeaderView: View {
             }
             if !sessions.isEmpty {
                 ActivityHeatmapView(sessions: sessions)
-                    .padding(.top, 4)
+                    .padding(.top, DesignTokens.space4)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,7 +59,7 @@ struct ProjectHeaderView: View {
     /// Right-side action buttons mirroring the web's [Finder][Terminal]
     /// [LazyGit] cluster — quick launchers for the project directory.
     private var quickLaunchers: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DesignTokens.space6) {
             Button {
                 NSWorkspace.shared.open(URL(fileURLWithPath: project.path))
             } label: {

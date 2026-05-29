@@ -4,6 +4,7 @@ import SwiftUI
 /// `SlashCommandService`. Rendered as an overlay above the chat input
 /// while the draft begins with `/` and contains no whitespace.
 struct SlashCommandPickerView: View {
+    @Environment(AppState.self) private var appState
     let commands: [SlashCommand]
     let filter: String  // text after the leading `/`
     let onPick: (SlashCommand) -> Void
@@ -20,13 +21,13 @@ struct SlashCommandPickerView: View {
                 Text("No matching commands")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .padding(8)
+                    .padding(DesignTokens.space8)
             } else {
                 ForEach(Array(filtered.prefix(8))) { cmd in
                     Button {
                         onPick(cmd)
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: DesignTokens.space2) {
                             HStack {
                                 Text("/\(cmd.name)")
                                     .font(.system(.body, design: .monospaced))
@@ -45,14 +46,14 @@ struct SlashCommandPickerView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .buttonStyle(.plain)
-                    .padding(8)
-                    .background(Color.secondary.opacity(0.1))
+                    .padding(DesignTokens.spaceSM)
+                    .background(appState.theme.bgHover.opacity(0.5))
                     Divider()
                 }
             }
         }
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .appGlass(in: RoundedRectangle(cornerRadius: DesignTokens.cornerMedium))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.cornerMedium))
         .shadow(radius: 6)
         .frame(maxWidth: 360)
     }

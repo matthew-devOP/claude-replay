@@ -30,12 +30,14 @@ struct ChatInputBarView: View {
     @State private var slashFilter: String? = nil
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: DesignTokens.spaceSM) {
             attachmentBar
             controlsRow
             inputRow
         }
-        .padding(12)
+        .padding(DesignTokens.spaceMD)
+        // Floating glass dock on macOS 26; transparent (unchanged) below it.
+        .appGlass(in: Rectangle(), fallback: Color.clear)
         .onAppear {
             slashCommands = SlashCommandService.discover(
                 projectPath: vm.projectPath,
@@ -54,11 +56,11 @@ struct ChatInputBarView: View {
         }
         .overlay {
             if isDropTargeted {
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.accentColor, lineWidth: 2)
+                RoundedRectangle(cornerRadius: DesignTokens.cornerMedium)
+                    .stroke(appState.theme.accent, lineWidth: 2)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.accentColor.opacity(0.1))
+                        RoundedRectangle(cornerRadius: DesignTokens.cornerMedium)
+                            .fill(appState.theme.accent.opacity(0.1))
                     )
                     .overlay(
                         Text("Drop file(s) to attach")
@@ -85,7 +87,7 @@ struct ChatInputBarView: View {
             ChatAttachmentPreviewSheet(attachment: att)
         }
         .sheet(isPresented: $showingShellSheet) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: DesignTokens.space12) {
                 Text("Run shell command")
                     .font(.headline)
                 Text("Stdout + stderr will be appended to your message (max 16 KB).")
@@ -104,7 +106,7 @@ struct ChatInputBarView: View {
                         .disabled(shellPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .padding(20)
+            .padding(DesignTokens.space20)
             .frame(width: 480)
         }
     }
@@ -126,7 +128,7 @@ struct ChatInputBarView: View {
     private var attachmentBar: some View {
         if !vm.pendingAttachments.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
+                HStack(spacing: DesignTokens.space6) {
                     ForEach(vm.pendingAttachments) { att in
                         ChatAttachmentChip(attachment: att) {
                             vm.removeAttachment(att)
@@ -135,7 +137,7 @@ struct ChatInputBarView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 2)
+                .padding(.horizontal, DesignTokens.space2)
             }
             .frame(height: 36)
         }
@@ -144,7 +146,7 @@ struct ChatInputBarView: View {
     // MARK: - Controls row (mode + prefix + verbose)
 
     private var controlsRow: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DesignTokens.space8) {
             ModeToggleView(currentMode: vm.permissionMode) { newMode in
                 Task { await vm.changeMode(newMode) }
             }
@@ -254,19 +256,19 @@ struct ChatInputBarView: View {
     // MARK: - Input + Send/Stop
 
     private var inputRow: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        HStack(alignment: .bottom, spacing: DesignTokens.space8) {
             ZStack(alignment: .topLeading) {
                 if vm.inputDraft.isEmpty {
                     Text("Send a message… (Enter to send, Shift+Enter for newline)")
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, DesignTokens.space6)
+                        .padding(.vertical, DesignTokens.space8)
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: $vm.inputDraft)
                     .focused($inputFocused)
                     .scrollContentBackground(.hidden)
-                    .padding(2)
+                    .padding(DesignTokens.space2)
                     .frame(minHeight: 36, maxHeight: 140)
                     .onSubmit { trySubmit() }
                     .onKeyPress(.return) {
@@ -280,7 +282,7 @@ struct ChatInputBarView: View {
             }
             .background(appState.theme.bgSurface)
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: DesignTokens.cornerMedium)
                     .strokeBorder(appState.theme.border, lineWidth: 1)
             )
 
@@ -292,10 +294,10 @@ struct ChatInputBarView: View {
                     commands: slashCommands,
                     filter: slashFilter ?? ""
                 ) { cmd in
-                    // Replace the draft with the expanded command body.
-                    // `$ARGUMENTS` is currently empty — future work could
-                    // pipe trailing tokens from `/cmd foo bar` through.
-                    vm.inputDraft = cmd.expanded(args: "")
+                    // Insert the invocation (`/name `) and let the user type
+                    // arguments after it; expansion (including `$ARGUMENTS`)
+                    // happens at send time in `expandSlashIfNeeded`.
+                    vm.inputDraft = "/\(cmd.name) "
                     slashFilter = nil
                     inputFocused = true
                 }
@@ -343,6 +345,30 @@ struct ChatInputBarView: View {
         let hasText = !vm.inputDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasAttachments = !vm.pendingAttachments.isEmpty
         guard hasText || hasAttachments else { return }
+        // Expand a `/command args…` invocation into its body before sending,
+        // substituting `$ARGUMENTS` with the trailing tokens.
+        if hasText { vm.inputDraft = expandSlashIfNeeded(vm.inputDraft) }
         Task { await vm.send() }
+    }
+
+    /// If `draft` is a `/name …args` invocation matching a discovered slash
+    /// command, return the command body with `$ARGUMENTS` replaced by the
+    /// trailing tokens. Anything else (plain text, or an unknown `/foo`) is
+    /// returned unchanged so it sends literally.
+    private func expandSlashIfNeeded(_ draft: String) -> String {
+        guard draft.hasPrefix("/") else { return draft }
+        let withoutSlash = draft.dropFirst()
+        let name: String
+        let args: String
+        if let sep = withoutSlash.firstIndex(where: { $0 == " " || $0 == "\n" }) {
+            name = String(withoutSlash[..<sep])
+            args = String(withoutSlash[withoutSlash.index(after: sep)...])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            name = String(withoutSlash)
+            args = ""
+        }
+        guard let cmd = slashCommands.first(where: { $0.name == name }) else { return draft }
+        return cmd.expanded(args: args)
     }
 }

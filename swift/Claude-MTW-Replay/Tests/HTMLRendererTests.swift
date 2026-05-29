@@ -134,6 +134,43 @@ final class HTMLRendererTests: XCTestCase {
         XCTAssertTrue(firstBlock.text.contains("[REDACTED]"))
     }
 
+    /// Regression: the embedded tool_call must use the camelCase
+    /// `resultTimestamp` key that player.html and HTMLExtractor expect — the
+    /// renderer previously emitted snake_case `result_timestamp`, silently
+    /// dropping tool-result timing from Swift-exported replays.
+    func testRenderedToolCallUsesCamelCaseResultTimestamp() throws {
+        let tc = ToolCall(
+            toolUseId: "tu_ts",
+            name: "Bash",
+            input: ["command": AnyCodable("ls")],
+            result: "ok",
+            resultTimestamp: "2025-01-01T00:00:06Z"
+        )
+        let turn = Turn(
+            index: 0,
+            userText: "x",
+            blocks: [AssistantBlock(kind: .toolUse, text: "", toolCall: tc)],
+            timestamp: "2025-01-01T00:00:05Z"
+        )
+        var opts = RenderOptions()
+        opts.compress = false
+        opts.redactSecrets = false
+
+        let html = HTMLRenderer.render(turns: [turn], options: opts)
+        try skipIfTemplateMissing(html)
+
+        // Data is embedded uncompressed but with JS-escaped quotes, so check
+        // for the key without quote framing. The snake_case form must never
+        // appear (the template's own minified JS only uses camelCase), and
+        // the unique timestamp value proves our data carried it through.
+        XCTAssertFalse(html.contains("result_timestamp"),
+                       "snake_case result_timestamp breaks player timing + extract round-trip")
+        XCTAssertTrue(html.contains("resultTimestamp"),
+                      "tool_call must use camelCase resultTimestamp to match player.html")
+        XCTAssertTrue(html.contains("2025-01-01T00:00:06Z"),
+                      "the resultTimestamp value must be embedded in the rendered data")
+    }
+
     func testEmptyTurnsRoundTripYieldsEmptyArrays() throws {
         let html = HTMLRenderer.render(turns: [], options: RenderOptions())
         try skipIfTemplateMissing(html)

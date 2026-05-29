@@ -8,22 +8,14 @@ struct ContentView: View {
         NavigationSplitView {
             SidebarView()
         } detail: {
-            VStack(spacing: 0) {
-                // Visible tab strip — mirrors the web header nav so users
-                // can discover Replay/Transcript/Editor/Stats/Git/Chats
-                // without learning Cmd+1..7.
-                MainTabBarView()
-                Group {
-                    switch appState.currentTab {
-                    case .dashboard: DashboardView()
-                    case .chats: ChatsView()
-                    case .replay: ReplayView()
-                    case .transcript: TranscriptView()
-                    case .editor: EditorView()
-                    case .stats: StatsView()
-                    case .git: GitView()
-                    case .docs: DocsView()
-                    }
+            // Native TabView so the tab bar inherits Liquid Glass automatically
+            // on macOS 26 (and standard chrome below it). Selection is bound to
+            // `currentTab`, so the existing Cmd+1..8 commands keep working.
+            TabView(selection: $state.currentTab) {
+                ForEach(AppTab.allCases) { tab in
+                    tabContent(for: tab)
+                        .tabItem { Label(tab.label, systemImage: tab.icon) }
+                        .tag(tab)
                 }
             }
             .toolbar {
@@ -52,5 +44,19 @@ struct ContentView: View {
         .sheet(isPresented: $state.showExportSheet) { ExportSheet() }
         .sheet(isPresented: $state.showSearchSheet) { GlobalSearchView() }
         .sheet(isPresented: $state.showKeyboardShortcuts) { KeyboardShortcutsView() }
+    }
+
+    @ViewBuilder
+    private func tabContent(for tab: AppTab) -> some View {
+        switch tab {
+        case .dashboard: DashboardView()
+        case .chats: ChatsView()
+        case .replay: ReplayView()
+        case .transcript: TranscriptView()
+        case .editor: EditorView()
+        case .stats: StatsView()
+        case .git: GitView()
+        case .docs: DocsView()
+        }
     }
 }

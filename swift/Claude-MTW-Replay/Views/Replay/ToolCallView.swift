@@ -6,7 +6,7 @@ struct ToolCallView: View {
     var body: some View {
         if let tc = block.toolCall {
             DisclosureGroup(isExpanded: $isExpanded) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DesignTokens.space4) {
                     if let cmd = tc.input["command"]?.stringValue, tc.name == "Bash" {
                         CodeBlockView(code: cmd, language: "bash")
                     }
@@ -20,13 +20,13 @@ struct ToolCallView: View {
                     }
                 }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: DesignTokens.space6) {
                     Circle().fill(tc.isError ? appState.theme.red : appState.theme.blue).frame(width: 8, height: 8)
                     Text(tc.name).font(.caption).bold().foregroundStyle(appState.theme.cyan)
                     Text(toolPreview(tc)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
-            .padding(8).background(appState.theme.toolBg, in: RoundedRectangle(cornerRadius: 6))
+            .padding(DesignTokens.space8).background(appState.theme.toolBg, in: RoundedRectangle(cornerRadius: DesignTokens.cornerSmall))
         }
     }
     private func toolPreview(_ tc: ToolCall) -> String {

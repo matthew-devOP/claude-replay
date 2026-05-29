@@ -26,6 +26,14 @@ struct ChatModelPickerView: View {
         ChatModelOption(id: "claude-haiku-4-5",  label: "Haiku 4.5",  pricingPer1M: "$1 / $5 per 1M tokens"),
     ]
 
+    /// Returns `id` only if it's one of the offered models; otherwise nil
+    /// (SDK default). Guards a stale/persisted/hand-edited model id from
+    /// reaching the SDK, where an unknown id would error the whole turn.
+    static func validatedModelID(_ id: String?) -> String? {
+        guard let id, options.contains(where: { $0.id == id }) else { return nil }
+        return id
+    }
+
     var body: some View {
         Menu {
             Button("Default (SDK)") {

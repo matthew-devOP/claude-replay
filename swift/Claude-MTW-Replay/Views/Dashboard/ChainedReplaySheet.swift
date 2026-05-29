@@ -29,7 +29,7 @@ struct ChainedReplaySheet: View {
                 )
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 16) {
+                    LazyVStack(spacing: DesignTokens.space16) {
                         ForEach(Array(turns.enumerated()), id: \.offset) { index, turn in
                             ReplayTurnView(
                                 turn: turn,
@@ -48,10 +48,10 @@ struct ChainedReplaySheet: View {
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DesignTokens.space12) {
             Image(systemName: "link")
                 .foregroundStyle(appState.theme.accent)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DesignTokens.space2) {
                 Text("Chained Replay")
                     .font(.headline)
                 Text("\(sessionCount) session\(sessionCount == 1 ? "" : "s") · \(turns.count) turns (ephemeral)")
@@ -68,6 +68,6 @@ struct ChainedReplaySheet: View {
             Button("Close") { dismiss() }
                 .keyboardShortcut(.cancelAction)
         }
-        .padding(12)
+        .padding(DesignTokens.space12)
     }
 }

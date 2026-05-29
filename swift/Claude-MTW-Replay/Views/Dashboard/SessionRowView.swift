@@ -24,8 +24,8 @@ struct SessionRowView: View {
             actionsCell
             compareCell
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, DesignTokens.space16)
+        .padding(.vertical, DesignTokens.space10)
         .background(rowBackground)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
@@ -35,7 +35,7 @@ struct SessionRowView: View {
     // MARK: - Cells
 
     private var sessionIdCell: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: DesignTokens.space4) {
             if appState.favoritesVM.isFavorite(session.path) {
                 Image(systemName: "star.fill")
                     .font(.system(size: 9))
@@ -50,7 +50,7 @@ struct SessionRowView: View {
                 .foregroundStyle(appState.theme.accent)
         }
         .frame(width: 130, alignment: .leading)
-        .padding(.trailing, 8)
+        .padding(.trailing, DesignTokens.space8)
         .onTapGesture {
             appState.favoritesVM.toggle(
                 path: session.path,
@@ -69,7 +69,7 @@ struct SessionRowView: View {
             .lineLimit(1)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.trailing, 8)
+            .padding(.trailing, DesignTokens.space8)
             .redacted(reason: session.preview == nil ? .placeholder : [])
     }
 
@@ -78,7 +78,7 @@ struct SessionRowView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .frame(width: 110, alignment: .leading)
-            .padding(.trailing, 8)
+            .padding(.trailing, DesignTokens.space8)
     }
 
     private var durationCell: some View {
@@ -86,7 +86,7 @@ struct SessionRowView: View {
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
             .frame(width: 110, alignment: .leading)
-            .padding(.trailing, 8)
+            .padding(.trailing, DesignTokens.space8)
             .redacted(reason: session.turnCount == nil ? .placeholder : [])
     }
 
@@ -95,7 +95,7 @@ struct SessionRowView: View {
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
             .frame(width: 80, alignment: .trailing)
-            .padding(.trailing, 8)
+            .padding(.trailing, DesignTokens.space8)
             .redacted(reason: session.turnCount == nil ? .placeholder : [])
     }
 
@@ -104,11 +104,11 @@ struct SessionRowView: View {
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
             .frame(width: 90, alignment: .trailing)
-            .padding(.trailing, 8)
+            .padding(.trailing, DesignTokens.space8)
     }
 
     private var actionsCell: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DesignTokens.space6) {
             actionButton("Replay", icon: "play.fill", prominent: true) { onAction(.replay, session) }
             actionButton("Transcript", icon: "doc.text") { onAction(.transcript, session) }
             actionButton("Edit", icon: "pencil") { onAction(.edit, session) }
@@ -168,9 +168,9 @@ struct SessionRowView: View {
 
     @ViewBuilder
     private var hoverPopoverContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: DesignTokens.space10) {
             ForEach(Array((session.userPreviews ?? []).enumerated()), id: \.offset) { idx, text in
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: DesignTokens.space2) {
                     Text("Turn \(idx + 1)")
                         .font(.caption2.smallCaps())
                         .foregroundStyle(appState.theme.accent)
@@ -182,7 +182,7 @@ struct SessionRowView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(DesignTokens.space14)
         .frame(maxWidth: 380, alignment: .leading)
     }
 }

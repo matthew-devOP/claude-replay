@@ -5,7 +5,7 @@ struct GitView: View {
     var body: some View {
         Group {
             if let info = vm.gitInfo {
-                ScrollView { VStack(alignment: .leading, spacing: 16) {
+                ScrollView { VStack(alignment: .leading, spacing: DesignTokens.space16) {
                     GitInfoView(info: info)
                     if let details = vm.gitDetails { CommitLogView(details: details); GitGraphView(graph: details.graph) }
                     GitActionsView(projectPath: appState.selectedProjectDirName.map { SessionDiscovery.claudeDirToProjectPath($0) } ?? "")

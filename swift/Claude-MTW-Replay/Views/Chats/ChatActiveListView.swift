@@ -15,15 +15,15 @@ struct ChatActiveListView: View {
                 Text("No recent chats")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, DesignTokens.space4)
             } else {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DesignTokens.space4) {
                     ForEach(entities, id: \.sessionPath) { entity in
                         Button {
                             appState.selectSession(entity.sessionPath)
                         } label: {
-                            HStack(spacing: 8) {
-                                VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: DesignTokens.space8) {
+                                VStack(alignment: .leading, spacing: DesignTokens.space2) {
                                     Text(entity.displayName
                                          ?? URL(fileURLWithPath: entity.sessionPath).lastPathComponent)
                                         .font(.caption)
@@ -44,10 +44,10 @@ struct ChatActiveListView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, DesignTokens.space4)
             }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: DesignTokens.space6) {
                 Image(systemName: "bubble.left.and.text.bubble.right")
                     .font(.caption)
                 Text("Active Chats")
@@ -59,8 +59,8 @@ struct ChatActiveListView: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, DesignTokens.space12)
+        .padding(.vertical, DesignTokens.space6)
         .task { entities = DataStore.shared.getRecentChatTranscripts() }
     }
 }

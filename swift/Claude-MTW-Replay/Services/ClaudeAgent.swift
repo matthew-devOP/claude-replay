@@ -166,10 +166,26 @@ actor ClaudeAgent {
         return stream
     }
 
-    /// Write `{"type":"send","text":...}` to the sidecar's stdin.
-    func send(_ text: String) async throws {
+    /// A binary file (image/PDF) to send alongside a user message. The
+    /// sidecar reads it from disk and base64-encodes it into an SDK content
+    /// block — see `buildUserContent` in sidecar.js.
+    struct OutboundAttachment: Sendable {
+        let path: String
+        let kind: String       // "image" | "pdf" | "file"
+        let mediaType: String
+    }
+
+    /// Write `{"type":"send","text":...,"attachments":[…]}` to the sidecar's
+    /// stdin. `attachments` carries binary files only; text/code attachments
+    /// are folded into `text` by the caller.
+    func send(_ text: String, attachments: [OutboundAttachment] = []) async throws {
         guard let stdin = stdinPipe, isRunning else { throw AgentError.notRunning }
-        let payload: [String: String] = ["type": "send", "text": text]
+        var payload: [String: Any] = ["type": "send", "text": text]
+        if !attachments.isEmpty {
+            payload["attachments"] = attachments.map {
+                ["path": $0.path, "kind": $0.kind, "mediaType": $0.mediaType]
+            }
+        }
         let data = try JSONSerialization.data(withJSONObject: payload) + Data([0x0a])
         try stdin.fileHandleForWriting.write(contentsOf: data)
     }

@@ -53,7 +53,7 @@ struct ChatsView: View {
     }
 
     private var splitHeader: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DesignTokens.space12) {
             Image(systemName: "rectangle.split.2x1")
                 .foregroundStyle(appState.theme.accent)
             Text("Split-view chats")
@@ -69,8 +69,8 @@ struct ChatsView: View {
             .keyboardShortcut(.escape, modifiers: [])
             .help("Return to the single-pane session list")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, DesignTokens.space16)
+        .padding(.vertical, DesignTokens.space10)
     }
 
     @ViewBuilder
@@ -99,8 +99,8 @@ struct ChatsView: View {
                     .buttonStyle(.borderless)
                     .help("Pick a different session for this pane")
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .padding(.horizontal, DesignTokens.space12)
+                .padding(.vertical, DesignTokens.space6)
                 Divider()
                 ChatView(sessionPath: path, projectPath: project)
             }
@@ -132,8 +132,8 @@ private struct ChatPaneSessionPicker: View {
                     .foregroundStyle(.secondary)
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, DesignTokens.space12)
+            .padding(.vertical, DesignTokens.space6)
             Divider()
             if vm.isLoading {
                 ProgressView("Loading sessions…")
@@ -154,7 +154,7 @@ private struct ChatPaneSessionPicker: View {
                                     ?? FileManager.default.homeDirectoryForCurrentUser.path
                                 onPick(session.path, projPath)
                             } label: {
-                                HStack(spacing: 10) {
+                                HStack(spacing: DesignTokens.space10) {
                                     Text(String(session.sessionId.prefix(12)))
                                         .font(.system(.caption, design: .monospaced))
                                     Spacer()
@@ -167,8 +167,8 @@ private struct ChatPaneSessionPicker: View {
                                         .font(.caption2)
                                         .foregroundStyle(appState.theme.accent)
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
+                                .padding(.horizontal, DesignTokens.space12)
+                                .padding(.vertical, DesignTokens.space8)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)

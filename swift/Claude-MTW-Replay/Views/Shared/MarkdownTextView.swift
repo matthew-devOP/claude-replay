@@ -5,7 +5,7 @@ struct MarkdownTextView: View {
     let markdown: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DesignTokens.space6) {
             ForEach(Array(parseBlocks(markdown).enumerated()), id: \.offset) { _, block in
                 renderBlock(block)
             }
@@ -198,21 +198,21 @@ struct MarkdownTextView: View {
             CodeBlockView(code: code, language: lang)
 
         case .unorderedList(let items):
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: DesignTokens.space4) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignTokens.space6) {
                         Text("\u{2022}")
                             .foregroundStyle(.secondary)
                         renderInlineMarkdown(item)
                     }
                 }
             }
-            .padding(.leading, 8)
+            .padding(.leading, DesignTokens.space8)
 
         case .orderedList(let items):
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: DesignTokens.space4) {
                 ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignTokens.space6) {
                         Text("\(idx + 1).")
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
@@ -220,7 +220,7 @@ struct MarkdownTextView: View {
                     }
                 }
             }
-            .padding(.leading, 8)
+            .padding(.leading, DesignTokens.space8)
 
         case .blockquote(let text):
             HStack(spacing: 0) {
@@ -229,9 +229,9 @@ struct MarkdownTextView: View {
                     .frame(width: 3)
                 renderInlineMarkdown(text)
                     .foregroundStyle(.secondary)
-                    .padding(.leading, 8)
+                    .padding(.leading, DesignTokens.space8)
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, DesignTokens.space2)
 
         case .table(let rows):
             renderTable(rows)
@@ -241,7 +241,7 @@ struct MarkdownTextView: View {
 
         case .horizontalRule:
             Divider()
-                .padding(.vertical, 4)
+                .padding(.vertical, DesignTokens.space4)
         }
     }
 
@@ -319,7 +319,7 @@ struct MarkdownTextView: View {
                     if afterBracket.hasPrefix("(") {
                         if let closeParen = afterBracket.firstIndex(of: ")") {
                             let url = afterBracket[afterBracket.index(after: afterBracket.startIndex)..<closeParen]
-                            result = result + Text(linkText).foregroundColor(.blue).underline()
+                            result = result + Text(linkText).foregroundColor(appState.theme.blue).underline()
                             remaining = afterBracket[afterBracket.index(after: closeParen)...]
                             _ = url // URL noted but Text doesn't support tappable links
                             continue
@@ -366,12 +366,12 @@ struct MarkdownTextView: View {
                             Text(cell)
                                 .font(.caption)
                                 .fontWeight(.semibold)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
+                                .padding(.horizontal, DesignTokens.space8)
+                                .padding(.vertical, DesignTokens.space4)
                                 .frame(minWidth: 60, alignment: .leading)
                         }
                     }
-                    .background(Color.secondary.opacity(0.15))
+                    .background(appState.theme.bgHover.opacity(0.6))
 
                     Divider()
 
@@ -381,8 +381,8 @@ struct MarkdownTextView: View {
                             ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
                                 Text(cell)
                                     .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
+                                    .padding(.horizontal, DesignTokens.space8)
+                                    .padding(.vertical, DesignTokens.space4)
                                     .frame(minWidth: 60, alignment: .leading)
                             }
                         }

@@ -163,7 +163,12 @@ enum HTMLRenderer {
                         tcDict["result"] = redactStr(result)
                     }
                     if let rts = tc.resultTimestamp {
-                        tcDict["result_timestamp"] = rts
+                        // Web format uses camelCase for this key inside tool_call
+                        // (src/parser.mjs ToolCall typedef; player.html:1149 reads
+                        // tool_call.resultTimestamp). The surrounding block keys are
+                        // snake_case, but this one is not — match the web exactly so
+                        // tool-result timing survives export and extract round-trips.
+                        tcDict["resultTimestamp"] = rts
                     }
                     if tc.isError {
                         tcDict["is_error"] = true

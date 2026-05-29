@@ -11,7 +11,7 @@ struct ProjectRowView: View {
         HStack {
             Image(systemName: "folder.fill")
                 .foregroundStyle(appState.theme.accent)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DesignTokens.space2) {
                 Text(project.name).font(.headline).lineLimit(1)
                 if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text(project.path)
@@ -26,7 +26,7 @@ struct ProjectRowView: View {
             }
             Spacer()
             Text("\(project.sessionCount)")
-                .font(.caption).padding(.horizontal, 6).padding(.vertical, 2)
+                .font(.caption).padding(.horizontal, DesignTokens.space6).padding(.vertical, DesignTokens.space2)
                 .background(.quaternary, in: Capsule())
         }
     }

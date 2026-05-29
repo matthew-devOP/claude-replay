@@ -107,7 +107,7 @@ struct SessionTableView: View {
     // MARK: - Chain toolbar (P1.2)
 
     private var chainToolbar: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DesignTokens.space8) {
             Button {
                 vm.chainMode.toggle()
                 if !vm.chainMode { vm.selectedPaths.removeAll() }
@@ -135,8 +135,8 @@ struct SessionTableView: View {
             }
             Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
+        .padding(.horizontal, DesignTokens.space16)
+        .padding(.vertical, DesignTokens.space6)
     }
 
     private func runChain() async {
@@ -185,10 +185,10 @@ struct SessionTableView: View {
             .accessibilityLabel(vm.compareMode ? "Exit compare mode" : "Enter compare mode")
             .accessibilityHint("Compare two sessions side-by-side")
         }
-        .font(.system(size: 10, weight: .semibold))
+        .font(.caption.weight(.semibold))
         .foregroundStyle(appState.theme.textDim)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, DesignTokens.space16)
+        .padding(.vertical, DesignTokens.space8)
         .background(appState.theme.bgSurface.opacity(0.5))
     }
 
@@ -196,7 +196,7 @@ struct SessionTableView: View {
     private func cell(_ title: String, width: CGFloat?, alignment: Alignment = .leading) -> some View {
         Text(title)
             .frame(width: width, alignment: alignment)
-            .padding(.trailing, 8)
+            .padding(.trailing, DesignTokens.space8)
     }
 
     private func sortable(_ title: String, key: SessionSortKey, width: CGFloat, align: HorizontalAlignment = .leading) -> some View {
@@ -208,7 +208,7 @@ struct SessionTableView: View {
                 vm.sortAscending = false
             }
         } label: {
-            HStack(spacing: 2) {
+            HStack(spacing: DesignTokens.space2) {
                 if align == .trailing { Spacer() }
                 Text(title)
                 if vm.sortKey == key {
@@ -218,7 +218,7 @@ struct SessionTableView: View {
                 if align == .leading { Spacer() }
             }
             .frame(width: width)
-            .padding(.trailing, 8)
+            .padding(.trailing, DesignTokens.space8)
         }
         .buttonStyle(.plain)
         .foregroundStyle(vm.sortKey == key ? appState.theme.accent : appState.theme.textDim)
@@ -237,7 +237,7 @@ struct SessionTableView: View {
             }
             .disabled(vm.selectedPaths.isEmpty)
         }
-        .padding(12)
+        .padding(DesignTokens.space12)
         .background(appState.theme.bgSurface)
         .overlay(alignment: .top) {
             Rectangle().fill(appState.theme.border).frame(height: 0.5)
@@ -261,7 +261,7 @@ struct SessionTableView: View {
                 .disabled(vm.compareSelection.count != 2)
                 .keyboardShortcut(.return, modifiers: .command)
         }
-        .padding(12)
+        .padding(DesignTokens.space12)
         .background(appState.theme.bgSurface)
         .overlay(alignment: .top) {
             Rectangle().fill(appState.theme.border).frame(height: 0.5)

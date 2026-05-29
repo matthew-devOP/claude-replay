@@ -22,7 +22,7 @@ struct ModeToggleView: View {
     ]
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DesignTokens.space6) {
             ForEach(Self.modes) { mode in
                 Button {
                     onChange(mode.id)

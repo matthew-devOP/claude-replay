@@ -18,14 +18,14 @@ struct ChatBranchListView: View {
         Group {
             if !branches.isEmpty {
                 DisclosureGroup {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: DesignTokens.space4) {
                         ForEach(branches, id: \.sessionPath) { branch in
                             branchRow(branch)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, DesignTokens.space4)
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: DesignTokens.space6) {
                         Image(systemName: "arrow.triangle.branch")
                             .font(.caption)
                         Text("Branches")
@@ -35,8 +35,8 @@ struct ChatBranchListView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .padding(.horizontal, DesignTokens.space12)
+                .padding(.vertical, DesignTokens.space6)
             } else {
                 EmptyView()
             }
@@ -51,8 +51,8 @@ struct ChatBranchListView: View {
         Button {
             appState.selectSession(branch.sessionPath)
         } label: {
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: DesignTokens.space8) {
+                VStack(alignment: .leading, spacing: DesignTokens.space2) {
                     Text(displayLabel(for: branch))
                         .font(.caption)
                         .lineLimit(1)

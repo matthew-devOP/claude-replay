@@ -24,7 +24,7 @@ struct DiffView: View {
                 Text(fp)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .padding(4)
+                    .padding(DesignTokens.space4)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -33,9 +33,9 @@ struct DiffView: View {
                     }
                 }
             }
-            .padding(4)
+            .padding(DesignTokens.space4)
         }
-        .background(appState.theme.toolBg, in: RoundedRectangle(cornerRadius: 6))
+        .background(appState.theme.toolBg, in: RoundedRectangle(cornerRadius: DesignTokens.cornerSmall))
     }
 
     @ViewBuilder
@@ -52,7 +52,7 @@ struct DiffView: View {
             .font(.system(.caption, design: .monospaced))
             .foregroundStyle(fg)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 4)
+            .padding(.horizontal, DesignTokens.space4)
             .background(bg.opacity(line.kind == .context ? 0 : 0.1))
     }
 

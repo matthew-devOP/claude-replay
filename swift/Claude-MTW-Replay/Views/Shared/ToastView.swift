@@ -1,17 +1,18 @@
 import SwiftUI
 
 struct ToastView: View {
+    @Environment(AppState.self) private var appState
     let message: String
     var isError: Bool = false
 
     var body: some View {
         Text(message)
             .font(.caption)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, DesignTokens.spaceMD)
+            .padding(.vertical, DesignTokens.spaceSM)
             .background(
-                isError ? Color.red.opacity(0.9) : Color.green.opacity(0.9),
-                in: RoundedRectangle(cornerRadius: 8)
+                (isError ? appState.theme.red : appState.theme.green).opacity(0.95),
+                in: RoundedRectangle(cornerRadius: DesignTokens.cornerMedium, style: .continuous)
             )
             .foregroundStyle(.white)
             .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
@@ -30,17 +31,17 @@ struct ToastModifier: ViewModifier {
         content.overlay(alignment: .bottom) {
             if isPresented {
                 ToastView(message: message, isError: isError)
-                    .padding(.bottom, 32)
+                    .padding(.bottom, DesignTokens.space32)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-                            withAnimation { isPresented = false }
+                            withAnimation(Motion.standard) { isPresented = false }
                         }
                     }
-                    .animation(.easeInOut, value: isPresented)
+                    .animation(Motion.standard, value: isPresented)
             }
         }
-        .animation(.easeInOut, value: isPresented)
+        .animation(Motion.standard, value: isPresented)
     }
 }
 

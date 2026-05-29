@@ -6,7 +6,7 @@ struct TranscriptView: View {
         VStack(spacing: 0) {
             TranscriptSearchBar(searchText: $vm.searchText, matchCount: vm.matchCount, onNext: vm.nextMatch, onPrev: vm.prevMatch)
             TranscriptFilterBar(showUser: $vm.showUser, showAssistant: $vm.showAssistant, showTools: $vm.showTools, showThinking: $vm.showThinking)
-            ScrollView { LazyVStack(spacing: 12) {
+            ScrollView { LazyVStack(spacing: DesignTokens.space12) {
                 ForEach(vm.filteredTurns, id: \.index) { turn in TranscriptTurnView(turn: turn) }
             }.padding() }
         }

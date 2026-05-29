@@ -5,12 +5,13 @@ struct StatsView: View {
     var body: some View {
         Group {
             if let stats = vm.stats {
-                ScrollView { VStack(alignment: .leading, spacing: 16) {
+                ScrollView { VStack(alignment: .leading, spacing: DesignTokens.space16) {
                     StatsOverviewCards(stats: stats)
                     if !stats.toolBreakdown.isEmpty { ToolBreakdownChart(breakdown: stats.toolBreakdown) }
                     if !stats.bashCommands.isEmpty { BashCommandsListView(commands: stats.bashCommands) }
                     if !stats.filesRead.isEmpty || !stats.filesEdited.isEmpty { FilesAccessedView(read: stats.filesRead, edited: stats.filesEdited) }
                     if !stats.agents.isEmpty { AgentsListView(agents: stats.agents) }
+                    if !stats.teams.isEmpty { TeamsListView(teams: stats.teams) }
                 }.padding() }
             } else if vm.isLoading { ProgressView("Computing stats...") }
             else { EmptyStateView(icon: "chart.bar", title: "No Session Selected", subtitle: "Select a session to view stats") }

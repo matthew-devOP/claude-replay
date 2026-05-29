@@ -76,11 +76,11 @@ struct ChatSessionListView: View {
     @ViewBuilder
     private var header: some View {
         if let project = appState.selectedProject {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: DesignTokens.space4) {
                 Text(project.name)
                     .font(.title2)
                     .fontWeight(.bold)
-                HStack(spacing: 12) {
+                HStack(spacing: DesignTokens.space12) {
                     Text(project.path)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -92,8 +92,8 @@ struct ChatSessionListView: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
+            .padding(.horizontal, DesignTokens.space20)
+            .padding(.vertical, DesignTokens.space14)
         }
     }
 
@@ -135,12 +135,12 @@ private struct ChatSessionRow: View {
     let onSplit: () -> Void
 
     var body: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: DesignTokens.space16) {
+            VStack(alignment: .leading, spacing: DesignTokens.space2) {
                 Text(String(session.sessionId.prefix(12)))
                     .font(.system(.body, design: .monospaced))
                     .foregroundStyle(.primary)
-                HStack(spacing: 10) {
+                HStack(spacing: DesignTokens.space10) {
                     if let date = session.date {
                         Text(date.shortRelativeString())
                             .font(.caption)
@@ -152,7 +152,7 @@ private struct ChatSessionRow: View {
                 }
             }
             Spacer()
-            HStack(spacing: 8) {
+            HStack(spacing: DesignTokens.space8) {
                 Button(action: onTranscript) {
                     Label("Transcript", systemImage: "doc.text")
                 }
@@ -174,7 +174,7 @@ private struct ChatSessionRow: View {
                 .help("Open this session in split-view Pane A; pick another for Pane B")
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
+        .padding(.horizontal, DesignTokens.space20)
+        .padding(.vertical, DesignTokens.space10)
     }
 }

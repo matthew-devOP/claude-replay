@@ -10,7 +10,7 @@ struct BashCommandsListView: View {
                     Text(cmd.command).font(.system(.caption, design: .monospaced)).lineLimit(2)
                     Spacer()
                     Text("Turn \(cmd.turnIndex)").font(.caption2).foregroundStyle(.secondary)
-                }.padding(4)
+                }.padding(DesignTokens.space4)
             }
         }
     }

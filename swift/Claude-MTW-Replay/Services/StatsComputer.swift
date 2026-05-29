@@ -8,6 +8,7 @@ enum StatsComputer {
         var filesRead: [String] = []
         var filesEdited: [String] = []
         var agents: [SessionStats.AgentInfo] = []
+        var teams: [SessionStats.TeamOp] = []
         var userChars = 0, assistantChars = 0, thinkingChars = 0
         var userMessages: [SessionStats.UserMessage] = []
         var assistantTexts: [SessionStats.AssistantText] = []
@@ -51,9 +52,16 @@ enum StatsComputer {
                             filesEdited.append(path)
                         }
                     case "Agent":
-                        let name = tc.input["name"]?.stringValue ?? "unnamed"
+                        // Web reads `description` (the Agent tool's human label),
+                        // not `name` — fall back to subagent_type, then "unnamed".
+                        let subagentType = tc.input["subagent_type"]?.stringValue
+                        let name = tc.input["description"]?.stringValue
+                            ?? subagentType
+                            ?? "unnamed"
                         let prompt = tc.input["prompt"]?.stringValue ?? ""
-                        agents.append(SessionStats.AgentInfo(turnIndex: turn.index, name: name, model: tc.input["model"]?.stringValue, prompt: String(prompt.prefix(200)), mode: tc.input["mode"]?.stringValue))
+                        agents.append(SessionStats.AgentInfo(turnIndex: turn.index, name: name, subagentType: subagentType, model: tc.input["model"]?.stringValue, prompt: String(prompt.prefix(200)), mode: tc.input["mode"]?.stringValue))
+                    case "TeamCreate", "TeamDelete":
+                        teams.append(SessionStats.TeamOp(turnIndex: turn.index, action: tc.name, teamName: tc.input["team_name"]?.stringValue ?? tc.input["name"]?.stringValue))
                     default: break
                     }
                 }
@@ -93,7 +101,8 @@ enum StatsComputer {
             avgBlocksPerTurn: avgBlocksPerTurn,
             longestTurn: longestTurn,
             userMessages: userMessages,
-            assistantTexts: assistantTexts
+            assistantTexts: assistantTexts,
+            teams: teams
         )
     }
 }

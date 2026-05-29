@@ -12,6 +12,6 @@ struct TranscriptSearchBar: View {
                 Button { onNext() } label: { Image(systemName: "chevron.down") }
                 Button { searchText = "" } label: { Image(systemName: "xmark.circle.fill") }
             }
-        }.padding(8).background(appState.theme.bgSurface)
+        }.padding(DesignTokens.space8).appGlass(in: RoundedRectangle(cornerRadius: DesignTokens.cornerMedium), fallback: appState.theme.bgSurface)
     }
 }

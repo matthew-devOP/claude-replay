@@ -11,18 +11,18 @@ struct CodeBlockView: View {
                 Text(language)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 4)
+                    .padding(.horizontal, DesignTokens.space8)
+                    .padding(.top, DesignTokens.space4)
             }
             ScrollView(.horizontal) {
                 Text(highlightedCode)
                     .font(.system(.caption, design: .monospaced))
                     .textSelection(.enabled)
-                    .padding(8)
+                    .padding(DesignTokens.space8)
             }
         }
-        .background(appState.theme.bg, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(appState.theme.border, lineWidth: 1))
+        .background(appState.theme.bg, in: RoundedRectangle(cornerRadius: DesignTokens.cornerSmall))
+        .overlay(RoundedRectangle(cornerRadius: DesignTokens.cornerSmall).stroke(appState.theme.border, lineWidth: 1))
     }
 
     // MARK: - Syntax Highlighting

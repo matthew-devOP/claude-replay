@@ -65,7 +65,7 @@ struct SessionCompareView: View {
 
     private var header: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DesignTokens.space2) {
                 Text("Compare sessions")
                     .font(.headline)
                 if loaded && !diffTooLarge {
@@ -78,7 +78,7 @@ struct SessionCompareView: View {
             Button("Close") { dismiss() }
                 .keyboardShortcut(.cancelAction)
         }
-        .padding(12)
+        .padding(DesignTokens.space12)
     }
 
     private var summaryLine: String {
@@ -87,7 +87,7 @@ struct SessionCompareView: View {
     }
 
     private var warningBanner: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DesignTokens.space6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
             Text("Sessions too large for diff; showing side-by-side only.")
@@ -95,8 +95,8 @@ struct SessionCompareView: View {
                 .foregroundStyle(.secondary)
             Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, DesignTokens.space12)
+        .padding(.vertical, DesignTokens.space6)
         .background(Color.orange.opacity(0.08))
     }
 
@@ -109,12 +109,12 @@ struct SessionCompareView: View {
             paneTitle(title)
             Divider()
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
+                LazyVStack(alignment: .leading, spacing: DesignTokens.space8) {
                     ForEach(diffSummary.entries) { entry in
                         diffRow(entry: entry, side: side)
                     }
                 }
-                .padding(.vertical, 12)
+                .padding(.vertical, DesignTokens.space12)
             }
         }
         .frame(minWidth: 360)
@@ -128,13 +128,13 @@ struct SessionCompareView: View {
             paneTitle(title)
             Divider()
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: DesignTokens.space12) {
                     ForEach(turns) { turn in
                         TranscriptTurnView(turn: turn)
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, DesignTokens.space12)
                     }
                 }
-                .padding(.vertical, 12)
+                .padding(.vertical, DesignTokens.space12)
             }
         }
         .frame(minWidth: 360)
@@ -146,7 +146,7 @@ struct SessionCompareView: View {
             .replacingOccurrences(of: ".jsonl", with: ""))
             .font(.system(.caption, design: .monospaced))
             .foregroundStyle(appState.theme.accent)
-            .padding(8)
+            .padding(DesignTokens.space8)
     }
 
     @ViewBuilder
@@ -154,14 +154,14 @@ struct SessionCompareView: View {
         let turn = (side == .left) ? entry.leftTurn : entry.rightTurn
         if let turn {
             TranscriptTurnView(turn: turn)
-                .padding(8)
+                .padding(DesignTokens.space8)
                 .background(background(for: entry.kind, side: side))
-                .cornerRadius(6)
-                .padding(.horizontal, 8)
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.cornerSmall, style: .continuous))
+                .padding(.horizontal, DesignTokens.space8)
         } else {
             // Placeholder so the opposite-side row stays vertically aligned.
             placeholder(for: entry.kind, side: side)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, DesignTokens.space8)
         }
     }
 
@@ -200,8 +200,8 @@ struct SessionCompareView: View {
             Spacer(minLength: 0)
         }
         .frame(minHeight: 36)
-        .padding(8)
+        .padding(DesignTokens.space8)
         .background(tint)
-        .cornerRadius(6)
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.cornerSmall, style: .continuous))
     }
 }

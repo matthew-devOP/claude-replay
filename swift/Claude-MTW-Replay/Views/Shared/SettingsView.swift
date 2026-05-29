@@ -17,6 +17,8 @@ struct SettingsView: View {
     @State private var claudePath: String? = SettingsView.resolve { try SidecarLocator.claudeBinary() }
     @State private var customThemePaths: [String] = ThemeService.customThemePaths()
     @State private var customThemeReloadMessage: String?
+    @State private var recentDiagnostics: [String] = []
+    @State private var telemetryEventCount: Int = 0
 
     var body: some View {
         Form {
@@ -59,7 +61,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(customThemePaths, id: \.self) { path in
-                        HStack(spacing: 8) {
+                        HStack(spacing: DesignTokens.space8) {
                             Image(systemName: "paintpalette")
                                 .foregroundStyle(.secondary)
                             Text((path as NSString).lastPathComponent)
@@ -74,7 +76,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                HStack(spacing: 8) {
+                HStack(spacing: DesignTokens.space8) {
                     Button("Import…") { importCustomTheme() }
                     Button("Reload from disk") { reloadCustomThemes() }
                     if let msg = customThemeReloadMessage {
@@ -86,15 +88,40 @@ struct SettingsView: View {
                 }
             }
             Section("Privacy & Diagnostics") {
-                Toggle("Send anonymous usage statistics", isOn: telemetryBinding)
-                    .help("Tracks tab switches, export clicks, and chat starts to help us improve the app. No content or identifying data is sent.")
+                Toggle("Record anonymous usage statistics", isOn: telemetryBinding)
+                    .help("Records tab switches, export clicks, and chat starts to a local log to help you understand your own usage. Stored on this Mac only — nothing is ever sent over the network.")
                 LabeledContent("Anonymous ID") {
                     Text(anonymousIdLabel).font(.caption).foregroundStyle(.secondary)
+                }
+                if telemetryOptIn {
+                    LabeledContent("Recorded events") {
+                        HStack {
+                            Text("\(telemetryEventCount) stored locally")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Clear…") {
+                                Telemetry.shared.clear()
+                                telemetryEventCount = 0
+                            }
+                            .disabled(telemetryEventCount == 0)
+                        }
+                    }
                 }
                 LabeledContent("Crash reporting") {
                     HStack {
                         Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                         Text("MetricKit active (system-managed)")
+                    }
+                }
+                if recentDiagnostics.isEmpty {
+                    Text("No crash or hang diagnostics recorded.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    DisclosureGroup("Recent diagnostics (\(recentDiagnostics.count))") {
+                        ForEach(recentDiagnostics, id: \.self) { line in
+                            Text(line).font(.caption).foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                 }
                 Text("View privacy policy at https://es617.github.io/claude-mtw-replay/privacy")
@@ -105,7 +132,7 @@ struct SettingsView: View {
             }
             Section("Sidecar") {
                 LabeledContent("Node binary") {
-                    HStack(spacing: 8) {
+                    HStack(spacing: DesignTokens.space8) {
                         statusIcon(found: nodePath != nil)
                         Text(nodePath ?? "Not located")
                             .font(.caption)
@@ -117,7 +144,7 @@ struct SettingsView: View {
                     }
                 }
                 LabeledContent("Claude binary") {
-                    HStack(spacing: 8) {
+                    HStack(spacing: DesignTokens.space8) {
                         statusIcon(found: claudePath != nil)
                         Text(claudePath ?? "Not located")
                             .font(.caption)
@@ -132,6 +159,10 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 520)
+        .task {
+            recentDiagnostics = CrashReporter.shared.recentDiagnostics()
+            telemetryEventCount = Telemetry.shared.recentEvents().count
+        }
     }
 
     @ViewBuilder
@@ -174,7 +205,14 @@ struct SettingsView: View {
     // MARK: - Privacy & Diagnostics helpers
 
     private var telemetryBinding: Binding<Bool> {
-        Binding(get: { telemetryOptIn }, set: { telemetryOptIn = $0 })
+        Binding(get: { telemetryOptIn }, set: { newValue in
+            telemetryOptIn = newValue
+            // Honour opt-out immediately: drop the local event log.
+            if !newValue {
+                Telemetry.shared.clear()
+                telemetryEventCount = 0
+            }
+        })
     }
     private var anonymousIdLabel: String {
         anonymousId.isEmpty ? "(not yet generated)" : "\(anonymousId.prefix(8))…"

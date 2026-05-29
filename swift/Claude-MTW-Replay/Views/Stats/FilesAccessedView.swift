@@ -2,7 +2,7 @@ import SwiftUI
 struct FilesAccessedView: View {
     let read: [String]; let edited: [String]
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.space8) {
             if !edited.isEmpty {
                 Text("Files Edited (\(edited.count))").font(.headline)
                 ForEach(edited, id: \.self) { Text($0).font(.system(.caption, design: .monospaced)) }

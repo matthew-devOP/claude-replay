@@ -52,11 +52,11 @@ struct BookmarksEditorView: View {
             }
             .help("Add bookmark at current turn (\(vm.currentTurnIndex))")
         }
-        .padding(12)
+        .padding(DesignTokens.space12)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: DesignTokens.space8) {
             Image(systemName: "bookmark.slash")
                 .font(.system(size: 32))
                 .foregroundStyle(.secondary)
@@ -97,7 +97,7 @@ struct BookmarksEditorView: View {
                 .keyboardShortcut(.return, modifiers: [.command])
                 .buttonStyle(.borderedProminent)
         }
-        .padding(12)
+        .padding(DesignTokens.space12)
     }
 
     // MARK: - Import / Export
@@ -131,6 +131,7 @@ struct BookmarksEditorView: View {
 }
 
 private struct BookmarkRow: View {
+    @Environment(AppState.self) private var appState
     let bookmark: Bookmark
     let onRename: (String) -> Void
     let onDelete: () -> Void
@@ -152,14 +153,14 @@ private struct BookmarkRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DesignTokens.space12) {
             Button(action: onJump) {
                 Text("Turn \(bookmark.turn)")
                     .font(.caption)
                     .monospacedDigit()
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.accentColor.opacity(0.15), in: Capsule())
+                    .padding(.horizontal, DesignTokens.space8)
+                    .padding(.vertical, DesignTokens.space4)
+                    .background(appState.theme.accent.opacity(0.15), in: Capsule())
             }
             .buttonStyle(.plain)
             .help("Jump to turn \(bookmark.turn)")
@@ -178,7 +179,7 @@ private struct BookmarkRow: View {
             .buttonStyle(.borderless)
             .help("Delete bookmark")
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, DesignTokens.space2)
     }
 
     private func commitRename() {

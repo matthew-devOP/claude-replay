@@ -3,7 +3,7 @@ struct TranscriptTurnView: View {
     @Environment(AppState.self) private var appState
     let turn: Turn
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.space8) {
             Text("Turn \(turn.index)").font(.caption).bold()
             UserMessageView(text: turn.userText)
             ForEach(Array(turn.blocks.enumerated()), id: \.offset) { _, block in
@@ -13,6 +13,6 @@ struct TranscriptTurnView: View {
                 case .toolUse: ToolCallView(block: block)
                 }
             }
-        }.padding(8).background(appState.theme.bgSurface.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+        }.padding(DesignTokens.space8).background(appState.theme.bgSurface.opacity(0.3), in: RoundedRectangle(cornerRadius: DesignTokens.cornerMedium))
     }
 }

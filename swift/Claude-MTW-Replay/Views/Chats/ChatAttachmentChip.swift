@@ -4,12 +4,13 @@ import SwiftUI
 /// input. Tapping the chip body opens the preview sheet; the trailing
 /// "x" removes the attachment from the pending list without sending it.
 struct ChatAttachmentChip: View {
+    @Environment(AppState.self) private var appState
     let attachment: ChatAttachment
     let onRemove: () -> Void
     let onTap: () -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: DesignTokens.space4) {
             Image(systemName: icon).font(.caption2)
             Text(attachment.displayName)
                 .font(.caption)
@@ -22,9 +23,9 @@ struct ChatAttachmentChip: View {
             .foregroundStyle(.secondary)
             .accessibilityLabel("Remove attachment \(attachment.displayName)")
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.secondary.opacity(0.15))
+        .padding(.horizontal, DesignTokens.spaceSM)
+        .padding(.vertical, DesignTokens.spaceXS)
+        .background(appState.theme.bgHover)
         .clipShape(Capsule())
         .contentShape(Capsule())
         .onTapGesture(perform: onTap)

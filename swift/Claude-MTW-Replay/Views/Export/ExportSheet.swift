@@ -12,7 +12,7 @@ struct ExportSheet: View {
 
     var body: some View {
         ZStack {
-            VStack(spacing: 16) {
+            VStack(spacing: DesignTokens.space16) {
                 HStack {
                     Text("Export Session").font(.title2).bold()
                     Spacer()
@@ -61,7 +61,7 @@ struct ExportSheet: View {
                     .disabled(vm.isExporting)
                 }
             }
-            .padding(24)
+            .padding(DesignTokens.space24)
             .frame(width: 400)
 
             if vm.isExporting {

@@ -13,7 +13,7 @@ struct UserMessageView: View {
         if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             EmptyView()
         } else {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: DesignTokens.space4) {
                 Text("USER")
                     .font(.caption2)
                     .bold()
@@ -24,10 +24,10 @@ struct UserMessageView: View {
                 if text.count > 500 || text.components(separatedBy: "\n").count > 10 {
                     Button(isExpanded ? "Show less" : "Show more") { isExpanded.toggle() }
                         .font(.caption)
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(appState.theme.accent)
                 }
             }
-            .padding(8)
+            .padding(DesignTokens.space8)
             .overlay(alignment: .leading) {
                 Rectangle()
                     .fill(appState.theme.accent)

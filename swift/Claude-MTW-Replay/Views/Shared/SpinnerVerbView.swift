@@ -58,7 +58,7 @@ struct SpinnerVerbView: View {
             let starOpacity = 0.65 + 0.35 * starWave
             let starScale = 1.0 + 0.12 * starWave
 
-            HStack(spacing: 6) {
+            HStack(spacing: DesignTokens.space6) {
                 Text("\u{2726}") // ✦
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(appState.theme.accent)

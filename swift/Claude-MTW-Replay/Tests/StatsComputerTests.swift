@@ -84,7 +84,8 @@ final class StatsComputerTests: XCTestCase {
             toolUseId: "tu_agent_1",
             name: "Agent",
             input: [
-                "name": AnyCodable("research"),
+                "description": AnyCodable("research"),
+                "subagent_type": AnyCodable("Explore"),
                 "prompt": AnyCodable("dig deeper"),
                 "model": AnyCodable("opus"),
                 "mode": AnyCodable("oneshot"),
@@ -153,6 +154,7 @@ final class StatsComputerTests: XCTestCase {
         let stats = StatsComputer.compute(turns: buildFixtureTurns())
         XCTAssertEqual(stats.agents.count, 1)
         XCTAssertEqual(stats.agents[0].name, "research")
+        XCTAssertEqual(stats.agents[0].subagentType, "Explore")
         XCTAssertEqual(stats.agents[0].model, "opus")
         XCTAssertEqual(stats.agents[0].mode, "oneshot")
         XCTAssertEqual(stats.agents[0].prompt, "dig deeper")
@@ -174,6 +176,49 @@ final class StatsComputerTests: XCTestCase {
         XCTAssertEqual(stats.charCounts.assistant, 22)
         // thinking: "let me think"(12)
         XCTAssertEqual(stats.charCounts.thinking, 12)
+    }
+
+    func testTeamOperationsExtracted() {
+        let create = ToolCall(
+            toolUseId: "tu_team_1",
+            name: "TeamCreate",
+            input: ["team_name": AnyCodable("reviewers")]
+        )
+        let delete = ToolCall(
+            toolUseId: "tu_team_2",
+            name: "TeamDelete",
+            input: ["team_name": AnyCodable("reviewers")]
+        )
+        let turn = Turn(
+            index: 0,
+            userText: "spin up a team",
+            blocks: [
+                AssistantBlock(kind: .toolUse, text: "", toolCall: create),
+                AssistantBlock(kind: .toolUse, text: "", toolCall: delete),
+            ],
+            timestamp: "2025-01-01T10:00:00Z"
+        )
+        let stats = StatsComputer.compute(turns: [turn])
+        XCTAssertEqual(stats.teams.count, 2)
+        XCTAssertEqual(stats.teams[0].action, "TeamCreate")
+        XCTAssertEqual(stats.teams[0].teamName, "reviewers")
+        XCTAssertEqual(stats.teams[1].action, "TeamDelete")
+    }
+
+    func testAgentFallsBackToSubagentTypeWhenNoDescription() {
+        let call = ToolCall(
+            toolUseId: "tu_agent_x",
+            name: "Agent",
+            input: ["subagent_type": AnyCodable("Plan"), "prompt": AnyCodable("plan it")]
+        )
+        let turn = Turn(
+            index: 0,
+            userText: "go",
+            blocks: [AssistantBlock(kind: .toolUse, text: "", toolCall: call)],
+            timestamp: "2025-01-01T10:00:00Z"
+        )
+        let stats = StatsComputer.compute(turns: [turn])
+        XCTAssertEqual(stats.agents.first?.name, "Plan")
     }
 
     func testEmptyInputReturnsZeroes() {

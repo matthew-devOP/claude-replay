@@ -3,9 +3,9 @@ import SwiftUI
 /// G5 — Sheet for editing the per-conversation system-prompt override.
 ///
 /// The text is appended to the SDK's default system prompt; the toggles
-/// govern whether CLAUDE.md / MEMORY.md context is bundled in (reserved
-/// for the sidecar's context layer). Pressing "Apply" mutates the
-/// `ChatViewModel` and respawns the sidecar so the new prompt takes
+/// fold the project/account CLAUDE.md and MEMORY.md into that addendum
+/// (see `ChatViewModel.effectiveSystemPrompt()`). Pressing "Apply" mutates
+/// the `ChatViewModel` and respawns the sidecar so the new prompt takes
 /// effect immediately.
 struct SystemPromptSheet: View {
     @Bindable var vm: ChatViewModel
@@ -17,7 +17,7 @@ struct SystemPromptSheet: View {
     @State private var localIncludeMemoryMd: Bool = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignTokens.space12) {
             HStack {
                 Text("System Prompt Override").font(.headline)
                 Spacer()
@@ -59,7 +59,7 @@ struct SystemPromptSheet: View {
                 .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(20)
+        .padding(DesignTokens.space20)
         .frame(width: 500, height: 400)
         .onAppear {
             localPrompt = vm.systemPromptOverride ?? ""

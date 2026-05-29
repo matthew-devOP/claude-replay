@@ -63,10 +63,10 @@ struct ChatView: View {
     // MARK: - Subviews
 
     private var header: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DesignTokens.space12) {
             Image(systemName: "bubble.left.and.exclamationmark.bubble.right")
                 .foregroundStyle(appState.theme.accent)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DesignTokens.space2) {
                 Text(URL(fileURLWithPath: vm.sessionPath).lastPathComponent
                     .replacingOccurrences(of: ".jsonl", with: ""))
                     .font(.system(.body, design: .monospaced))
@@ -128,7 +128,7 @@ struct ChatView: View {
             Button("Close") { dismiss() }
                 .keyboardShortcut(.cancelAction)
         }
-        .padding(12)
+        .padding(DesignTokens.space12)
     }
 
     /// G3 — small "MCP: N" pill that surfaces how many enabled MCP
@@ -143,8 +143,8 @@ struct ChatView: View {
         if mcpCount > 0 {
             Text("MCP: \(mcpCount)")
                 .font(.caption)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
+                .padding(.horizontal, DesignTokens.space6)
+                .padding(.vertical, DesignTokens.space2)
                 .background(Color.purple.opacity(0.15))
                 .clipShape(Capsule())
                 .help("\(mcpCount) MCP server(s) active")
@@ -156,7 +156,7 @@ struct ChatView: View {
     /// so casual users aren't distracted in cold sessions.
     @ViewBuilder
     private var tokenChips: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: DesignTokens.space4) {
             Text("↑\(vm.cumulativeInputTokens)")
                 .help("Cumulative input tokens (this chat)")
             Text("↓\(vm.cumulativeOutputTokens)")
@@ -179,7 +179,7 @@ struct ChatView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         case .starting:
-            HStack(spacing: 4) {
+            HStack(spacing: DesignTokens.space4) {
                 ProgressView().scaleEffect(0.6)
                 Text("Connecting…").font(.caption)
             }
@@ -190,7 +190,7 @@ struct ChatView: View {
                 .foregroundStyle(.green)
                 .font(.caption)
         case .sending:
-            HStack(spacing: 4) {
+            HStack(spacing: DesignTokens.space4) {
                 ProgressView().scaleEffect(0.6)
                 Text("Streaming…").font(.caption)
             }
@@ -207,11 +207,12 @@ struct ChatView: View {
     private var transcript: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 16) {
+                LazyVStack(alignment: .leading, spacing: DesignTokens.space16) {
                     ForEach(vm.turns) { turn in
                         TranscriptTurnView(turn: turn)
                             .id(turn.id)
-                            .padding(.horizontal, 20)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            .padding(.horizontal, DesignTokens.space20)
                             .overlay(alignment: .bottomTrailing) {
                                 regenerateButton(for: turn)
                             }
@@ -234,7 +235,7 @@ struct ChatView: View {
                             }
                     }
                     if vm.status == .sending {
-                        HStack(spacing: 6) {
+                        HStack(spacing: DesignTokens.space6) {
                             ProgressView().scaleEffect(0.7)
                             Text("Claude is composing")
                                 .font(.caption)
@@ -244,24 +245,27 @@ struct ChatView: View {
                             CaretBlinkView()
                                 .foregroundStyle(appState.theme.accent)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
+                        .padding(.horizontal, DesignTokens.space20)
+                        .padding(.bottom, DesignTokens.space8)
                         .id("composing-indicator")
                     }
                 }
-                .padding(.vertical, 16)
+                .padding(.vertical, DesignTokens.space16)
+                // Animate insertion/removal of turns (paired with the
+                // per-turn `.transition` above).
+                .animation(Motion.emphasized, value: vm.turns.count)
             }
             .onChange(of: vm.turns.last?.id) { _, newId in
                 guard let id = newId else { return }
                 // G11 — gentle spring instead of linear easeOut for smoother
                 // autoscroll when a new turn lands mid-conversation.
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                withAnimation(Motion.emphasized) {
                     proxy.scrollTo(id, anchor: .bottom)
                 }
             }
             .onChange(of: vm.status) { _, _ in
                 if vm.status == .sending {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                    withAnimation(Motion.emphasized) {
                         proxy.scrollTo("composing-indicator", anchor: .bottom)
                     }
                 }
@@ -293,15 +297,15 @@ struct ChatView: View {
             } label: {
                 Label("Regenerate", systemImage: "arrow.clockwise")
                     .labelStyle(.iconOnly)
-                    .padding(6)
-                    .background(.regularMaterial, in: Circle())
+                    .padding(DesignTokens.space6)
+                    .appGlass(in: Circle())
             }
             .buttonStyle(.plain)
             .help("Regenerate this response")
-            .padding(.trailing, 24)
-            .padding(.bottom, 4)
+            .padding(.trailing, DesignTokens.space24)
+            .padding(.bottom, DesignTokens.space4)
             .opacity(hoveredTurnId == turn.id ? 1 : 0)
-            .animation(.easeInOut(duration: 0.15), value: hoveredTurnId)
+            .animation(Motion.quick, value: hoveredTurnId)
         }
     }
 

@@ -11,7 +11,7 @@ struct MCPServersSettingsView: View {
     @State private var showAddSheet = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignTokens.space12) {
             HStack {
                 Text("Configured Servers").font(.headline)
                 Spacer()
@@ -23,9 +23,9 @@ struct MCPServersSettingsView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach($servers) { $server in
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: DesignTokens.space8) {
                         Toggle("", isOn: $server.enabled).labelsHidden()
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: DesignTokens.space2) {
                             Text(server.name).font(.body)
                             Text("\(server.command) \(server.args.joined(separator: " "))")
                                 .font(.caption)
@@ -74,7 +74,7 @@ struct MCPServerEditSheet: View {
     @State private var envString: String = ""  // KEY=VALUE per line
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignTokens.space12) {
             Text("Add MCP Server").font(.headline)
             Form {
                 TextField("Name (unique)", text: $name)
@@ -108,7 +108,7 @@ struct MCPServerEditSheet: View {
                 .disabled(name.isEmpty || command.isEmpty)
             }
         }
-        .padding(20)
+        .padding(DesignTokens.space20)
         .frame(width: 500)
     }
 }

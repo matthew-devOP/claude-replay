@@ -6,7 +6,7 @@ struct DocsTopicView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: DesignTokens.space12) {
                 Text(topic.category.uppercased())
                     .font(.caption2).foregroundStyle(.tertiary)
                 MarkdownTextView(markdown: content)
@@ -14,8 +14,8 @@ struct DocsTopicView: View {
                     .padding(.bottom, 80)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 32)
-            .padding(.top, 24)
+            .padding(.horizontal, DesignTokens.space32)
+            .padding(.top, DesignTokens.space24)
         }
         .background(Color(NSColor.textBackgroundColor))
     }

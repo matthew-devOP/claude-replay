@@ -14,6 +14,10 @@ struct Claude_MTW_ReplayApp: App {
         WindowGroup {
             ContentView()
                 .environment(appState)
+                // Drive every system-accented control (focus rings, prominent
+                // buttons, selection) from the active theme accent instead of
+                // the macOS system accent.
+                .tint(appState.theme.accent)
                 .frame(minWidth: 900, minHeight: 600)
                 .task { appState.favoritesVM.loadFavorites() }
                 .sheet(isPresented: $showKeyboardShortcuts) { KeyboardShortcutsView() }
@@ -37,9 +41,9 @@ struct Claude_MTW_ReplayApp: App {
                 }
                 .overlay {
                     if isDropTargeted {
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.accentColor, lineWidth: 3)
-                            .background(Color.accentColor.opacity(0.08))
+                        RoundedRectangle(cornerRadius: DesignTokens.cornerLarge)
+                            .strokeBorder(appState.theme.accent, lineWidth: 3)
+                            .background(appState.theme.accent.opacity(0.08))
                             .padding(8)
                             .allowsHitTesting(false)
                     }

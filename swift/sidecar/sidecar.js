@@ -29,6 +29,7 @@
 
 import { createInterface } from "node:readline";
 import { stdin, stdout, stderr, argv, exit } from "node:process";
+import { readFileSync, statSync } from "node:fs";
 
 // ─── Protocol versioning + hello handshake ──────────────────────────────
 // Emit a `hello` frame first thing so the Swift host can validate the
@@ -107,6 +108,59 @@ function fatal(message, code = 1) {
   emit({ type: "exit", code });
   stopHeartbeat();
   exit(code);
+}
+
+// ─── G9/G10 — attachment content blocks ─────────────────────────────────
+// Turns a queued {text, attachments} user message into the SDK `content`
+// shape. With no binary attachments we keep the plain-string content (what
+// every prior turn used — cheapest and fully backward-compatible). When
+// images/PDFs are staged we build a content-block array: the text first,
+// then one image/document block per readable file.
+
+// Anthropic only accepts these media types as inline `image` blocks.
+const IMAGE_MEDIA_TYPES = new Set([
+  "image/png", "image/jpeg", "image/gif", "image/webp",
+]);
+// Per-file ceiling. The API caps request size; refuse oversize files here
+// rather than ballooning the request and getting a server-side rejection.
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024; // 8 MB
+
+function buildUserContent(msg) {
+  const atts = Array.isArray(msg.attachments) ? msg.attachments : [];
+  if (atts.length === 0) return msg.text;
+
+  const blocks = [];
+  if (typeof msg.text === "string" && msg.text.length > 0) {
+    blocks.push({ type: "text", text: msg.text });
+  }
+  for (const att of atts) {
+    const path = typeof att?.path === "string" ? att.path : null;
+    if (!path) continue;
+    const block = readAttachmentBlock(path, att.kind, att.mediaType);
+    // Unreadable/unsupported binaries degrade to a path note so Claude can
+    // still try to open them with a tool instead of silently vanishing.
+    blocks.push(block ?? { type: "text", text: `[attachment: ${path}]` });
+  }
+  return blocks.length > 0 ? blocks : msg.text;
+}
+
+// Read one file and return an image/document content block, or null when it
+// can't be inlined (missing, not a file, oversize, or unsupported type).
+function readAttachmentBlock(path, kind, mediaType) {
+  let stat;
+  try { stat = statSync(path); } catch { return null; }
+  if (!stat.isFile() || stat.size > MAX_ATTACHMENT_BYTES) return null;
+
+  let data;
+  try { data = readFileSync(path).toString("base64"); } catch { return null; }
+
+  if (kind === "image" && IMAGE_MEDIA_TYPES.has(mediaType)) {
+    return { type: "image", source: { type: "base64", media_type: mediaType, data } };
+  }
+  if (kind === "pdf" || mediaType === "application/pdf") {
+    return { type: "document", source: { type: "base64", media_type: "application/pdf", data } };
+  }
+  return null;
 }
 
 // ─── Skeleton mode ──────────────────────────────────────────────────────
@@ -223,7 +277,13 @@ async function runAgent() {
       catch { emit({ type: "error", message: "invalid JSON on stdin: " + raw }); continue; }
       if (cmd?.type === "stop") { stdinClosed = true; resolveNext?.(); break; }
       if (cmd?.type === "send" && typeof cmd.text === "string") {
-        pendingMessages.push(cmd.text);
+        // G9/G10 — `attachments` carries binary files (images/PDFs) that
+        // can't be inlined as text. Text/code attachments are already
+        // folded into `cmd.text` by the Swift side.
+        pendingMessages.push({
+          text: cmd.text,
+          attachments: Array.isArray(cmd.attachments) ? cmd.attachments : [],
+        });
         resolveNext?.();
       } else if (cmd?.type === "permission_response" && typeof cmd.request_id === "string") {
         // G8 — resolve the matching canUseTool promise.
@@ -251,10 +311,10 @@ async function runAgent() {
     while (true) {
       // Drain whatever's queued.
       while (pendingMessages.length > 0) {
-        const text = pendingMessages.shift();
+        const msg = pendingMessages.shift();
         yield {
           type: "user",
-          message: { role: "user", content: text },
+          message: { role: "user", content: buildUserContent(msg) },
           parent_tool_use_id: null,
           session_id: sessionId,
         };
@@ -288,11 +348,19 @@ async function runAgent() {
   if (args.model) {
     options.model = args.model;
   }
-  // G5 — appended to the SDK's default system prompt (the SDK accepts
-  // either a plain string or a {type:"preset",preset:"claude_code",append}
-  // object). Sending a string is the simplest contract for our use case.
+  // G5 — append the user's override (which already folds in CLAUDE.md /
+  // MEMORY.md context the Swift side chose to include) to the Claude Code
+  // default system prompt. The SDK option is `systemPrompt`; using the
+  // preset+append form keeps the full claude_code prompt (tool guidance,
+  // etc.) and adds our text rather than replacing it. A plain string here
+  // would REPLACE the default — which is why the previous
+  // `options.customSystemPrompt` (not a real SDK key) was silently ignored.
   if (args.customSystemPrompt) {
-    options.customSystemPrompt = args.customSystemPrompt;
+    options.systemPrompt = {
+      type: "preset",
+      preset: "claude_code",
+      append: args.customSystemPrompt,
+    };
   }
   // G3 — user-configured MCP servers. Swift hands us the SDK-shaped dict
   // (`Record<string, McpServerConfig>`) as a single JSON argv blob. We

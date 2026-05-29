@@ -7,7 +7,7 @@ struct ReplayTurnView: View {
     @AppStorage("toolGroupThreshold") private var toolGroupThreshold: Int = 5
     let turn: Turn; let turnNumber: Int; let revealedBlocks: Int; let showThinking: Bool; let showToolCalls: Bool
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.space8) {
             HStack { Text("Turn \(turnNumber)").font(.caption).bold(); if let ts = turn.timestamp { Text(ts).font(.caption2).foregroundStyle(.secondary) }; Spacer() }
             UserMessageView(text: turn.userText)
             let revealed = Array(turn.blocks.prefix(revealedBlocks))
@@ -26,7 +26,7 @@ struct ReplayTurnView: View {
                     }
                 }
             }
-        }.padding(12).background(appState.theme.bgSurface.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        }.padding(DesignTokens.space12).background(appState.theme.bgSurface.opacity(0.5), in: RoundedRectangle(cornerRadius: DesignTokens.cornerMedium))
     }
 
     private enum BlockGroup {
@@ -66,13 +66,13 @@ private struct CollapsedToolGroupView: View {
     var body: some View {
         let uniqueNames = Array(Set(blocks.compactMap { $0.toolCall?.name })).sorted()
         DisclosureGroup(isExpanded: $isExpanded) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: DesignTokens.space4) {
                 ForEach(Array(blocks.enumerated()), id: \.element.id) { _, block in
                     ToolCallView(block: block)
                 }
             }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: DesignTokens.space6) {
                 Image(systemName: "wrench.and.screwdriver")
                     .foregroundStyle(.secondary)
                 Text("\(blocks.count) tool calls")
@@ -81,7 +81,7 @@ private struct CollapsedToolGroupView: View {
                     .font(.caption2).foregroundStyle(.secondary)
             }
         }
-        .padding(6)
-        .background(appState.theme.bgSurface.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
+        .padding(DesignTokens.space6)
+        .background(appState.theme.bgSurface.opacity(0.3), in: RoundedRectangle(cornerRadius: DesignTokens.cornerSmall))
     }
 }

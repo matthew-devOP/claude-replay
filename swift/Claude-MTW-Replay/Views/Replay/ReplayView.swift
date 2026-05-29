@@ -89,7 +89,7 @@ struct ReplayView: View {
 
     @ViewBuilder
     private var bookmarksToolbar: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DesignTokens.space8) {
             if let imp = appState.importedSession {
                 Label(imp.displayName, systemImage: "doc.richtext")
                     .font(.caption)
@@ -122,14 +122,14 @@ struct ReplayView: View {
         }
         .buttonStyle(.borderless)
         .padding(.horizontal)
-        .padding(.top, 6)
+        .padding(.top, DesignTokens.space6)
     }
 
     @ViewBuilder
     private var turnList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: DesignTokens.space16) {
                     ForEach(Array(vm.turns.enumerated()), id: \.offset) { index, turn in
                         let revealed = revealedBlocks(for: index)
                         ReplayTurnView(
@@ -173,7 +173,7 @@ private struct BookmarkPromptSheet: View {
     let onSave: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignTokens.space12) {
             Text("Add Bookmark at Turn \(turnIndex)")
                 .font(.headline)
             TextField("Label", text: $label)
@@ -188,7 +188,7 @@ private struct BookmarkPromptSheet: View {
                     .buttonStyle(.borderedProminent)
             }
         }
-        .padding(20)
+        .padding(DesignTokens.space20)
         .frame(minWidth: 320)
     }
 }

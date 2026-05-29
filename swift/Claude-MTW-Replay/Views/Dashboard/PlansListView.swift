@@ -28,8 +28,8 @@ struct PlansListView: View {
                 Text("Plans")
                     .font(.caption.smallCaps())
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, DesignTokens.space12)
+                    .padding(.vertical, DesignTokens.space8)
                 Divider()
                 if let err = loadError {
                     Text(err).font(.caption).foregroundStyle(.red).padding()
@@ -41,7 +41,7 @@ struct PlansListView: View {
                 } else {
                     List(selection: $selectedPlan) {
                         ForEach(plans) { plan in
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: DesignTokens.space2) {
                                 Text(plan.name)
                                     .font(.system(.body, design: .monospaced))
                                     .lineLimit(1)
@@ -64,7 +64,7 @@ struct PlansListView: View {
                    let content = (try? String(contentsOf: plan.url, encoding: .utf8)) {
                     ScrollView {
                         MarkdownTextView(markdown: content)
-                            .padding(20)
+                            .padding(DesignTokens.space20)
                     }
                 } else {
                     EmptyStateView(

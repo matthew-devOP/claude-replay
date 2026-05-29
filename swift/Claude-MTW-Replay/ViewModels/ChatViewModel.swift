@@ -68,11 +68,10 @@ final class ChatViewModel {
     /// G5 — user-supplied system-prompt override appended to the SDK
     /// default. `nil`/empty = SDK default only.
     var systemPromptOverride: String? = nil
-    /// G5 — whether to inject CLAUDE.md context. Reserved for the sidecar
-    /// once it grows context-injection support; today it's a UI hint that
-    /// rides along with `respawnWithNewOptions()`.
+    /// G5 — inject project/account CLAUDE.md into the system-prompt addendum
+    /// (see `effectiveSystemPrompt()`). Changing it takes effect on respawn.
     var includeClaudeMd: Bool = true
-    /// G5 — whether to inject MEMORY.md context. Same status as above.
+    /// G5 — inject project/account MEMORY.md into the system-prompt addendum.
     var includeMemoryMd: Bool = true
 
     /// User-typed message in the input bar.
@@ -147,9 +146,12 @@ final class ChatViewModel {
                 skeleton: false,
                 env: env
             )
-            // G4/G5 — forward user-picked model and system-prompt override.
-            opts.model = selectedModel
-            opts.customSystemPrompt = systemPromptOverride
+            // G4/G5 — forward user-picked model and system-prompt addendum.
+            // Model is validated against the offered set so a stale/edited id
+            // can't reach the SDK; the system prompt folds in CLAUDE.md /
+            // MEMORY.md when the SystemPromptSheet toggles are on.
+            opts.model = ChatModelPickerView.validatedModelID(selectedModel)
+            opts.customSystemPrompt = effectiveSystemPrompt()
             // G3 — fold in the user's enabled MCP servers as a JSON blob.
             // We serialise here (instead of in `StartOptions`) so the
             // options struct can stay `Sendable` under strict concurrency.
@@ -172,12 +174,14 @@ final class ChatViewModel {
     /// Send the current `inputDraft` to the agent (clears the field on success).
     ///
     /// G9/G10 — if any `pendingAttachments` are staged, their contents are
-    /// folded into the outbound prompt: text/code is inlined as fenced
-    /// blocks (capped at 64 KB each) and images/PDFs/other are referenced
-    /// by absolute path. The pending list is cleared on a successful send.
+    /// folded in: text/code is inlined as fenced blocks (capped at 64 KB
+    /// each), images/PDFs are shipped as real base64 content blocks through
+    /// the sidecar, and any other binary is referenced by absolute path.
+    /// The pending list is cleared on a successful send.
     func send() async {
         let typed = inputDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         let attachmentBlock = renderAttachmentsBlock()
+        let binaryAttachments = outboundBinaryAttachments()
         let composed: String
         if attachmentBlock.isEmpty {
             composed = typed
@@ -186,9 +190,11 @@ final class ChatViewModel {
         } else {
             composed = typed + "\n\n" + attachmentBlock
         }
-        guard !composed.isEmpty, status == .ready || status == .sending else { return }
+        // Allow a send carrying only image/PDF attachments (empty text).
+        guard !composed.isEmpty || !binaryAttachments.isEmpty,
+              status == .ready || status == .sending else { return }
         do {
-            try await agent.send(composed)
+            try await agent.send(composed, attachments: binaryAttachments)
             // Optimistically append a user turn so the UI feels instant; the
             // SDK will echo it back as `userMessage` and we'll reconcile.
             appendUserTurn(text: composed, optimistic: true)
@@ -238,19 +244,24 @@ final class ChatViewModel {
                     body = String(body.prefix(maxBytes)) + "\n…(truncated)"
                 }
                 parts.append("@\(att.url.path):\n```\n\(body)\n```")
-            case .image:
-                // TODO: switch to an image_url block once the sidecar
-                // protocol gains binary-attachment support. For now we
-                // hand Claude the path so it can use `Read`/`Bash` to
-                // inspect the file itself.
-                parts.append("[image attachment: \(att.url.path)]")
-            case .pdf:
-                parts.append("[pdf attachment: \(att.url.path)]")
+            case .image, .pdf:
+                // Binary — sent as a real content block via the sidecar
+                // (see `outboundBinaryAttachments()`), not inlined here.
+                continue
             case .other:
                 parts.append("[file attachment: \(att.url.path)]")
             }
         }
         return parts.joined(separator: "\n\n")
+    }
+
+    /// The image/PDF attachments to ship as base64 content blocks. The
+    /// sidecar reads each path, validates it, and inlines it into the
+    /// outbound message (`buildUserContent` in sidecar.js).
+    private func outboundBinaryAttachments() -> [ClaudeAgent.OutboundAttachment] {
+        pendingAttachments.filter(\.isBinary).map {
+            ClaudeAgent.OutboundAttachment(path: $0.url.path, kind: $0.outboundKind, mediaType: $0.mediaType)
+        }
     }
 
     /// Cancel the in-flight turn (Esc).
@@ -598,6 +609,48 @@ final class ChatViewModel {
                 print("[ChatVM] persist failed:", error)
             }
         }
+    }
+
+    /// G5 — build the system-prompt addendum sent to the sidecar: the user's
+    /// override plus, when toggled on, project/account CLAUDE.md and MEMORY.md
+    /// context. Returns nil when there's nothing to append (so the SDK uses
+    /// the plain claude_code preset). The sidecar wraps this as the preset's
+    /// `append`, so it adds to — never replaces — the default prompt.
+    private func effectiveSystemPrompt() -> String? {
+        var parts: [String] = []
+        if let override = systemPromptOverride?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !override.isEmpty {
+            parts.append(override)
+        }
+        if includeClaudeMd, let md = readContextFile(named: "CLAUDE.md") {
+            parts.append("# CLAUDE.md\n\n" + md)
+        }
+        if includeMemoryMd, let md = readContextFile(named: "MEMORY.md") {
+            parts.append("# MEMORY.md\n\n" + md)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: "\n\n---\n\n")
+    }
+
+    /// Read a context markdown file, preferring the project copy and falling
+    /// back to the account-level one (`~/<accountDir>/<name>`). Capped at
+    /// 32 KB so the system prompt can't balloon.
+    private func readContextFile(named name: String) -> String? {
+        let maxBytes = 32 * 1024
+        var candidates: [String] = [(projectPath as NSString).appendingPathComponent(name)]
+        if let dir = accountDir, !dir.isEmpty {
+            let accountRoot = (NSHomeDirectory() as NSString).appendingPathComponent(dir)
+            candidates.append((accountRoot as NSString).appendingPathComponent(name))
+        }
+        for path in candidates {
+            if var content = try? String(contentsOfFile: path, encoding: .utf8) {
+                if content.count > maxBytes {
+                    content = String(content.prefix(maxBytes)) + "\n…(truncated)"
+                }
+                let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { return trimmed }
+            }
+        }
+        return nil
     }
 
     /// G6 — write the current `enabledTools` set to SwiftData so the

@@ -6,7 +6,7 @@ struct GlobalSearchView: View {
     @State private var results: [SearchResult] = []
     @State private var isSearching = false
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: DesignTokens.space12) {
             HStack { TextField("Search across sessions...", text: $query).onSubmit { search() }; Button("Search") { search() }.disabled(query.isEmpty) }
             if isSearching { ProgressView() } else {
                 List(results) { r in

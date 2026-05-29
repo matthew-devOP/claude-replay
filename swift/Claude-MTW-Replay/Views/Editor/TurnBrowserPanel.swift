@@ -8,8 +8,8 @@ struct TurnBrowserPanel: View {
                 Button("Exclude All") { vm.excludeAllTurns() }
                 Spacer()
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, DesignTokens.space8)
+            .padding(.vertical, DesignTokens.space6)
             List(selection: $vm.selectedTurnIndex) {
                 ForEach(Array(vm.workingTurns.enumerated()), id: \.offset) { index, turn in
                     HStack {

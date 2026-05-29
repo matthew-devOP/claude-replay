@@ -39,7 +39,7 @@ struct ActivityHeatmapView: View {
 
     var body: some View {
         let grid = buildGrid()
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.space8) {
             HStack(alignment: .top, spacing: Self.cellGap) {
                 ForEach(0..<grid.count, id: \.self) { weekIdx in
                     VStack(spacing: Self.cellGap) {
@@ -53,15 +53,15 @@ struct ActivityHeatmapView: View {
                 if let hovered = hoveredCell {
                     Text("\(hovered.date.formatted(.dateTime.year().month().day())): \(hovered.sessionCount) session\(hovered.sessionCount == 1 ? "" : "s")")
                         .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
+                        .padding(.horizontal, DesignTokens.space8)
+                        .padding(.vertical, DesignTokens.space4)
+                        .appGlass(in: RoundedRectangle(cornerRadius: DesignTokens.cornerSmall))
                         .offset(y: -30)
                         .allowsHitTesting(false)
                         .transition(.opacity)
                 }
             }
-            HStack(spacing: 4) {
+            HStack(spacing: DesignTokens.space4) {
                 Text("Less").font(.caption2).foregroundStyle(.secondary)
                 ForEach(0..<5, id: \.self) { i in
                     legendCell(intensity: i)

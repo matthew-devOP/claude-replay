@@ -39,10 +39,10 @@ struct DocsView: View {
                     .buttonStyle(.plain).foregroundStyle(.tertiary)
             }
         }
-        .padding(8)
-        .background(Color.secondary.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .padding(8)
+        .padding(DesignTokens.space8)
+        .appGlass(in: RoundedRectangle(cornerRadius: DesignTokens.cornerSmall), fallback: Color.secondary.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.cornerSmall))
+        .padding(DesignTokens.space8)
     }
 
     private var searchResults: some View {
@@ -52,7 +52,7 @@ struct DocsView: View {
                     vm.select(topicId: hit.topic.id)
                     vm.searchQuery = ""
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: DesignTokens.space4) {
                         Text(hit.topic.title).font(.body)
                         Text(hit.snippet)
                             .font(.caption).foregroundStyle(.secondary)
@@ -60,7 +60,7 @@ struct DocsView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .padding(.vertical, 4)
+                .padding(.vertical, DesignTokens.space4)
             }
         }
     }

@@ -17,8 +17,8 @@ struct PermissionAlertView: View {
     @State private var remember: PermissionRemember = .once
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignTokens.space12) {
+            HStack(spacing: DesignTokens.space8) {
                 Image(systemName: "lock.shield")
                     .foregroundStyle(.tint)
                 Text("Permission requested")
@@ -28,8 +28,8 @@ struct PermissionAlertView: View {
             Text(request.toolInputSummary)
                 .font(.system(.body, design: .monospaced))
                 .textSelection(.enabled)
-                .padding(8)
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+                .padding(DesignTokens.space8)
+                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: DesignTokens.cornerSmall))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text("Tool: \(request.toolName)")
@@ -55,7 +55,7 @@ struct PermissionAlertView: View {
                 .buttonStyle(.borderedProminent)
             }
         }
-        .padding(20)
+        .padding(DesignTokens.space20)
         .frame(width: 480)
     }
 }

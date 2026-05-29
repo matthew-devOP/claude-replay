@@ -8,6 +8,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] — Unreleased (first public release)
 
 ### Added
+- **Design-system layer**: `DesignTokens` (radii + spacing scale) and a `Motion`
+  constant set (`quick`/`standard`/`emphasized`) so animations and metrics share
+  one vocabulary. Liquid Glass extended with an interactive variant, a
+  `glassEffectID` helper, and `GlassEffectContainer` grouping (now actually used).
+  Glass adoption broadened to the chat input dock and the replay transport
+  cluster. The hand-rolled main tab strip was replaced with a native
+  `TabView`, which inherits Liquid Glass automatically on macOS 26 while
+  keeping the Cmd+1..8 shortcuts. Corner radii and **all** padding/spacing
+  across the views now route through `DesignTokens` (value-preserving — every
+  literal became a same-valued token; only structural `spacing: 0` remains).
+  Stray `.system(size:)` on text was moved to semantic fonts (icon glyph
+  sizes left as-is); header typography was already uniform (`.title2`).
+- Theme-accent now drives all system-accented controls app-wide via a root
+  `.tint(theme.accent)`; remaining hard-coded `Color.accentColor`/status colors
+  (toast, drop overlays, show-more buttons, bookmark chips) now track the theme.
+- Tab switches cross-fade and new chat turns animate in (previously hard cuts).
+- Slash commands now expand `$ARGUMENTS` from `/name args…` typed inline; the
+  picker inserts the invocation and expansion happens at send time.
+- SystemPromptSheet's CLAUDE.md / MEMORY.md toggles now actually inject the
+  project/account file contents into the system-prompt addendum.
+- **Liquid Glass** support (macOS 26 "Tahoe"+) via a central `View.appGlass(in:fallback:)`
+  funnel (`Extensions/GlassStyle.swift`). Applied chrome-first to floating
+  controls: replay transport cluster, chat regenerate button, slash-command
+  picker, activity-heatmap tooltip, transcript & docs search bars. Compile-time
+  guarded (`#if compiler(>=6.2)`) so the project still builds on Xcode 16, and
+  runtime guarded (`#available(macOS 26, *)`) so one binary runs macOS 14 → 26,
+  falling back to the existing material/theme look below macOS 26. Deployment
+  floor stays at macOS 15 (`LSMinimumSystemVersion 14.0` preserved).
+- Chat image/PDF attachments are now sent as real base64 content blocks through
+  the sidecar (`buildUserContent` in `sidecar.js`), replacing the previous
+  `[image attachment: <path>]` text placeholder. 8 MB/file cap; unsupported
+  types degrade gracefully to a path note.
+- Local-only telemetry persistence (`telemetry.jsonl`) with recorded-event count
+  and "Clear" control in Settings; opt-out wipes the log immediately.
+- Crash/hang diagnostics from MetricKit are persisted (`diagnostics.jsonl`) and
+  surfaced under Settings → Privacy & Diagnostics.
+- Session stats now capture team operations (`TeamCreate`/`TeamDelete`) and
+  render them in the Stats tab, matching the web stats collector.
 - Interactive Chats tab via `@anthropic-ai/claude-agent-sdk` (Sprint 4-A through 5-E coverage):
   full session lifecycle (start/stop/resume), streaming assistant output,
   tool-use rendering, MCP-aware composer affordances.
@@ -35,6 +73,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source of truth.
 
 ### Fixed
+- System-prompt override was silently ignored: the sidecar set a non-existent
+  SDK key (`customSystemPrompt`). It now uses the real `systemPrompt` option in
+  preset+append form, preserving the claude_code default and appending the override.
+- Chat model ids are validated against the offered set before reaching the SDK,
+  so a stale/edited id can't error the whole turn.
 - 18 known stubs/issues from the initial audit (`docs/AUDIT_SWIFT.md`)
   resolved during Sprints 1–3 (P0/P1/P2 backlog).
 

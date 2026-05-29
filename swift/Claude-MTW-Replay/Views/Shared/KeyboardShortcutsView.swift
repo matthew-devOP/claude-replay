@@ -31,15 +31,15 @@ struct KeyboardShortcutsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignTokens.space16) {
             Text("Keyboard Shortcuts").font(.title2).bold()
-            LazyVGrid(columns: [GridItem(.fixed(100)), GridItem(.flexible())], spacing: 8) {
+            LazyVGrid(columns: [GridItem(.fixed(100)), GridItem(.flexible())], spacing: DesignTokens.space8) {
                 ForEach(shortcuts, id: \.0) { key, desc in
                     Text(key).font(.system(.body, design: .monospaced)).frame(maxWidth: .infinity, alignment: .trailing)
                     Text(desc).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             Button("Close") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
-        }.padding(24).frame(width: 400)
+        }.padding(DesignTokens.space24).frame(width: 400)
     }
 }

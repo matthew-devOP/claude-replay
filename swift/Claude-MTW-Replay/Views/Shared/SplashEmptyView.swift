@@ -19,7 +19,7 @@ struct SplashEmptyView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignTokens.space16) {
             if let img = NSImage(named: mascotName) {
                 Image(nsImage: img)
                     .resizable()

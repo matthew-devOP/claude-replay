@@ -16,6 +16,7 @@ struct SessionStats: Codable, Hashable, Sendable {
     let longestTurn: LongestTurn?
     let userMessages: [UserMessage]
     let assistantTexts: [AssistantText]
+    let teams: [TeamOp]
 
     // MARK: - Nested types
 
@@ -80,7 +81,12 @@ struct SessionStats: Codable, Hashable, Sendable {
         var id: String { "\(turnIndex)-\(name)" }
 
         let turnIndex: Int
+        /// Human label for the spawned agent. Mirrors the web stats, which use
+        /// the Agent tool's `description` input (editor-server.mjs:811), NOT a
+        /// `name` field — Claude's Agent tool has no `name` input, so the old
+        /// `input["name"]` read always fell back to "unnamed".
         let name: String
+        let subagentType: String?
         let model: String?
         let prompt: String
         let mode: String?
@@ -88,9 +94,26 @@ struct SessionStats: Codable, Hashable, Sendable {
         enum CodingKeys: String, CodingKey {
             case turnIndex = "turn_index"
             case name
+            case subagentType = "subagent_type"
             case model
             case prompt
             case mode
+        }
+    }
+
+    /// A team lifecycle operation (TeamCreate / TeamDelete). Mirrors the web
+    /// stats `teams` collection (editor-server.mjs:821-827).
+    struct TeamOp: Codable, Identifiable, Hashable, Sendable {
+        var id: String { "\(turnIndex)-\(action)" }
+
+        let turnIndex: Int
+        let action: String
+        let teamName: String?
+
+        enum CodingKeys: String, CodingKey {
+            case turnIndex = "turn_index"
+            case action
+            case teamName = "team_name"
         }
     }
 
@@ -109,5 +132,6 @@ struct SessionStats: Codable, Hashable, Sendable {
         case longestTurn = "longest_turn"
         case userMessages = "user_messages"
         case assistantTexts = "assistant_texts"
+        case teams
     }
 }
