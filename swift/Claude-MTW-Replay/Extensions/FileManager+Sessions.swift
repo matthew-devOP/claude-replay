@@ -59,6 +59,11 @@ extension FileManager {
         try? attributesOfItem(atPath: url.path)[.modificationDate] as? Date
     }
 
+    /// Creation (birth) date of `url`, or `nil` on failure. Proxy for "created".
+    func creationDate(of url: URL) -> Date? {
+        try? attributesOfItem(atPath: url.path)[.creationDate] as? Date
+    }
+
     /// File size in bytes, or `0` on failure.
     func fileSize(of url: URL) -> UInt64 {
         (try? attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? 0

@@ -63,7 +63,9 @@ final class ProjectListViewModel {
     func loadProjects(claudeAccountDir: String = ".claude") async {
         isLoading = true
         defer { isLoading = false }
-        projects = SessionDiscovery.discoverProjects(claudeAccountDir: claudeAccountDir)
+        projects = claudeAccountDir == AccountStore.allDirName
+            ? SessionDiscovery.discoverProjectsAll()
+            : SessionDiscovery.discoverProjects(claudeAccountDir: claudeAccountDir)
         // Auto-start (or restart) watchers after the first load, so the
         // sidebar refreshes on its own when new sessions land on disk.
         if watchers.isEmpty || watchedAccountDir != claudeAccountDir {

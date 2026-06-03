@@ -10,6 +10,13 @@ struct SessionEntry: Identifiable, Codable {
     let path: String
     let date: Date?
     let size: UInt64
+    /// File creation date — proxy for "created", distinct from `date` (mtime
+    /// ≈ last activity). Cheap to read; no JSONL parse required.
+    var createdDate: Date? = nil
+    /// Originating account dir (".claude", ".claude-work", …) and its label
+    /// ("main", "work"). Carried so the ALL-accounts view can tag each row.
+    var accountDir: String = ".claude"
+    var accountLabel: String = "main"
     /// Truncated first user message — populated lazily by SessionMetaService.
     var preview: String? = nil
     /// First few user messages (verbatim) — used by the hover preview popover.
@@ -18,6 +25,13 @@ struct SessionEntry: Identifiable, Codable {
     var turnCount: Int? = nil
     /// `last - first` timestamp from the parsed turns, in seconds.
     var durationSeconds: TimeInterval? = nil
+}
+
+/// One account's contribution to an aggregated (ALL-mode) project.
+struct AccountContribution: Codable, Hashable {
+    let dirName: String
+    let label: String
+    let sessionCount: Int
 }
 
 /// A project containing one or more sessions.
@@ -31,6 +45,12 @@ struct ProjectEntry: Identifiable, Codable {
     let sessionCount: Int
     let lastActivity: Date?
     let firstActivity: Date?    // earliest session mtime — proxy for "creation date"
+    /// Originating account (single-account mode). In ALL mode this is the
+    /// first contributing account; see `accounts` for the full breakdown.
+    var accountDir: String = ".claude"
+    /// Per-account breakdown when this project was merged across accounts
+    /// (ALL mode). `nil` in single-account mode.
+    var accounts: [AccountContribution]? = nil
 }
 
 /// A group of sessions from one tool (used by `discoverSessions`).
@@ -244,12 +264,10 @@ enum SessionDiscovery {
 
     /// Discover projects from all tools (Claude Code, Cursor, Codex CLI) with
     /// aggregate metadata.
-    static func discoverProjects(claudeAccountDir: String = ".claude") -> [ProjectEntry] {
-        let home = fm.homeDirectoryURL
+    /// Claude Code projects under ONE account, tagged with that account dir.
+    private static func discoverClaudeProjects(accountDir: String) -> [ProjectEntry] {
         var projects: [ProjectEntry] = []
-
-        // ── Claude Code ──────────────────────────────────────────────────
-        let claudeBase = claudeProjectsURL(accountDir: claudeAccountDir)
+        let claudeBase = claudeProjectsURL(accountDir: accountDir)
         for dir in fm.sortedSubdirectories(at: claudeBase) {
             let projURL = claudeBase.appendingPathComponent(dir)
             let files = fm.jsonlFiles(in: projURL)
@@ -275,9 +293,64 @@ enum SessionDiscovery {
                 claudeProjectPath: projURL.path,
                 sessionCount: files.count,
                 lastActivity: lastActivity,
-                firstActivity: firstActivity
+                firstActivity: firstActivity,
+                accountDir: accountDir
             ))
         }
+        return projects
+    }
+
+    static func discoverProjects(claudeAccountDir: String = ".claude") -> [ProjectEntry] {
+        var projects = discoverClaudeProjects(accountDir: claudeAccountDir)
+        projects += discoverGlobalProjects()
+        projects.sort { ($0.lastActivity ?? .distantPast) > ($1.lastActivity ?? .distantPast) }
+        return projects
+    }
+
+    /// Aggregate Claude projects across EVERY account, merged by `dirName`
+    /// (which encodes the real path, identical across accounts). Global
+    /// (Cursor/Codex) projects are appended once. Mirrors the web's
+    /// `discoverProjectsAll()`.
+    static func discoverProjectsAll() -> [ProjectEntry] {
+        var byKey: [String: ProjectEntry] = [:]
+        var order: [String] = []
+        for accountDir in AccountStore.realAccountDirs() {
+            let label = ClaudeAccount(dirName: accountDir).label
+            for p in discoverClaudeProjects(accountDir: accountDir) {
+                let contrib = AccountContribution(dirName: accountDir, label: label, sessionCount: p.sessionCount)
+                if let existing = byKey[p.dirName] {
+                    var accs = existing.accounts ?? []
+                    accs.append(contrib)
+                    byKey[p.dirName] = ProjectEntry(
+                        source: existing.source,
+                        dirName: existing.dirName,
+                        name: existing.name,
+                        path: existing.path,
+                        claudeProjectPath: existing.claudeProjectPath,
+                        sessionCount: existing.sessionCount + p.sessionCount,
+                        lastActivity: [existing.lastActivity, p.lastActivity].compactMap { $0 }.max(),
+                        firstActivity: [existing.firstActivity, p.firstActivity].compactMap { $0 }.min(),
+                        accountDir: existing.accountDir,
+                        accounts: accs
+                    )
+                } else {
+                    var fresh = p
+                    fresh.accounts = [contrib]
+                    byKey[p.dirName] = fresh
+                    order.append(p.dirName)
+                }
+            }
+        }
+        var projects = order.compactMap { byKey[$0] }
+        projects += discoverGlobalProjects()
+        projects.sort { ($0.lastActivity ?? .distantPast) > ($1.lastActivity ?? .distantPast) }
+        return projects
+    }
+
+    /// Cursor + Codex projects — account-independent (global to the machine).
+    private static func discoverGlobalProjects() -> [ProjectEntry] {
+        let home = fm.homeDirectoryURL
+        var projects: [ProjectEntry] = []
 
         // ── Cursor ───────────────────────────────────────────────────────
         let cursorBase = home.appendingPathComponent(".cursor/projects")
@@ -366,10 +439,13 @@ enum SessionDiscovery {
 
     /// Get detailed project information including CLAUDE.md, MEMORY.md, and
     /// session metadata.  Direct port of the JS `getProjectDetails()`.
-    static func getProjectDetails(source: String, dirName: String, claudeAccountDir: String = ".claude") -> ProjectDetails? {
+    /// Per-account project details. Sessions are tagged with the originating
+    /// account so the ALL-accounts view can label each row.
+    private static func getProjectDetailsForDir(source: String, dirName: String, accountDir: String) -> ProjectDetails? {
         guard source == "claude" else { return nil }
 
-        let projURL = claudeProjectsURL(accountDir: claudeAccountDir).appendingPathComponent(dirName)
+        let accLabel = ClaudeAccount(dirName: accountDir).label
+        let projURL = claudeProjectsURL(accountDir: accountDir).appendingPathComponent(dirName)
         guard fm.isDirectory(at: projURL.path) else { return nil }
 
         let realPath = claudeDirToProjectPath(dirName)
@@ -403,7 +479,10 @@ enum SessionDiscovery {
                 file: file,
                 path: fullURL.path,
                 date: date,
-                size: size
+                size: size,
+                createdDate: fm.creationDate(of: fullURL),
+                accountDir: accountDir,
+                accountLabel: accLabel
             ))
         }
 
@@ -422,6 +501,64 @@ enum SessionDiscovery {
             claudeProjectPath: projURL.path,
             claudeMd: claudeMd,
             memoryMd: memoryMd,
+            sessions: sessions,
+            stats: stats
+        )
+    }
+
+    /// Dispatch project details for the active selection (single account or ALL).
+    static func getProjectDetails(source: String, dirName: String, claudeAccountDir: String = ".claude") -> ProjectDetails? {
+        if claudeAccountDir == AccountStore.allDirName {
+            return getProjectDetailsAll(source: source, dirName: dirName)
+        }
+        return getProjectDetailsForDir(source: source, dirName: dirName, accountDir: claudeAccountDir)
+    }
+
+    /// Aggregate one project's sessions across every account that holds it.
+    /// CLAUDE.md / MEMORY.md are taken from the first account that provides them.
+    static func getProjectDetailsAll(source: String, dirName: String) -> ProjectDetails? {
+        guard source == "claude" else { return nil }
+        var base: ProjectDetails?
+        var sessions: [SessionEntry] = []
+        var totalSize: UInt64 = 0
+        var dates: [Date] = []
+        for accountDir in AccountStore.realAccountDirs() {
+            guard let d = getProjectDetailsForDir(source: source, dirName: dirName, accountDir: accountDir) else { continue }
+            if base == nil {
+                base = d
+            } else {
+                base = ProjectDetails(
+                    source: base!.source,
+                    dirName: base!.dirName,
+                    name: base!.name,
+                    claudeProjectPath: base!.claudeProjectPath,
+                    claudeMd: base!.claudeMd ?? d.claudeMd,
+                    memoryMd: base!.memoryMd ?? d.memoryMd,
+                    sessions: base!.sessions,
+                    stats: base!.stats
+                )
+            }
+            sessions += d.sessions
+            for s in d.sessions {
+                totalSize += s.size
+                if let dd = s.date { dates.append(dd) }
+            }
+        }
+        guard let b = base else { return nil }
+        dates.sort()
+        let stats = ProjectStats(
+            totalSessions: sessions.count,
+            totalSize: totalSize,
+            firstDate: dates.first,
+            lastDate: dates.last
+        )
+        return ProjectDetails(
+            source: b.source,
+            dirName: b.dirName,
+            name: b.name,
+            claudeProjectPath: b.claudeProjectPath,
+            claudeMd: b.claudeMd,
+            memoryMd: b.memoryMd,
             sessions: sessions,
             stats: stats
         )

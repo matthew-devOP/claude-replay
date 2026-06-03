@@ -3,7 +3,7 @@ import Foundation
 /// Sort key for the Sessions column header. Mirrors the web table's
 /// sortable headers (Date / Duration / Turns / Size).
 enum SessionSortKey: String, CaseIterable, Identifiable {
-    case date, duration, turns, size
+    case created, date, duration, turns, size
     var id: String { rawValue }
 }
 
@@ -201,6 +201,10 @@ final class SessionListViewModel {
         let mul = ascending ? 1 : -1
         return { a, b in
             switch key {
+            case .created:
+                let av = a.createdDate ?? a.date ?? .distantPast
+                let bv = b.createdDate ?? b.date ?? .distantPast
+                return av < bv ? mul == 1 : (av > bv ? mul == -1 : false)
             case .date:
                 let av = a.date ?? .distantPast, bv = b.date ?? .distantPast
                 return av < bv ? mul == 1 : (av > bv ? mul == -1 : false)

@@ -16,7 +16,9 @@ struct SessionRowView: View {
     var body: some View {
         HStack(spacing: 0) {
             sessionIdCell
+            if appState.isAllAccounts { accountCell }
             previewCell
+            createdCell
             dateCell
             durationCell
             turnsCell
@@ -71,6 +73,23 @@ struct SessionRowView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.trailing, DesignTokens.space8)
             .redacted(reason: session.preview == nil ? .placeholder : [])
+    }
+
+    private var accountCell: some View {
+        HStack(spacing: 0) {
+            AccountBadge(label: session.accountLabel)
+            Spacer(minLength: 0)
+        }
+        .frame(width: 90, alignment: .leading)
+        .padding(.trailing, DesignTokens.space8)
+    }
+
+    private var createdCell: some View {
+        Text((session.createdDate ?? session.date)?.shortRelativeString() ?? "—")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(width: 110, alignment: .leading)
+            .padding(.trailing, DesignTokens.space8)
     }
 
     private var dateCell: some View {

@@ -117,8 +117,13 @@ final class AppState {
         currentTab = .chats
     }
 
+    /// True when the active selection aggregates across every account.
+    var isAllAccounts: Bool { claudeAccountDir == AccountStore.allDirName }
+
     func setClaudeAccount(_ dirName: String) {
-        guard AccountStore.availableAccounts().contains(where: { $0.dirName == dirName }) else { return }
+        // ALL is a virtual selection, never present in `availableAccounts()`.
+        guard dirName == AccountStore.allDirName
+            || AccountStore.availableAccounts().contains(where: { $0.dirName == dirName }) else { return }
         claudeAccountDir = dirName
         AccountStore.save(dirName)
         selectedProjectDirName = nil
@@ -145,6 +150,7 @@ struct ClaudeAccount: Identifiable, Hashable, Sendable {
     var id: String { dirName }
     let dirName: String
     var label: String {
+        if dirName == AccountStore.allDirName { return "all" }
         if dirName == ".claude" { return "main" }
         if dirName.hasPrefix(".claude-") || dirName.hasPrefix(".claude_") {
             return String(dirName.dropFirst(".claude-".count))
@@ -159,6 +165,13 @@ struct ClaudeAccount: Identifiable, Hashable, Sendable {
 enum AccountStore {
     private static let defaultsKey = "claudeAccountDir"
     static let defaultDirName = ".claude"
+    /// Sentinel dir name for the virtual "ALL accounts" selection.
+    static let allDirName = "__all__"
+
+    /// Real account dir names only (no ALL sentinel) — used by aggregation.
+    static func realAccountDirs() -> [String] {
+        availableAccounts().map(\.dirName)
+    }
 
     static func load() -> String {
         UserDefaults.standard.string(forKey: defaultsKey) ?? defaultDirName

@@ -23,6 +23,13 @@ struct ProjectRowView: View {
                 if let date = project.lastActivity {
                     Text(date.shortRelativeString()).font(.caption).foregroundStyle(.secondary)
                 }
+                if let accounts = project.accounts, !accounts.isEmpty {
+                    HStack(spacing: DesignTokens.space4) {
+                        ForEach(accounts, id: \.dirName) { acc in
+                            AccountBadge(label: acc.label, small: true)
+                        }
+                    }
+                }
             }
             Spacer()
             Text("\(project.sessionCount)")

@@ -10,6 +10,9 @@ struct SearchResult: Codable, Identifiable, Hashable, Sendable {
     let matchText: String
     let role: String
     let context: String
+    /// Originating account label ("main", "work", …) — set when searching in
+    /// ALL-accounts mode so result rows can show where each match came from.
+    let accountLabel: String?
 
     init(
         id: UUID = UUID(),
@@ -18,7 +21,8 @@ struct SearchResult: Codable, Identifiable, Hashable, Sendable {
         turnIndex: Int,
         matchText: String,
         role: String,
-        context: String
+        context: String,
+        accountLabel: String? = nil
     ) {
         self.id = id
         self.projectName = projectName
@@ -27,5 +31,6 @@ struct SearchResult: Codable, Identifiable, Hashable, Sendable {
         self.matchText = matchText
         self.role = role
         self.context = context
+        self.accountLabel = accountLabel
     }
 }

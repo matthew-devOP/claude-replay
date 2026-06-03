@@ -1281,93 +1281,114 @@ async function handleApi(req, res, pathname) {
     if (!dirName || !query || query.length < 2) return json(res, { results: [] });
     try {
       const pName = projectName || basename(claudeDirToProjectPath(dirName));
-      const results = [];
       const queryLower = query.toLowerCase();
       // ALL mode searches every account that holds this project; otherwise
-      // just the active one.
+      // just the active one. Each account gets its own budget and the
+      // per-account hits are interleaved round-robin, so one noisy account
+      // can't exhaust the global cap before the others are represented.
       const accountDirs = isAllAccounts() ? listAccountDirs() : [currentClaudeDir];
+      const TOTAL_CAP = 50;
+      const perCap = Math.max(1, Math.ceil(TOTAL_CAP / accountDirs.length));
+      const buckets = [];
 
       for (const accountDir of accountDirs) {
-        if (results.length >= 50) break;
         const projPath = join(claudeProjectsDir(accountDir), dirName);
         if (!existsSync(projPath)) continue;
         const acct = { dirName: accountDir, label: accountLabel(accountDir) };
         const files = readdirSync(projPath).filter((f) => f.endsWith(".jsonl")).sort().reverse();
+        const acctResults = [];
 
         for (const file of files.slice(0, 30)) {
-        if (results.length >= 50) break;
-        const fullPath = join(projPath, file);
-        try {
-          const content = readFileSync(fullPath, "utf-8");
-          const lines = content.split("\n").filter((l) => l.trim());
-          let turnIdx = 0;
-          for (const line of lines) {
-            if (results.length >= 50) break;
-            try {
-              const entry = JSON.parse(line);
-              const isUser = entry.type === "human" || entry.role === "human" || entry.type === "user" || entry.role === "user";
-              if (isUser) {
-                turnIdx++;
-                let text = "";
-                if (typeof entry.message === "string") text = entry.message;
-                else if (entry.message?.content) {
-                  const arr = Array.isArray(entry.message.content) ? entry.message.content : [entry.message.content];
-                  for (const c of arr) {
-                    if (typeof c === "string") { text = c; break; }
-                    if (c.type === "text" && c.text) { text = c.text; break; }
+          if (acctResults.length >= perCap) break;
+          const fullPath = join(projPath, file);
+          try {
+            const content = readFileSync(fullPath, "utf-8");
+            const lines = content.split("\n").filter((l) => l.trim());
+            let turnIdx = 0;
+            for (const line of lines) {
+              if (acctResults.length >= perCap) break;
+              try {
+                const entry = JSON.parse(line);
+                const isUser = entry.type === "human" || entry.role === "human" || entry.type === "user" || entry.role === "user";
+                if (isUser) {
+                  turnIdx++;
+                  let text = "";
+                  if (typeof entry.message === "string") text = entry.message;
+                  else if (entry.message?.content) {
+                    const arr = Array.isArray(entry.message.content) ? entry.message.content : [entry.message.content];
+                    for (const c of arr) {
+                      if (typeof c === "string") { text = c; break; }
+                      if (c.type === "text" && c.text) { text = c.text; break; }
+                    }
+                  }
+                  text = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").trim();
+                  if (text.toLowerCase().includes(queryLower)) {
+                    const sessionId = file.replace(/\.jsonl$/, "");
+                    acctResults.push({
+                      project: pName,
+                      sessionId: sessionId.slice(0, 8),
+                      path: fullPath,
+                      turn: turnIdx,
+                      text: text.slice(0, 300),
+                      account: acct,
+                      role: "user",
+                    });
                   }
                 }
-                text = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "").trim();
-                if (text.toLowerCase().includes(queryLower)) {
-                  const sessionId = file.replace(/\.jsonl$/, "");
-                  results.push({
-                    project: pName,
-                    sessionId: sessionId.slice(0, 8),
-                    path: fullPath,
-                    turn: turnIdx,
-                    text: text.slice(0, 300),
-                    account: acct,
-                    role: "user",
-                  });
-                }
-              }
-              // Also search assistant text blocks
-              if (entry.type === "assistant" || entry.role === "assistant") {
-                const msg = entry.message;
-                if (typeof msg === "string" && msg.toLowerCase().includes(queryLower)) {
-                  const sessionId = file.replace(/\.jsonl$/, "");
-                  results.push({
-                    project: pName,
-                    sessionId: sessionId.slice(0, 8),
-                    path: fullPath,
-                    turn: turnIdx,
-                    text: msg.slice(0, 300),
-                    account: acct,
-                    role: "assistant",
-                  });
-                } else if (msg?.content && Array.isArray(msg.content)) {
-                  for (const c of msg.content) {
-                    if (results.length >= 50) break;
-                    if (c.type === "text" && c.text && c.text.toLowerCase().includes(queryLower)) {
-                      const sessionId = file.replace(/\.jsonl$/, "");
-                      results.push({
-                        project: pName,
-                        sessionId: sessionId.slice(0, 8),
-                        path: fullPath,
-                        turn: turnIdx,
-                        text: c.text.slice(0, 300),
-                        account: acct,
-                        role: "assistant",
-                      });
-                      break;
+                // Also search assistant text blocks
+                if (entry.type === "assistant" || entry.role === "assistant") {
+                  const msg = entry.message;
+                  if (typeof msg === "string" && msg.toLowerCase().includes(queryLower)) {
+                    const sessionId = file.replace(/\.jsonl$/, "");
+                    acctResults.push({
+                      project: pName,
+                      sessionId: sessionId.slice(0, 8),
+                      path: fullPath,
+                      turn: turnIdx,
+                      text: msg.slice(0, 300),
+                      account: acct,
+                      role: "assistant",
+                    });
+                  } else if (msg?.content && Array.isArray(msg.content)) {
+                    for (const c of msg.content) {
+                      if (acctResults.length >= perCap) break;
+                      if (c.type === "text" && c.text && c.text.toLowerCase().includes(queryLower)) {
+                        const sessionId = file.replace(/\.jsonl$/, "");
+                        acctResults.push({
+                          project: pName,
+                          sessionId: sessionId.slice(0, 8),
+                          path: fullPath,
+                          turn: turnIdx,
+                          text: c.text.slice(0, 300),
+                          account: acct,
+                          role: "assistant",
+                        });
+                        break;
+                      }
                     }
                   }
                 }
-              }
-            } catch { /* skip */ }
-          }
-        } catch { /* skip file */ }
+              } catch { /* skip */ }
+            }
+          } catch { /* skip file */ }
         }
+        if (acctResults.length) buckets.push(acctResults);
+      }
+
+      // Interleave round-robin across accounts up to the global cap.
+      const results = [];
+      let ri = 0;
+      while (results.length < TOTAL_CAP) {
+        let added = false;
+        for (const b of buckets) {
+          if (ri < b.length) {
+            results.push(b[ri]);
+            added = true;
+            if (results.length >= TOTAL_CAP) break;
+          }
+        }
+        if (!added) break;
+        ri++;
       }
       return json(res, { results });
     } catch (e) {

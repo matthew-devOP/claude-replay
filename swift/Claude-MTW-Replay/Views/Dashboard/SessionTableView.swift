@@ -166,8 +166,10 @@ struct SessionTableView: View {
     private var headerRow: some View {
         HStack(spacing: 0) {
             cell("SESSION", width: 130)
+            if appState.isAllAccounts { cell("ACCOUNT", width: 90) }
             cell("PREVIEW", width: nil, alignment: .leading)
-            sortable("DATE", key: .date, width: 110)
+            sortable("CREATED", key: .created, width: 110)
+            sortable("LAST ACTIVE", key: .date, width: 110)
             sortable("DURATION", key: .duration, width: 110)
             sortable("TURNS", key: .turns, width: 80, align: .trailing)
             sortable("SIZE", key: .size, width: 90, align: .trailing)
