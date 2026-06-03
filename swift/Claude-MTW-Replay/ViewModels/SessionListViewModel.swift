@@ -76,23 +76,33 @@ final class SessionListViewModel {
         guard source == "claude" else { return }
 
         let fm = FileManager.default
-        let projURL = fm.homeDirectoryURL
-            .appendingPathComponent(claudeAccountDir)
-            .appendingPathComponent("projects")
-            .appendingPathComponent(projectDirName)
-        guard fm.isDirectory(at: projURL.path) else { return }
+        // In ALL mode the same project can live under several accounts —
+        // watch each account's copy so a new session in any of them refreshes
+        // the aggregated table.
+        let dirs = claudeAccountDir == AccountStore.allDirName
+            ? AccountStore.realAccountDirs()
+            : [claudeAccountDir]
+        var newWatchers: [FileWatcher] = []
+        for dir in dirs {
+            let projURL = fm.homeDirectoryURL
+                .appendingPathComponent(dir)
+                .appendingPathComponent("projects")
+                .appendingPathComponent(projectDirName)
+            guard fm.isDirectory(at: projURL.path) else { continue }
 
-        let watcher = FileWatcher(url: projURL) { [weak self] _, _ in
-            // FileWatcher fires on its private DispatchQueue; hop onto
-            // the main actor to mutate VM state safely.
-            Task { @MainActor [weak self] in
-                self?.scheduleReload(projectDirName: projectDirName,
-                                     source: source,
-                                     claudeAccountDir: claudeAccountDir)
+            let watcher = FileWatcher(url: projURL) { [weak self] _, _ in
+                // FileWatcher fires on its private DispatchQueue; hop onto
+                // the main actor to mutate VM state safely.
+                Task { @MainActor [weak self] in
+                    self?.scheduleReload(projectDirName: projectDirName,
+                                         source: source,
+                                         claudeAccountDir: claudeAccountDir)
+                }
             }
+            watcher.start()
+            newWatchers.append(watcher)
         }
-        watcher.start()
-        watchers = [watcher]
+        watchers = newWatchers
     }
 
     /// Tear down any live watcher and drop pending reloads.

@@ -158,8 +158,23 @@ extension FileWatcher {
     static func watchSessionDirectories(
         handler: @escaping Handler
     ) -> [FileWatcher] {
+        watchSessionDirectories(claudeAccountDirs: [".claude"], handler: handler)
+    }
+
+    /// Watch session roots for a specific set of Claude accounts, plus the
+    /// global Cursor/Codex roots once. Used by the ALL-accounts view (and any
+    /// non-default single account) so new sessions in every watched account
+    /// flow back into the UI — not just `~/.claude`.
+    static func watchSessionDirectories(
+        claudeAccountDirs: [String],
+        handler: @escaping Handler
+    ) -> [FileWatcher] {
         let fm = FileManager.default
-        let roots = fm.sessionRootDirectories.map(\.url)
+        var roots: [URL] = claudeAccountDirs.map {
+            fm.homeDirectoryURL.appendingPathComponent($0).appendingPathComponent("projects")
+        }
+        roots.append(fm.homeDirectoryURL.appendingPathComponent(".cursor/projects"))
+        roots.append(fm.homeDirectoryURL.appendingPathComponent(".codex/sessions"))
         var watchers: [FileWatcher] = []
 
         for rootURL in roots {

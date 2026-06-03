@@ -4,7 +4,7 @@ struct SearchResultRowView: View {
     let result: SearchResult
     var body: some View {
         VStack(alignment: .leading, spacing: DesignTokens.space4) {
-            HStack { Text("Turn \(result.turnIndex)").font(.caption).bold(); Text(result.role).font(.caption2).padding(.horizontal, DesignTokens.space4).background(appState.theme.accent.opacity(0.2), in: Capsule()) }
+            HStack { Text("Turn \(result.turnIndex)").font(.caption).bold(); Text(result.role).font(.caption2).padding(.horizontal, DesignTokens.space4).background(appState.theme.accent.opacity(0.2), in: Capsule()); if let acct = result.accountLabel { AccountBadge(label: acct, small: true) }; Spacer(minLength: 0) }
             Text(result.matchText).font(.body).lineLimit(3)
         }.padding(.vertical, DesignTokens.space4)
     }

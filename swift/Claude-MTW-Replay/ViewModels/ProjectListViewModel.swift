@@ -78,7 +78,13 @@ final class ProjectListViewModel {
     func startWatching(claudeAccountDir: String) {
         stopWatching()
         watchedAccountDir = claudeAccountDir
-        watchers = FileWatcher.watchSessionDirectories { [weak self] _, _ in
+        // In ALL mode watch every account; otherwise just the active one
+        // (also fixes non-default single accounts, which previously only
+        // watched ~/.claude).
+        let dirs = claudeAccountDir == AccountStore.allDirName
+            ? AccountStore.realAccountDirs()
+            : [claudeAccountDir]
+        watchers = FileWatcher.watchSessionDirectories(claudeAccountDirs: dirs) { [weak self] _, _ in
             self?.scheduleReload(claudeAccountDir: claudeAccountDir)
         }
     }
