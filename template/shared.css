@@ -232,6 +232,30 @@ body {
 }
 .theme-dropdown-item:hover { background: var(--bg-hover); color: var(--text); }
 .theme-dropdown-item.active { color: var(--accent); font-weight: 600; }
+/* "ALL accounts" entry — sits at the top, set apart by a divider + accent. */
+.theme-dropdown-item.account-all {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  padding-bottom: 10px;
+}
+
+/* ─── Account badge (per-session origin, ALL mode) ─── */
+.account-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: hsl(var(--acc-h, 0) 70% 82%);
+  background: hsl(var(--acc-h, 0) 45% 22%);
+  border: 1px solid hsl(var(--acc-h, 0) 45% 38%);
+}
+.account-badge.sm { font-size: 9px; padding: 0 6px; }
+.project-accounts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
 
 /* ─── App Footer / Status Bar ─── */
 .app-footer {

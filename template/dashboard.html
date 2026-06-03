@@ -1600,6 +1600,7 @@ mark.search-highlight.active {
           <span>${p.sessionCount} session${p.sessionCount !== 1 ? "s" : ""}</span>
           <span>${formatDate(p.lastActivity)}</span>
         </div>
+        ${p.accounts && p.accounts.length ? `<div class="project-accounts">${p.accounts.map(a => `<span class="account-badge sm" style="--acc-h:${accountHue(a.label)}" title="${escapeHtml(a.label)}: ${a.sessionCount} session${a.sessionCount !== 1 ? "s" : ""}">${escapeHtml(a.label)}</span>`).join("")}</div>` : ""}
         <div class="project-git-info" data-gitinfo="${escapeHtml(p.dirName)}"></div>
       </div>
     `).join("");
@@ -2054,15 +2055,28 @@ mark.search-highlight.active {
   let currentSortKey = "date";
   let currentSortAsc = false;
 
+  // Deterministic hue (0-359) from an account label, for its badge colour.
+  function accountHue(label) {
+    let h = 0;
+    for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) % 360;
+    return h;
+  }
+  function accountBadge(acct) {
+    if (!acct || !acct.label) return "";
+    return `<span class="account-badge" style="--acc-h:${accountHue(acct.label)}" title="Account: ${escapeHtml(acct.label)}">${escapeHtml(acct.label)}</span>`;
+  }
+
   function renderSessionTable(sessions) {
     if (sessions.length === 0) {
       return '<div class="md-empty">No sessions found in this project.</div>';
     }
+    const showAccount = !!(activeDetails && activeDetails.allAccounts);
     // Sort
     const sorted = [...sessions];
     sorted.sort((a, b) => {
       let va, vb;
       if (currentSortKey === "date") { va = a.date || ""; vb = b.date || ""; }
+      else if (currentSortKey === "created") { va = a.firstTimestamp || a.date || ""; vb = b.firstTimestamp || b.date || ""; }
       else if (currentSortKey === "turns") { va = a.turnCount || 0; vb = b.turnCount || 0; }
       else if (currentSortKey === "size") { va = a.size || 0; vb = b.size || 0; }
       else if (currentSortKey === "duration") { va = a.duration || 0; vb = b.duration || 0; }
@@ -2086,8 +2100,10 @@ mark.search-highlight.active {
       <table class="session-table" id="sessionTable">
         <thead><tr>
           <th>Session</th>
+          ${showAccount ? "<th>Account</th>" : ""}
           <th>Preview</th>
-          <th class="${sortCls("date")}" data-sort="date">Date ${sortArrow("date")}</th>
+          <th class="${sortCls("created")}" data-sort="created">Created ${sortArrow("created")}</th>
+          <th class="${sortCls("date")}" data-sort="date">Last active ${sortArrow("date")}</th>
           <th class="${sortCls("duration")}" data-sort="duration">Duration ${sortArrow("duration")}</th>
           <th class="${sortCls("turns")}" data-sort="turns">Turns ${sortArrow("turns")}</th>
           <th class="${sortCls("size")}" data-sort="size">Size ${sortArrow("size")}</th>
@@ -2103,7 +2119,9 @@ mark.search-highlight.active {
                 <span class="session-id">${escapeHtml(s.sessionId.slice(0, 8))}</span>
                 <div class="session-tags" data-path="${escapeHtml(s.path)}"></div>
               </td>
+              ${showAccount ? `<td>${accountBadge(s.account)}</td>` : ""}
               <td><span class="session-preview" title="${escapeHtml(s.preview)}">${escapeHtml(s.preview || "(empty)")}</span></td>
+              <td><span class="session-date" title="${formatFullDate(s.firstTimestamp || s.date)}">${formatDate(s.firstTimestamp || s.date)}</span></td>
               <td><span class="session-date" title="${formatFullDate(s.date)}">${formatDate(s.date)}</span></td>
               <td><span class="session-duration">${formatDuration(s.duration)}</span></td>
               <td class="session-turns">${s.turnCount || "\u2014"}</td>
@@ -2132,7 +2150,7 @@ mark.search-highlight.active {
       currentSortAsc = !currentSortAsc;
     } else {
       currentSortKey = key;
-      currentSortAsc = key === "date" ? false : true; // date desc by default, others asc
+      currentSortAsc = (key === "date" || key === "created") ? false : true; // dates desc by default, others asc
     }
     // Re-render table
     if (activeDetails) {

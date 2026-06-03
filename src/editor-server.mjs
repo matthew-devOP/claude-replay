@@ -49,6 +49,8 @@ let sessionCounter = 0;
 const SETTINGS_DIR = process.env.CLAUDE_REPLAY_DATA || join(homedir(), ".claude-replay");
 const ACCOUNT_SETTINGS_PATH = join(SETTINGS_DIR, "account.json");
 const DEFAULT_ACCOUNT_DIR = ".claude";
+// Sentinel "virtual account" meaning: aggregate across every real account.
+const ALL_ACCOUNTS = "__all__";
 
 function readAccountSetting() {
   try {
@@ -70,6 +72,7 @@ let currentClaudeDir = readAccountSetting();
 
 /** Best-effort pretty label from a dir name like ".claude-work" → "work". */
 function accountLabel(dirName) {
+  if (dirName === ALL_ACCOUNTS) return "all";
   if (dirName === ".claude") return "main";
   const m = dirName.match(/^\.claude[-_](.+)$/);
   return m ? m[1] : dirName.replace(/^\./, "");
@@ -97,19 +100,38 @@ function listAccountDirs() {
 
 function getAvailableAccounts() {
   const dirs = listAccountDirs();
-  // If the persisted selection no longer exists, fall back to default
-  if (!dirs.includes(currentClaudeDir)) currentClaudeDir = DEFAULT_ACCOUNT_DIR;
-  return dirs.map((d) => ({
+  // If the persisted selection no longer exists, fall back to default.
+  // (ALL is a virtual selection — never present in `dirs` — so exempt it.)
+  if (currentClaudeDir !== ALL_ACCOUNTS && !dirs.includes(currentClaudeDir)) {
+    currentClaudeDir = DEFAULT_ACCOUNT_DIR;
+  }
+  const real = dirs.map((d) => ({
     dirName: d,
     label: accountLabel(d),
     path: join(homedir(), d),
     active: d === currentClaudeDir,
   }));
+  // Prepend the virtual "ALL" account — only worth offering with 2+ accounts.
+  if (real.length > 1) {
+    real.unshift({
+      dirName: ALL_ACCOUNTS,
+      label: accountLabel(ALL_ACCOUNTS),
+      path: "",
+      active: currentClaudeDir === ALL_ACCOUNTS,
+      all: true,
+    });
+  }
+  return real;
 }
 
-/** Absolute path to ~/<currentClaudeDir>/projects. */
-function claudeProjectsDir() {
-  return join(homedir(), currentClaudeDir, "projects");
+/** True when the active selection aggregates across every account. */
+function isAllAccounts() {
+  return currentClaudeDir === ALL_ACCOUNTS;
+}
+
+/** Absolute path to ~/<dir>/projects (defaults to the active account). */
+function claudeProjectsDir(dir = currentClaudeDir) {
+  return join(homedir(), dir, "projects");
 }
 
 // ---------------------------------------------------------------------------
@@ -565,13 +587,11 @@ function claudeDirToProjectPath(dirName) {
   return path;
 }
 
-/** Discover projects grouped by source, with metadata. */
-function discoverProjects() {
-  const home = homedir();
+/** Discover Claude projects under a single account directory. */
+function discoverProjectsForDir(accountDir) {
   const projects = [];
-
-  // Claude Code projects
-  const claudeBase = claudeProjectsDir();
+  const claudeBase = claudeProjectsDir(accountDir);
+  const label = accountLabel(accountDir);
   try {
     const dirs = readdirSync(claudeBase).filter((d) => {
       try { return statSync(join(claudeBase, d)).isDirectory(); } catch { return false; }
@@ -601,21 +621,58 @@ function discoverProjects() {
         sessionCount: files.length,
         lastActivity: lastActivity ? lastActivity.toISOString() : null,
         firstActivity: firstActivity ? firstActivity.toISOString() : null,
+        account: { dirName: accountDir, label },
       });
     }
   } catch { /* directory doesn't exist */ }
-
-  // Sort by last activity descending
-  projects.sort((a, b) => (b.lastActivity || "").localeCompare(a.lastActivity || ""));
   return projects;
 }
 
-/** Get detailed project information including CLAUDE.md, MEMORY.md, and session previews. */
-function getProjectDetails(source, dirName) {
-  const home = homedir();
+/**
+ * Discover projects across EVERY account, merged by project key (`dirName`).
+ * The dirName encodes the real filesystem path, so the same logical project
+ * living under several accounts collapses into one card whose session count,
+ * activity window and contributing accounts are aggregated.
+ */
+function discoverProjectsAll() {
+  const byKey = new Map();
+  for (const accountDir of listAccountDirs()) {
+    for (const p of discoverProjectsForDir(accountDir)) {
+      const existing = byKey.get(p.dirName);
+      const contributor = { dirName: accountDir, label: accountLabel(accountDir), sessionCount: p.sessionCount };
+      if (!existing) {
+        byKey.set(p.dirName, {
+          ...p,
+          account: undefined,
+          accounts: [contributor],
+        });
+      } else {
+        existing.sessionCount += p.sessionCount;
+        if ((p.lastActivity || "") > (existing.lastActivity || "")) existing.lastActivity = p.lastActivity;
+        if (p.firstActivity && (!existing.firstActivity || p.firstActivity < existing.firstActivity)) {
+          existing.firstActivity = p.firstActivity;
+        }
+        existing.accounts.push(contributor);
+      }
+    }
+  }
+  const merged = [...byKey.values()];
+  merged.sort((a, b) => (b.lastActivity || "").localeCompare(a.lastActivity || ""));
+  return merged;
+}
 
-  if (source === "claude") {
-    const projPath = join(claudeProjectsDir(), dirName);
+/** Discover projects for the active selection (single account or ALL). */
+function discoverProjects() {
+  if (isAllAccounts()) return discoverProjectsAll();
+  return discoverProjectsForDir(currentClaudeDir);
+}
+
+/** Get detailed project info for ONE account: CLAUDE.md, MEMORY.md, sessions. */
+function getProjectDetailsForDir(accountDir, dirName) {
+  const accountInfo = { dirName: accountDir, label: accountLabel(accountDir) };
+
+  {
+    const projPath = join(claudeProjectsDir(accountDir), dirName);
     if (!existsSync(projPath)) throw new Error("Project not found");
 
     const realPath = claudeDirToProjectPath(dirName);
@@ -648,7 +705,7 @@ function getProjectDetails(source, dirName) {
       // Try cache first
       const cached = getCachedMeta(fullPath, date);
       if (cached) {
-        sessionList.push({ ...cached, file });
+        sessionList.push({ ...cached, file, account: accountInfo });
         continue;
       }
 
@@ -696,8 +753,8 @@ function getProjectDetails(source, dirName) {
       }
 
       const meta = { sessionId, file, path: fullPath, date, size, turnCount, duration, preview: preview.slice(0, 120), userPreviews, firstTimestamp, lastTimestamp };
-      sessionList.push(meta);
-      // Cache for next time
+      sessionList.push({ ...meta, account: accountInfo });
+      // Cache for next time (account is re-attached per request, never cached)
       try { setCachedMeta(fullPath, dirName, meta); } catch { /* ignore cache errors */ }
     }
 
@@ -707,13 +764,14 @@ function getProjectDetails(source, dirName) {
     const dates = sessionList.map((s) => s.date).filter(Boolean).sort();
 
     return {
-      source,
+      source: "claude",
       dirName,
       name: realPath,
       claudeProjectPath: projPath,
       claudeMd,
       memoryMd,
       sessions: sessionList,
+      allAccounts: false,
       stats: {
         totalSessions: sessionList.length,
         totalTurns,
@@ -722,8 +780,50 @@ function getProjectDetails(source, dirName) {
       },
     };
   }
+}
 
-  throw new Error("Unsupported source: " + source);
+/**
+ * Aggregate ONE project's sessions across every account that contains it.
+ * Sessions stay tagged with their originating account; CLAUDE.md / MEMORY.md
+ * are taken from the first account that provides them.
+ */
+function getProjectDetailsAll(dirName) {
+  let base = null;
+  const sessions = [];
+  for (const accountDir of listAccountDirs()) {
+    const projPath = join(claudeProjectsDir(accountDir), dirName);
+    if (!existsSync(projPath)) continue;
+    let details;
+    try { details = getProjectDetailsForDir(accountDir, dirName); }
+    catch { continue; }
+    if (!base) base = details;
+    else {
+      if (!base.claudeMd && details.claudeMd) base.claudeMd = details.claudeMd;
+      if (!base.memoryMd && details.memoryMd) base.memoryMd = details.memoryMd;
+    }
+    sessions.push(...details.sessions);
+  }
+  if (!base) throw new Error("Project not found");
+
+  const totalTurns = sessions.reduce((s, x) => s + (x.turnCount || 0), 0);
+  const totalSize = sessions.reduce((s, x) => s + (x.size || 0), 0);
+  const dates = sessions.map((s) => s.date).filter(Boolean).sort();
+  base.sessions = sessions;
+  base.allAccounts = true;
+  base.stats = {
+    totalSessions: sessions.length,
+    totalTurns,
+    totalSize,
+    dateRange: dates.length > 0 ? { first: dates[0], last: dates[dates.length - 1] } : null,
+  };
+  return base;
+}
+
+/** Dispatch project details for the active selection (single account or ALL). */
+function getProjectDetails(source, dirName) {
+  if (source !== "claude") throw new Error("Unsupported source: " + source);
+  if (isAllAccounts()) return getProjectDetailsAll(dirName);
+  return getProjectDetailsForDir(currentClaudeDir, dirName);
 }
 
 /** Compute detailed statistics for a parsed session. */
@@ -945,7 +1045,9 @@ async function handleApi(req, res, pathname) {
     const target = body && typeof body.dirName === "string" ? body.dirName : null;
     if (!target) return error(res, "Missing 'dirName' field");
     const available = listAccountDirs();
-    if (!available.includes(target)) return error(res, `Unknown account: ${target}`, 404);
+    if (target !== ALL_ACCOUNTS && !available.includes(target)) {
+      return error(res, `Unknown account: ${target}`, 404);
+    }
     currentClaudeDir = target;
     writeAccountSetting(target);
     return json(res, { accounts: getAvailableAccounts() });
@@ -1178,15 +1280,21 @@ async function handleApi(req, res, pathname) {
     const { dirName, query, projectName } = body;
     if (!dirName || !query || query.length < 2) return json(res, { results: [] });
     try {
-      const projPath = join(claudeProjectsDir(), dirName);
-      if (!existsSync(projPath)) return json(res, { results: [] });
       const pName = projectName || basename(claudeDirToProjectPath(dirName));
-
-      const files = readdirSync(projPath).filter((f) => f.endsWith(".jsonl")).sort().reverse();
       const results = [];
       const queryLower = query.toLowerCase();
+      // ALL mode searches every account that holds this project; otherwise
+      // just the active one.
+      const accountDirs = isAllAccounts() ? listAccountDirs() : [currentClaudeDir];
 
-      for (const file of files.slice(0, 30)) {
+      for (const accountDir of accountDirs) {
+        if (results.length >= 50) break;
+        const projPath = join(claudeProjectsDir(accountDir), dirName);
+        if (!existsSync(projPath)) continue;
+        const acct = { dirName: accountDir, label: accountLabel(accountDir) };
+        const files = readdirSync(projPath).filter((f) => f.endsWith(".jsonl")).sort().reverse();
+
+        for (const file of files.slice(0, 30)) {
         if (results.length >= 50) break;
         const fullPath = join(projPath, file);
         try {
@@ -1218,6 +1326,7 @@ async function handleApi(req, res, pathname) {
                     path: fullPath,
                     turn: turnIdx,
                     text: text.slice(0, 300),
+                    account: acct,
                     role: "user",
                   });
                 }
@@ -1233,6 +1342,7 @@ async function handleApi(req, res, pathname) {
                     path: fullPath,
                     turn: turnIdx,
                     text: msg.slice(0, 300),
+                    account: acct,
                     role: "assistant",
                   });
                 } else if (msg?.content && Array.isArray(msg.content)) {
@@ -1246,6 +1356,7 @@ async function handleApi(req, res, pathname) {
                         path: fullPath,
                         turn: turnIdx,
                         text: c.text.slice(0, 300),
+                        account: acct,
                         role: "assistant",
                       });
                       break;
@@ -1256,6 +1367,7 @@ async function handleApi(req, res, pathname) {
             } catch { /* skip */ }
           }
         } catch { /* skip file */ }
+        }
       }
       return json(res, { results });
     } catch (e) {
@@ -1468,9 +1580,9 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
     menu.innerHTML = '';
     (data.accounts || []).forEach(function(a){
       var item = document.createElement('button');
-      item.className = 'theme-dropdown-item' + (a.active ? ' active' : '');
-      item.title = a.path;
-      item.textContent = a.label;
+      item.className = 'theme-dropdown-item' + (a.active ? ' active' : '') + (a.all ? ' account-all' : '');
+      item.title = a.all ? 'Show sessions from every account' : a.path;
+      item.textContent = a.all ? 'ALL accounts' : a.label;
       item.addEventListener('click', function(e){
         e.stopPropagation();
         if (a.active) { dd.classList.remove('open'); return; }
@@ -1478,7 +1590,7 @@ export function startEditor(port, { open = true, host = "127.0.0.1" } = {}) {
           .then(function(){ location.reload(); });
       });
       menu.appendChild(item);
-      if (a.active && label) label.textContent = a.label;
+      if (a.active && label) label.textContent = a.all ? 'ALL' : a.label;
     });
   }).catch(function(){});
 })();
